@@ -124,7 +124,8 @@ Create a Supabase project and configure:
 
 ``` env
 SUPABASE_URL=your_url
-SUPABASE_ANON_KEY=your_key
+SUPABASE_PUBLISHABLE_KEY=your_key
+SUPABASE_SECRET_KEY=your_secret_key
 ```
 
 ------------------------------------------------------------------------
