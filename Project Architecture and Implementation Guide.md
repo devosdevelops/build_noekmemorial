@@ -59,7 +59,7 @@ Supabase
 
 ### Accounts
 
-- Supabase (EU region)
+- Supabase (EU region) => `https://xnaltadihzqgtgypclab.supabase.co`
 - GitHub
 - Vercel
 - Combell (DNS)
@@ -69,6 +69,39 @@ Supabase
 - Node LTS
 - VSCode
 - Git
+
+### Project Startup (Nuxt)
+
+#### Create a new Nuxt app
+
+``` bash
+npx nuxi@latest init app
+cd app
+npm install
+npm run dev
+```
+
+App runs by default at:
+
+``` text
+http://localhost:3000
+```
+
+#### Start this project (existing repo)
+
+From the project root:
+
+``` bash
+npm install
+npm run dev
+```
+
+#### Useful Nuxt scripts
+
+``` bash
+npm run build
+npm run preview
+```
 
 ------------------------------------------------------------------------
 
