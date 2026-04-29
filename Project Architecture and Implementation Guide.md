@@ -59,7 +59,7 @@ Supabase
 
 ### Accounts
 
-- Supabase (EU region) => `https://xnaltadihzqgtgypclab.supabase.co`
+- Supabase (EU region)
 - GitHub
 - Vercel
 - Combell (DNS)
