@@ -1,12 +1,20 @@
 <script setup lang="ts">
-defineProps<{
+const props = withDefaults(defineProps<{
   label: string
-}>()
+  isActive?: boolean
+}>(), {
+  isActive: false
+})
 </script>
 
 <template>
-  <button type="button" class="overlay-button">
-    <slot>{{ label }}</slot>
+  <button
+    type="button"
+    class="overlay-button"
+    :class="{ 'overlay-button--selected': props.isActive }"
+    :aria-pressed="props.isActive ? 'true' : 'false'"
+  >
+    <slot>{{ props.label }}</slot>
   </button>
 </template>
 
@@ -20,5 +28,17 @@ defineProps<{
   letter-spacing: 0.01em;
   padding: 0.58rem 0.72rem;
   cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.overlay-button:hover {
+  border-color: rgba(114, 131, 98, 0.45);
+}
+
+.overlay-button--selected {
+  border-color: rgba(101, 124, 74, 0.72);
+  background: linear-gradient(180deg, #eef5df, #d6e6be);
+  color: #3e502e;
+  box-shadow: 0 0 0 2px rgba(188, 208, 154, 0.55);
 }
 </style>

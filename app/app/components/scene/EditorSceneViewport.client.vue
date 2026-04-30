@@ -14,6 +14,14 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 
 const containerRef = ref<HTMLDivElement | null>(null)
 
+type EditorTool = 'select' | 'move' | 'rotate'
+
+const props = withDefaults(defineProps<{
+  activeTool?: EditorTool
+}>(), {
+  activeTool: 'select'
+})
+
 type SceneObjectState = {
   id: string
   position: [number, number, number]
@@ -49,6 +57,7 @@ let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let controls: OrbitControls | null = null
 let transformControls: TransformControls | null = null
+let transformHelper: THREE.Object3D | null = null
 let composer: EffectComposer | null = null
 let outlinePass: OutlinePass | null = null
 let gizmoScene: THREE.Scene | null = null
@@ -59,6 +68,7 @@ let frameId = 0
 let gridTexture: THREE.CanvasTexture | null = null
 let gridPlane: THREE.Mesh | null = null
 let isTransforming = false
+let isUsingTransformGizmo = false
 
 const selectableRoots: THREE.Object3D[] = []
 const meshById = new Map<string, THREE.Object3D>()
@@ -222,6 +232,16 @@ function updateSceneObjectPosition(objectId: string, position: THREE.Vector3): v
   objectState.position = [position.x, position.y, position.z]
 }
 
+function updateSceneObjectRotation(objectId: string, rotation: THREE.Euler): void {
+  const objectState = sceneObjects.find((object) => object.id === objectId)
+
+  if (!objectState) {
+    return
+  }
+
+  objectState.rotation = [rotation.x, rotation.y, rotation.z]
+}
+
 function getSelectableRoot(object: THREE.Object3D | null): THREE.Object3D | null {
   let current: THREE.Object3D | null = object
 
@@ -374,21 +394,46 @@ function setSelectedObjectId(objectId: string | null): void {
 
   applyEmissiveHighlight(selectedMesh)
 
-  if (transformControls) {
-    if (selectedMesh) {
-      transformControls.attach(selectedMesh)
-      transformControls.setMode('translate')
-      transformControls.setSpace('world')
-      transformControls.enabled = true
-      transformControls.visible = true
-      transformControls.updateMatrixWorld(true)
-    } else {
-      transformControls.detach()
-      transformControls.enabled = false
-      transformControls.visible = false
+  syncTransformControlsState()
+}
+
+function syncTransformControlsState(): void {
+  if (!transformControls) {
+    return
+  }
+
+  const selectedMesh = selectedObjectId.value ? meshById.get(selectedObjectId.value) ?? null : null
+  const isMoveActive = props.activeTool === 'move'
+  const isRotateActive = props.activeTool === 'rotate'
+
+  if (!selectedMesh || (!isMoveActive && !isRotateActive)) {
+    transformControls.detach()
+    transformControls.enabled = false
+    transformControls.visible = false
+    if (transformHelper) {
+      transformHelper.visible = false
     }
+    return
+  }
+
+  transformControls.attach(selectedMesh)
+  transformControls.setMode(isMoveActive ? 'translate' : 'rotate')
+  transformControls.setSpace('world')
+  transformControls.enabled = true
+  transformControls.visible = true
+  transformControls.setTranslationSnap(isMoveActive ? gridConfig.cellSize : null)
+  if (transformHelper) {
+    transformHelper.visible = true
+    transformHelper.updateMatrixWorld(true)
   }
 }
+
+watch(
+  () => props.activeTool,
+  () => {
+    syncTransformControlsState()
+  }
+)
 
 function handlePointerDown(event: PointerEvent): void {
   if (!renderer || !camera || !scene || isTransforming) {
@@ -399,7 +444,7 @@ function handlePointerDown(event: PointerEvent): void {
     return
   }
 
-  if (transformControls && (transformControls.dragging || transformControls.axis)) {
+  if (isUsingTransformGizmo || transformControls?.dragging) {
     return
   }
 
@@ -438,7 +483,8 @@ function handlePointerUp(event: PointerEvent): void {
     return
   }
 
-  if (transformControls && (transformControls.dragging || transformControls.axis)) {
+  if (isUsingTransformGizmo || transformControls?.dragging) {
+    isUsingTransformGizmo = false
     return
   }
 
@@ -610,7 +656,8 @@ onMounted(() => {
   transformControls.showZ = true
   transformControls.size = 1.2
   transformControls.visible = false
-  const transformHelper = transformControls.getHelper()
+  transformHelper = transformControls.getHelper()
+  transformHelper.visible = false
   transformHelper.renderOrder = 10
   transformHelper.traverse((child: THREE.Object3D) => {
     child.renderOrder = 10
@@ -633,6 +680,12 @@ onMounted(() => {
       controls.enabled = !event.value
     }
   })
+  transformControls.addEventListener('mouseDown', () => {
+    isUsingTransformGizmo = true
+  })
+  transformControls.addEventListener('mouseUp', () => {
+    isUsingTransformGizmo = false
+  })
   transformControls.addEventListener('objectChange', () => {
     if (!transformControls || !transformControls.object) {
       return
@@ -644,11 +697,15 @@ onMounted(() => {
       return
     }
 
-    const snapped = snapVectorToGrid(transformControls.object.position)
-    transformControls.object.position.copy(snapped)
-    updateSceneObjectPosition(objectId, snapped)
+    if (transformControls.getMode() === 'translate') {
+      const snapped = snapVectorToGrid(transformControls.object.position)
+      transformControls.object.position.copy(snapped)
+      updateSceneObjectPosition(objectId, snapped)
+      return
+    }
+
+    updateSceneObjectRotation(objectId, transformControls.object.rotation)
   })
-  gizmoScene.add(transformControls)
   gizmoScene.add(transformHelper)
 
   resizeRenderer()
@@ -667,10 +724,14 @@ onMounted(() => {
       }
 
       updateGridTextureRepeat()
-      transformControls?.setTranslationSnap(cellSize)
+      if (transformControls?.getMode() === 'translate') {
+        transformControls.setTranslationSnap(cellSize)
+      }
       resnapAllObjects()
     }
   )
+
+  syncTransformControlsState()
 
   animate()
 })
@@ -703,6 +764,7 @@ onBeforeUnmount(() => {
   camera = null
   controls = null
   transformControls = null
+  transformHelper = null
   composer = null
   outlinePass = null
   gizmoScene = null

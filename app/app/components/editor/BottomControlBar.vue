@@ -1,16 +1,48 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const controls = ['Select', 'Move', 'Rotate', 'Scale', 'Undo', 'Redo']
+type EditorTool = 'select' | 'move' | 'rotate'
+type EditorControlId = EditorTool | 'scale' | 'undo' | 'redo'
+
+const emit = defineEmits<{
+  (event: 'tool-change', value: EditorTool): void
+}>()
+
+const controls: { id: EditorControlId; label: string }[] = [
+  { id: 'select', label: 'Select' },
+  { id: 'move', label: 'Move' },
+  { id: 'rotate', label: 'Rotate' },
+  { id: 'scale', label: 'Scale' },
+  { id: 'undo', label: 'Undo' },
+  { id: 'redo', label: 'Redo' }
+]
+
+const selectedTool = ref<EditorTool>('move')
+
+function isToolControl(controlId: EditorControlId): controlId is EditorTool {
+  return controlId === 'select' || controlId === 'move' || controlId === 'rotate'
+}
+
+function handleControlClick(controlId: EditorControlId): void {
+  if (!isToolControl(controlId)) {
+    return
+  }
+
+  selectedTool.value = controlId
+  emit('tool-change', controlId)
+}
 </script>
 
 <template>
   <OverlayCard class="bottom-toolbar" aria-label="Editor controls">
     <OverlayButton
       v-for="control in controls"
-      :key="control"
-      :label="control"
+      :key="control.id"
+      :label="control.label"
+      :is-active="isToolControl(control.id) && control.id === selectedTool"
+      @click="handleControlClick(control.id)"
     />
   </OverlayCard>
 </template>

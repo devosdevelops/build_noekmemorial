@@ -1,20 +1,34 @@
 <template>
   <div class="app-shell">
     <NuxtRouteAnnouncer />
-    <EditorSceneViewport class="scene-layer" />
+    <EditorSceneViewport
+      class="scene-layer"
+      :active-tool="activeTool"
+    />
     <BrandPanel />
     <SideToolPanel />
     <TopActionBar />
-    <BottomControlBar />
+    <BottomControlBar
+      @tool-change="handleToolChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
 import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
+
+type EditorTool = 'select' | 'move' | 'rotate'
+
+const activeTool = ref<EditorTool>('move')
+
+function handleToolChange(nextTool: EditorTool): void {
+  activeTool.value = nextTool
+}
 </script>
 
 <style scoped>
