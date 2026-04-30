@@ -66,6 +66,23 @@ const raycaster = new THREE.Raycaster()
 const pointerNdc = new THREE.Vector2()
 const emissiveCache = new WeakMap<THREE.Material, { color: THREE.Color; intensity: number }>()
 const activeEmissiveMaterials = new Set<THREE.Material>()
+const emissiveTransitions = new Map<THREE.Material, {
+  fromColor: THREE.Color
+  toColor: THREE.Color
+  fromIntensity: number
+  toIntensity: number
+}>()
+let emissiveAnimationFrame = 0
+
+let pointerIsDown = false
+let pointerMoved = false
+let pointerDownClientX = 0
+let pointerDownClientY = 0
+
+const CLICK_MOVE_THRESHOLD_PX = 6
+
+const GLOW_TRANSITION_MS = 300
+const GLOW_TARGET_INTENSITY = 0.35
 
 const materialPool: THREE.Material[] = []
 const geometryPool: THREE.BufferGeometry[] = []
@@ -227,20 +244,11 @@ function registerSelectableRoot(objectId: string, root: THREE.Object3D): void {
 }
 
 function clearEmissiveHighlight(): void {
-  activeEmissiveMaterials.forEach((material) => {
-    const cached = emissiveCache.get(material)
+  if (!activeEmissiveMaterials.size) {
+    return
+  }
 
-    if (!cached || !('emissive' in material)) {
-      return
-    }
-
-    material.emissive.copy(cached.color)
-
-    if ('emissiveIntensity' in material) {
-      material.emissiveIntensity = cached.intensity
-    }
-  })
-
+  runEmissiveTransition(activeEmissiveMaterials, false)
   activeEmissiveMaterials.clear()
 }
 
@@ -252,6 +260,7 @@ function applyEmissiveHighlight(target: THREE.Object3D | null): void {
   }
 
   const highlightColor = new THREE.Color('#f3e6a2')
+  const nextMaterials = new Set<THREE.Material>()
 
   target.traverse((child: THREE.Object3D) => {
     if (!(child instanceof THREE.Mesh)) {
@@ -272,15 +281,86 @@ function applyEmissiveHighlight(target: THREE.Object3D | null): void {
         })
       }
 
-      material.emissive.copy(highlightColor)
-
-      if ('emissiveIntensity' in material) {
-        material.emissiveIntensity = 0.9
-      }
-
-      activeEmissiveMaterials.add(material)
+      nextMaterials.add(material)
     })
   })
+
+  if (!nextMaterials.size) {
+    return
+  }
+
+  activeEmissiveMaterials.clear()
+  nextMaterials.forEach((material) => activeEmissiveMaterials.add(material))
+  runEmissiveTransition(nextMaterials, true, highlightColor)
+}
+
+function runEmissiveTransition(
+  materials: Set<THREE.Material>,
+  toHighlight: boolean,
+  highlightColor = new THREE.Color('#f3e6a2')
+): void {
+  if (emissiveAnimationFrame) {
+    cancelAnimationFrame(emissiveAnimationFrame)
+  }
+
+  emissiveTransitions.clear()
+
+  materials.forEach((material) => {
+    if (!('emissive' in material)) {
+      return
+    }
+
+    const cached = emissiveCache.get(material)
+
+    if (!cached) {
+      return
+    }
+
+    const fromColor = material.emissive.clone()
+    const toColor = toHighlight ? highlightColor.clone() : cached.color.clone()
+    const fromIntensity = 'emissiveIntensity' in material ? material.emissiveIntensity : cached.intensity
+    const toIntensity = toHighlight ? GLOW_TARGET_INTENSITY : cached.intensity
+
+    emissiveTransitions.set(material, { fromColor, toColor, fromIntensity, toIntensity })
+  })
+
+  if (!emissiveTransitions.size) {
+    return
+  }
+
+  const start = performance.now()
+
+  const tick = (now: number) => {
+    const elapsed = now - start
+    const progress = Math.min(elapsed / GLOW_TRANSITION_MS, 1)
+    const eased = progress * progress * (3 - 2 * progress)
+
+    emissiveTransitions.forEach((transition, material) => {
+      if (!('emissive' in material)) {
+        return
+      }
+
+      material.emissive.copy(transition.fromColor).lerp(transition.toColor, eased)
+
+      if ('emissiveIntensity' in material) {
+        material.emissiveIntensity = THREE.MathUtils.lerp(
+          transition.fromIntensity,
+          transition.toIntensity,
+          eased
+        )
+      }
+    })
+
+    if (progress < 1) {
+      emissiveAnimationFrame = requestAnimationFrame(tick)
+      return
+    }
+
+    emissiveAnimationFrame = 0
+    emissiveTransitions.clear()
+  }
+
+  emissiveAnimationFrame = requestAnimationFrame(tick)
 }
 
 function setSelectedObjectId(objectId: string | null): void {
@@ -315,11 +395,50 @@ function handlePointerDown(event: PointerEvent): void {
     return
   }
 
+  if (event.button !== 0) {
+    return
+  }
+
   if (transformControls && (transformControls.dragging || transformControls.axis)) {
     return
   }
 
-  if (event.button !== 0) {
+  pointerIsDown = true
+  pointerMoved = false
+  pointerDownClientX = event.clientX
+  pointerDownClientY = event.clientY
+}
+
+function handlePointerMove(event: PointerEvent): void {
+  if (!pointerIsDown) {
+    return
+  }
+
+  const deltaX = event.clientX - pointerDownClientX
+  const deltaY = event.clientY - pointerDownClientY
+  const distanceSq = deltaX * deltaX + deltaY * deltaY
+
+  if (distanceSq > CLICK_MOVE_THRESHOLD_PX * CLICK_MOVE_THRESHOLD_PX) {
+    pointerMoved = true
+  }
+}
+
+function handlePointerUp(event: PointerEvent): void {
+  if (!renderer || !camera || !scene) {
+    return
+  }
+
+  if (!pointerIsDown) {
+    return
+  }
+
+  pointerIsDown = false
+
+  if (pointerMoved || isTransforming) {
+    return
+  }
+
+  if (transformControls && (transformControls.dragging || transformControls.axis)) {
     return
   }
 
@@ -537,6 +656,8 @@ onMounted(() => {
   resizeObserver.observe(container)
 
   renderer.domElement.addEventListener('pointerdown', handlePointerDown)
+  renderer.domElement.addEventListener('pointermove', handlePointerMove)
+  renderer.domElement.addEventListener('pointerup', handlePointerUp)
 
   watch(
     () => gridConfig.cellSize,
@@ -569,6 +690,8 @@ onBeforeUnmount(() => {
 
   if (renderer) {
     renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
+    renderer.domElement.removeEventListener('pointermove', handlePointerMove)
+    renderer.domElement.removeEventListener('pointerup', handlePointerUp)
     renderer.dispose()
 
     if (renderer.domElement.parentElement) {
