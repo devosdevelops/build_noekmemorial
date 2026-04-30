@@ -107,6 +107,7 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 const GLOW_TRANSITION_MS = 300
 const GLOW_TARGET_INTENSITY = 0.35
 const MIN_SCALE_CELLS = 1
+const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 
 const materialPool: THREE.Material[] = []
 const geometryPool: THREE.BufferGeometry[] = []
@@ -671,6 +672,7 @@ function syncTransformControlsState(): void {
   transformControls.visible = true
   transformControls.setTranslationSnap(isMoveActive ? gridConfig.cellSize : null)
   transformControls.setScaleSnap(null)
+  transformControls.setRotationSnap(isRotateActive ? ROTATION_SNAP_RADIANS : null)
   if (transformHelper) {
     transformHelper.visible = true
     transformHelper.updateMatrixWorld(true)
@@ -901,6 +903,7 @@ onMounted(() => {
   transformControls.setMode('translate')
   transformControls.setTranslationSnap(gridConfig.cellSize)
   transformControls.setScaleSnap(null)
+  transformControls.setRotationSnap(null)
   transformControls.showY = true
   transformControls.showX = true
   transformControls.showZ = true
@@ -912,8 +915,13 @@ onMounted(() => {
   transformHelper = transformControls.getHelper()
   transformHelper.visible = false
   transformHelper.renderOrder = 10
+  const helperHandlesToRemove: THREE.Object3D[] = []
   transformHelper.traverse((child: THREE.Object3D) => {
     child.renderOrder = 10
+
+    if (child.name === 'E') {
+      helperHandlesToRemove.push(child)
+    }
 
     if ('material' in child) {
       const material = child.material as THREE.Material | THREE.Material[] | undefined
@@ -925,6 +933,9 @@ onMounted(() => {
         item.transparent = true
       })
     }
+  })
+  helperHandlesToRemove.forEach((child) => {
+    child.parent?.remove(child)
   })
   transformControls.addEventListener('dragging-changed', (event: { value: boolean }) => {
     isTransforming = event.value

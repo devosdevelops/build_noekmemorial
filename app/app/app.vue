@@ -32,8 +32,6 @@ function handleToolChange(nextTool: EditorTool): void {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Poppins:wght@500;600&display=swap');
-
 .app-shell {
   position: relative;
   width: 100vw;
