@@ -211,7 +211,7 @@ Bachelor Project -- Digital Experience Design\
 
 This project focuses on:
 
-> building a meaningful, interactive experience\
+> building a meaningful, interactive experience
 > rather than technical overengineering
 
 The goal is to demonstrate: - system thinking - interaction design -
