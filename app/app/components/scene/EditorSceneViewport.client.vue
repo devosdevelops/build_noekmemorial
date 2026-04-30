@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 const containerRef = ref<HTMLDivElement | null>(null)
 
 const GROUND_SIZE = 160
-const GRID_CELL_SIZE = 0.55
+const GRID_CELL_SIZE = 1
 
 let renderer: THREE.WebGLRenderer | null = null
 let scene: THREE.Scene | null = null
@@ -96,6 +96,10 @@ function createRoundedGridTexture(): THREE.CanvasTexture {
   texture.needsUpdate = true
 
   return texture
+}
+
+function snapToGrid(value: number): number {
+  return Math.round(value / GRID_CELL_SIZE) * GRID_CELL_SIZE
 }
 
 function resizeRenderer(): void {
@@ -184,7 +188,7 @@ onMounted(() => {
   scene.add(gridPlane)
 
   const plinth = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(10.5, 0.72, 10.5)),
+    poolGeometry(new THREE.BoxGeometry(10, 0.8, 10)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
         color: '#7a8fa0',
@@ -193,11 +197,11 @@ onMounted(() => {
       })
     )
   )
-  plinth.position.y = 0.36
+  plinth.position.set(snapToGrid(0), 0.4, snapToGrid(0))
   scene.add(plinth)
 
   const placeholder = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(1.6, 1.6, 1.6)),
+    poolGeometry(new THREE.BoxGeometry(2, 2, 2)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
         color: '#f5b8ca',
@@ -206,7 +210,7 @@ onMounted(() => {
       })
     )
   )
-  placeholder.position.set(0, 1.6, 0)
+  placeholder.position.set(snapToGrid(0), 1, snapToGrid(0))
   scene.add(placeholder)
 
   resizeRenderer()
