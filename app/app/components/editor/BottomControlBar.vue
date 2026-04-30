@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-type EditorTool = 'select' | 'move' | 'rotate'
+type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
 type EditorControlId = EditorTool | 'scale' | 'undo' | 'redo'
 
 const emit = defineEmits<{
@@ -22,7 +22,7 @@ const controls: { id: EditorControlId; label: string }[] = [
 const selectedTool = ref<EditorTool>('move')
 
 function isToolControl(controlId: EditorControlId): controlId is EditorTool {
-  return controlId === 'select' || controlId === 'move' || controlId === 'rotate'
+  return controlId === 'select' || controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
 }
 
 function handleControlClick(controlId: EditorControlId): void {

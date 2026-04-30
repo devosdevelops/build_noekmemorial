@@ -22,7 +22,7 @@ import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 
-type EditorTool = 'select' | 'move' | 'rotate'
+type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
 
 const activeTool = ref<EditorTool>('move')
 

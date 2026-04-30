@@ -14,7 +14,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 
 const containerRef = ref<HTMLDivElement | null>(null)
 
-type EditorTool = 'select' | 'move' | 'rotate'
+type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
 
 const props = withDefaults(defineProps<{
   activeTool?: EditorTool
@@ -69,6 +69,7 @@ let gridTexture: THREE.CanvasTexture | null = null
 let gridPlane: THREE.Mesh | null = null
 let isTransforming = false
 let isUsingTransformGizmo = false
+let activeScaleAnchorMin: THREE.Vector3 | null = null
 
 const selectableRoots: THREE.Object3D[] = []
 const meshById = new Map<string, THREE.Object3D>()
@@ -93,6 +94,7 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 
 const GLOW_TRANSITION_MS = 300
 const GLOW_TARGET_INTENSITY = 0.35
+const MIN_SCALE_CELLS = 1
 
 const materialPool: THREE.Material[] = []
 const geometryPool: THREE.BufferGeometry[] = []
@@ -190,6 +192,101 @@ function snapVectorToGrid(position: THREE.Vector3): THREE.Vector3 {
   return new THREE.Vector3(x, y, z)
 }
 
+function snapScaleValue(value: number): number {
+  if (gridConfig.cellSize <= 0) {
+    return value
+  }
+
+  return Math.max(gridConfig.cellSize, Math.round(value / gridConfig.cellSize) * gridConfig.cellSize)
+}
+
+function snapScaleToGrid(scale: THREE.Vector3): THREE.Vector3 {
+  return new THREE.Vector3(
+    snapScaleValue(scale.x),
+    snapScaleValue(scale.y),
+    snapScaleValue(scale.z)
+  )
+}
+
+function getObjectBoundsMin(object: THREE.Object3D): THREE.Vector3 {
+  object.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(object)
+
+  return box.min.clone()
+}
+
+function getSnappedObjectBoundsMin(object: THREE.Object3D): THREE.Vector3 {
+  const min = getObjectBoundsMin(object)
+  const [originX, originY, originZ] = gridConfig.origin
+
+  return new THREE.Vector3(
+    snapValueToGrid(min.x, gridConfig.cellSize, originX),
+    snapValueToGrid(min.y, gridConfig.cellSize, originY),
+    snapValueToGrid(min.z, gridConfig.cellSize, originZ)
+  )
+}
+
+function alignObjectMinToAnchor(object: THREE.Object3D, anchorMin: THREE.Vector3): void {
+  const currentMin = getObjectBoundsMin(object)
+  const offset = anchorMin.clone().sub(currentMin)
+
+  object.position.add(offset)
+  object.updateMatrixWorld(true)
+}
+
+function getObjectBaseUniformSize(object: THREE.Object3D): number {
+  const fromUserData = object.userData?.baseUniformSize
+
+  if (typeof fromUserData === 'number' && Number.isFinite(fromUserData) && fromUserData > 0) {
+    return fromUserData
+  }
+
+  object.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(object)
+  const size = new THREE.Vector3()
+  box.getSize(size)
+
+  const maxDimension = Math.max(size.x, size.y, size.z)
+
+  return maxDimension > 0 ? maxDimension : 1
+}
+
+function getActiveAxisScaleValue(scale: THREE.Vector3, axis: string | null | undefined): number {
+  if (!axis) {
+    return Math.max(scale.x, scale.y, scale.z)
+  }
+
+  const values: number[] = []
+
+  if (axis.includes('X')) {
+    values.push(scale.x)
+  }
+
+  if (axis.includes('Y')) {
+    values.push(scale.y)
+  }
+
+  if (axis.includes('Z')) {
+    values.push(scale.z)
+  }
+
+  if (!values.length) {
+    return Math.max(scale.x, scale.y, scale.z)
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function snapUniformScaleForObject(object: THREE.Object3D, scale: THREE.Vector3, axis: string | null | undefined): number {
+  const baseUniformSize = getObjectBaseUniformSize(object)
+  const nextUniformScale = Math.max(0.01, getActiveAxisScaleValue(scale, axis))
+  const nextWorldSize = baseUniformSize * nextUniformScale
+  const snappedWorldSize = snapScaleValue(nextWorldSize)
+  const minWorldSize = gridConfig.cellSize * MIN_SCALE_CELLS
+
+  return Math.max(minWorldSize, snappedWorldSize) / baseUniformSize
+}
+
 function updateGridTextureRepeat(): void {
   if (!gridTexture) {
     return
@@ -242,6 +339,16 @@ function updateSceneObjectRotation(objectId: string, rotation: THREE.Euler): voi
   objectState.rotation = [rotation.x, rotation.y, rotation.z]
 }
 
+function updateSceneObjectScale(objectId: string, scale: THREE.Vector3): void {
+  const objectState = sceneObjects.find((object) => object.id === objectId)
+
+  if (!objectState) {
+    return
+  }
+
+  objectState.scale = [scale.x, scale.y, scale.z]
+}
+
 function getSelectableRoot(object: THREE.Object3D | null): THREE.Object3D | null {
   let current: THREE.Object3D | null = object
 
@@ -257,8 +364,15 @@ function getSelectableRoot(object: THREE.Object3D | null): THREE.Object3D | null
 }
 
 function registerSelectableRoot(objectId: string, root: THREE.Object3D): void {
+  root.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(root)
+  const size = new THREE.Vector3()
+  box.getSize(size)
+  const baseUniformSize = Math.max(size.x, size.y, size.z, 1)
+
   root.userData.objectId = objectId
   root.userData.selectableRootId = objectId
+  root.userData.baseUniformSize = baseUniformSize
   selectableRoots.push(root)
   meshById.set(objectId, root)
 }
@@ -405,11 +519,13 @@ function syncTransformControlsState(): void {
   const selectedMesh = selectedObjectId.value ? meshById.get(selectedObjectId.value) ?? null : null
   const isMoveActive = props.activeTool === 'move'
   const isRotateActive = props.activeTool === 'rotate'
+  const isScaleActive = props.activeTool === 'scale'
 
-  if (!selectedMesh || (!isMoveActive && !isRotateActive)) {
+  if (!selectedMesh || (!isMoveActive && !isRotateActive && !isScaleActive)) {
     transformControls.detach()
     transformControls.enabled = false
     transformControls.visible = false
+    activeScaleAnchorMin = null
     if (transformHelper) {
       transformHelper.visible = false
     }
@@ -417,11 +533,18 @@ function syncTransformControlsState(): void {
   }
 
   transformControls.attach(selectedMesh)
-  transformControls.setMode(isMoveActive ? 'translate' : 'rotate')
+  if (isMoveActive) {
+    transformControls.setMode('translate')
+  } else if (isRotateActive) {
+    transformControls.setMode('rotate')
+  } else {
+    transformControls.setMode('scale')
+  }
   transformControls.setSpace('world')
   transformControls.enabled = true
   transformControls.visible = true
   transformControls.setTranslationSnap(isMoveActive ? gridConfig.cellSize : null)
+  transformControls.setScaleSnap(null)
   if (transformHelper) {
     transformHelper.visible = true
     transformHelper.updateMatrixWorld(true)
@@ -651,6 +774,7 @@ onMounted(() => {
   transformControls = new TransformControls(camera, renderer.domElement)
   transformControls.setMode('translate')
   transformControls.setTranslationSnap(gridConfig.cellSize)
+  transformControls.setScaleSnap(null)
   transformControls.showY = true
   transformControls.showX = true
   transformControls.showZ = true
@@ -682,9 +806,14 @@ onMounted(() => {
   })
   transformControls.addEventListener('mouseDown', () => {
     isUsingTransformGizmo = true
+
+    if (transformControls?.getMode() === 'scale' && transformControls.object) {
+      activeScaleAnchorMin = getSnappedObjectBoundsMin(transformControls.object)
+    }
   })
   transformControls.addEventListener('mouseUp', () => {
     isUsingTransformGizmo = false
+    activeScaleAnchorMin = null
   })
   transformControls.addEventListener('objectChange', () => {
     if (!transformControls || !transformControls.object) {
@@ -701,6 +830,22 @@ onMounted(() => {
       const snapped = snapVectorToGrid(transformControls.object.position)
       transformControls.object.position.copy(snapped)
       updateSceneObjectPosition(objectId, snapped)
+      return
+    }
+
+    if (transformControls.getMode() === 'scale') {
+      const anchorMin = activeScaleAnchorMin ?? getSnappedObjectBoundsMin(transformControls.object)
+      activeScaleAnchorMin = anchorMin
+      const snappedUniformScale = snapUniformScaleForObject(
+        transformControls.object,
+        transformControls.object.scale,
+        transformControls.axis
+      )
+      const snappedScale = new THREE.Vector3(snappedUniformScale, snappedUniformScale, snappedUniformScale)
+      transformControls.object.scale.copy(snappedScale)
+      alignObjectMinToAnchor(transformControls.object, anchorMin)
+      updateSceneObjectScale(objectId, snappedScale)
+      updateSceneObjectPosition(objectId, transformControls.object.position)
       return
     }
 
