@@ -40,9 +40,13 @@ import { createCameraNavigationRuntime } from './viewport/cameraNavigationRuntim
 const containerRef = ref(null)
 
 const props = defineProps({
-  activeTool: {
+  activeInteractionMode: {
     type: String,
     default: 'select'
+  },
+  activeEditTool: {
+    type: String,
+    default: 'move'
   },
   historyAction: {
     type: Object,
@@ -161,11 +165,12 @@ function syncTransformControlsState() {
   }
 
   const selectedMesh = selectedObjectId.value ? meshById.get(selectedObjectId.value) ?? null : null
-  const isMoveActive = props.activeTool === 'move'
-  const isRotateActive = props.activeTool === 'rotate'
-  const isScaleActive = props.activeTool === 'scale'
+  const isSelectionMode = props.activeInteractionMode === 'select'
+  const isMoveActive = props.activeEditTool === 'move'
+  const isRotateActive = props.activeEditTool === 'rotate'
+  const isScaleActive = props.activeEditTool === 'scale'
 
-  if (!selectedMesh || (!isMoveActive && !isRotateActive && !isScaleActive)) {
+  if (!selectedMesh || !isSelectionMode || (!isMoveActive && !isRotateActive && !isScaleActive)) {
     transformControls.detach()
     transformControls.enabled = false
     transformControls.visible = false
@@ -203,7 +208,7 @@ function syncTransformControlsState() {
 }
 
 watch(
-  () => props.activeTool,
+  () => [props.activeInteractionMode, props.activeEditTool],
   () => {
     syncTransformControlsState()
     cameraNavigationRuntime?.handleToolChange()
@@ -385,7 +390,7 @@ onMounted(() => {
     controls,
     renderer,
     meshById,
-    getActiveTool: () => props.activeTool,
+    getActiveTool: () => props.activeInteractionMode,
     getSelectedObjectId: () => selectedObjectId.value,
     transitionDurationMs: CAMERA_CENTER_TRANSITION_MS
   })
@@ -419,7 +424,7 @@ onMounted(() => {
     sceneObjects,
     meshById,
     applySceneObjectState,
-    getActiveTool: () => props.activeTool,
+    getActiveTool: () => props.activeEditTool,
     getSelectedObjectId: () => selectedObjectId.value,
     setSelectedObjectId,
     syncTransformControlsState,

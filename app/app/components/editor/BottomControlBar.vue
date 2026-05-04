@@ -1,9 +1,19 @@
 <script setup>
-import { ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const emit = defineEmits(['tool-change', 'history-action'])
+const props = defineProps({
+  activeInteractionMode: {
+    type: String,
+    default: 'select'
+  },
+  activeEditTool: {
+    type: String,
+    default: 'move'
+  }
+})
+
+const emit = defineEmits(['interaction-mode-change', 'edit-tool-change', 'history-action'])
 
 const groupedControls = [
   [
@@ -23,16 +33,34 @@ const groupedControls = [
   ]
 ]
 
-const selectedTool = ref('move')
+function isInteractionControl(controlId) {
+  return controlId === 'select' || controlId === 'pan'
+}
 
-function isToolControl(controlId) {
-  return controlId === 'select' || controlId === 'pan' || controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
+function isEditControl(controlId) {
+  return controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
+}
+
+function isControlActive(controlId) {
+  if (isInteractionControl(controlId)) {
+    return controlId === props.activeInteractionMode
+  }
+
+  if (isEditControl(controlId)) {
+    return controlId === props.activeEditTool
+  }
+
+  return false
 }
 
 function handleControlClick(controlId) {
-  if (isToolControl(controlId)) {
-    selectedTool.value = controlId
-    emit('tool-change', controlId)
+  if (isInteractionControl(controlId)) {
+    emit('interaction-mode-change', controlId)
+    return
+  }
+
+  if (isEditControl(controlId)) {
+    emit('edit-tool-change', controlId)
     return
   }
 
@@ -49,7 +77,7 @@ function handleControlClick(controlId) {
         v-for="control in group"
         :key="control.id"
         :label="control.label"
-        :is-active="isToolControl(control.id) && control.id === selectedTool"
+        :is-active="isControlActive(control.id)"
         @click="handleControlClick(control.id)"
       />
       <span

@@ -3,14 +3,18 @@
     <NuxtRouteAnnouncer />
     <EditorSceneViewport
       class="scene-layer"
-      :active-tool="activeTool"
+      :active-interaction-mode="activeInteractionMode"
+      :active-edit-tool="activeEditTool"
       :history-action="historyAction"
     />
     <BrandPanel />
     <SideToolPanel />
     <TopActionBar />
     <BottomControlBar
-      @tool-change="handleToolChange"
+      :active-interaction-mode="activeInteractionMode"
+      :active-edit-tool="activeEditTool"
+      @interaction-mode-change="handleInteractionModeChange"
+      @edit-tool-change="handleEditToolChange"
       @history-action="handleHistoryAction"
     />
   </div>
@@ -24,14 +28,19 @@ import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 
-const activeTool = ref('move')
+const activeInteractionMode = ref('select')
+const activeEditTool = ref('move')
 const historyAction = ref({
   type: null,
   sequence: 0
 })
 
-function handleToolChange(nextTool) {
-  activeTool.value = nextTool
+function handleInteractionModeChange(nextMode) {
+  activeInteractionMode.value = nextMode
+}
+
+function handleEditToolChange(nextTool) {
+  activeEditTool.value = nextTool
 }
 
 function handleHistoryAction(actionType) {
