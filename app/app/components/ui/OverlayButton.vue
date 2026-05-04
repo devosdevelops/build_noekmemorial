@@ -1,9 +1,13 @@
-<script setup lang="ts">
-const props = withDefaults(defineProps<{
-  label: string
-  isActive?: boolean
-}>(), {
-  isActive: false
+<script setup>
+const props = defineProps({
+  label: {
+    type: String,
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: false
+  }
 })
 </script>
 

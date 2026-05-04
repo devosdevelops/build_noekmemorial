@@ -2,7 +2,7 @@
   <div ref="containerRef" class="scene-root" />
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -11,40 +11,43 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import {
+  applyFloorScaleBehavior,
+  applyModelScaleBehavior,
+  applyShapeScaleBehavior,
+  createRoundedGridTexture,
+  createScaleInteractionContext,
+  getScaleProfileForObject,
+  setCameraStartPosition,
+  snapVectorToGrid,
+  updateGridTextureRepeat
+} from './viewport/sceneMath.js'
+import {
+  getSelectableRoot,
+  registerSelectableRoot,
+  resnapAllObjects,
+  updateSceneObjectPosition,
+  updateSceneObjectRotation,
+  updateSceneObjectScale
+} from './viewport/sceneObjectState.js'
+import { createSelectionHighlightManager } from './viewport/selectionHighlight.js'
 
-const containerRef = ref<HTMLDivElement | null>(null)
+const containerRef = ref(null)
 
-type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
-
-type ScaleProfile = 'model' | 'floor' | 'shape'
-
-const props = withDefaults(defineProps<{
-  activeTool?: EditorTool
-}>(), {
-  activeTool: 'select'
+const props = defineProps({
+  activeTool: {
+    type: String,
+    default: 'select'
+  }
 })
 
-type SceneObjectState = {
-  id: string
-  scaleProfile: ScaleProfile
-  position: [number, number, number]
-  rotation: [number, number, number]
-  scale: [number, number, number]
-}
-
-type GridConfig = {
-  groundSize: number
-  cellSize: number
-  origin: [number, number, number]
-}
-
-const gridConfig = reactive<GridConfig>({
+const gridConfig = reactive({
   groundSize: 160,
   cellSize: 1,
   origin: [0, 0, 0]
 })
 
-const sceneObjects = reactive<SceneObjectState[]>([
+const sceneObjects = reactive([
   {
     id: 'placeholder',
     scaleProfile: 'model',
@@ -54,48 +57,33 @@ const sceneObjects = reactive<SceneObjectState[]>([
   }
 ])
 
-const selectedObjectId = ref<string | null>(null)
+const selectedObjectId = ref(null)
 
-let renderer: THREE.WebGLRenderer | null = null
-let scene: THREE.Scene | null = null
-let camera: THREE.PerspectiveCamera | null = null
-let controls: OrbitControls | null = null
-let transformControls: TransformControls | null = null
-let transformHelper: THREE.Object3D | null = null
-let composer: EffectComposer | null = null
-let outlinePass: OutlinePass | null = null
-let gizmoScene: THREE.Scene | null = null
-let gizmoRenderPass: RenderPass | null = null
-let outputPass: OutputPass | null = null
-let resizeObserver: ResizeObserver | null = null
+let renderer = null
+let scene = null
+let camera = null
+let controls = null
+let transformControls = null
+let transformHelper = null
+let composer = null
+let outlinePass = null
+let gizmoScene = null
+let gizmoRenderPass = null
+let outputPass = null
+let resizeObserver = null
 let frameId = 0
-let gridTexture: THREE.CanvasTexture | null = null
-let gridPlane: THREE.Mesh | null = null
+let gridTexture = null
+let gridPlane = null
 let isTransforming = false
 let isUsingTransformGizmo = false
 
-type ScaleInteractionContext = {
-  objectId: string
-  profile: ScaleProfile
-  anchorMin: THREE.Vector3
-  initialScale: THREE.Vector3
-}
+let activeScaleContext = null
 
-let activeScaleContext: ScaleInteractionContext | null = null
-
-const selectableRoots: THREE.Object3D[] = []
-const meshById = new Map<string, THREE.Object3D>()
+const selectableRoots = []
+const meshById = new Map()
 const raycaster = new THREE.Raycaster()
 const pointerNdc = new THREE.Vector2()
-const emissiveCache = new WeakMap<THREE.Material, { color: THREE.Color; intensity: number }>()
-const activeEmissiveMaterials = new Set<THREE.Material>()
-const emissiveTransitions = new Map<THREE.Material, {
-  fromColor: THREE.Color
-  toColor: THREE.Color
-  fromIntensity: number
-  toIntensity: number
-}>()
-let emissiveAnimationFrame = 0
+const highlightManager = createSelectionHighlightManager(THREE)
 
 let pointerIsDown = false
 let pointerMoved = false
@@ -104,521 +92,29 @@ let pointerDownClientY = 0
 
 const CLICK_MOVE_THRESHOLD_PX = 6
 
-const GLOW_TRANSITION_MS = 300
-const GLOW_TARGET_INTENSITY = 0.35
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 
-const materialPool: THREE.Material[] = []
-const geometryPool: THREE.BufferGeometry[] = []
-const texturePool: THREE.Texture[] = []
+const materialPool = []
+const geometryPool = []
+const texturePool = []
 
-function poolMaterial<T extends THREE.Material>(material: T): T {
+function poolMaterial(material) {
   materialPool.push(material)
   return material
 }
 
-function poolGeometry<T extends THREE.BufferGeometry>(geometry: T): T {
+function poolGeometry(geometry) {
   geometryPool.push(geometry)
   return geometry
 }
 
-function poolTexture<T extends THREE.Texture>(texture: T): T {
+function poolTexture(texture) {
   texturePool.push(texture)
   return texture
 }
 
-function setCameraStartPosition(distance: number, verticalDeg: number, horizontalDeg: number): void {
-  if (!camera) {
-    return
-  }
-
-  const elevation = THREE.MathUtils.degToRad(verticalDeg)
-  const azimuth = THREE.MathUtils.degToRad(horizontalDeg)
-  const planarDistance = distance * Math.cos(elevation)
-
-  const x = planarDistance * Math.sin(azimuth)
-  const y = distance * Math.sin(elevation)
-  const z = planarDistance * Math.cos(azimuth)
-
-  camera.position.set(x, y, z)
-}
-
-function createRoundedGridTexture(groundSize: number, cellSize: number): THREE.CanvasTexture {
-  const size = 96
-  const radius = 17
-  const inset = 9
-
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-
-  const context = canvas.getContext('2d')
-
-  if (!context) {
-    throw new Error('Could not create grid texture context')
-  }
-
-  context.clearRect(0, 0, size, size)
-  context.strokeStyle = 'rgba(105, 125, 90, 0.58)'
-  context.lineWidth = 3
-
-  const min = inset
-  const max = size - inset
-
-  context.beginPath()
-  context.moveTo(min + radius, min)
-  context.lineTo(max - radius, min)
-  context.quadraticCurveTo(max, min, max, min + radius)
-  context.lineTo(max, max - radius)
-  context.quadraticCurveTo(max, max, max - radius, max)
-  context.lineTo(min + radius, max)
-  context.quadraticCurveTo(min, max, min, max - radius)
-  context.lineTo(min, min + radius)
-  context.quadraticCurveTo(min, min, min + radius, min)
-  context.closePath()
-  context.stroke()
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = THREE.RepeatWrapping
-  texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(groundSize / cellSize, groundSize / cellSize)
-  texture.needsUpdate = true
-
-  return texture
-}
-
-function snapValueToGrid(value: number, cellSize: number, origin: number): number {
-  if (cellSize <= 0) {
-    return value
-  }
-
-  return Math.round((value - origin) / cellSize) * cellSize + origin
-}
-
-function snapVectorToGrid(position: THREE.Vector3): THREE.Vector3 {
-  const [originX, originY, originZ] = gridConfig.origin
-  const x = snapValueToGrid(position.x, gridConfig.cellSize, originX)
-  const y = snapValueToGrid(position.y, gridConfig.cellSize, originY)
-  const z = snapValueToGrid(position.z, gridConfig.cellSize, originZ)
-
-  return new THREE.Vector3(x, y, z)
-}
-
-function snapScaleValue(value: number): number {
-  if (gridConfig.cellSize <= 0) {
-    return value
-  }
-
-  return Math.max(gridConfig.cellSize, Math.round(value / gridConfig.cellSize) * gridConfig.cellSize)
-}
-
-function snapScaleToGrid(scale: THREE.Vector3): THREE.Vector3 {
-  return new THREE.Vector3(
-    snapScaleValue(scale.x),
-    snapScaleValue(scale.y),
-    snapScaleValue(scale.z)
-  )
-}
-
-function getObjectBoundsMin(object: THREE.Object3D): THREE.Vector3 {
-  object.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(object)
-
-  return box.min.clone()
-}
-
-function getSnappedObjectBoundsMin(object: THREE.Object3D): THREE.Vector3 {
-  const min = getObjectBoundsMin(object)
-  const [originX, originY, originZ] = gridConfig.origin
-
-  return new THREE.Vector3(
-    snapValueToGrid(min.x, gridConfig.cellSize, originX),
-    snapValueToGrid(min.y, gridConfig.cellSize, originY),
-    snapValueToGrid(min.z, gridConfig.cellSize, originZ)
-  )
-}
-
-function alignObjectMinToAnchor(object: THREE.Object3D, anchorMin: THREE.Vector3): void {
-  const currentMin = getObjectBoundsMin(object)
-  const offset = anchorMin.clone().sub(currentMin)
-
-  object.position.add(offset)
-  object.updateMatrixWorld(true)
-}
-
-function alignObjectMinToAnchorByAxis(
-  object: THREE.Object3D,
-  anchorMin: THREE.Vector3,
-  lockAxes: { x: boolean; y: boolean; z: boolean }
-): void {
-  const currentMin = getObjectBoundsMin(object)
-  const offset = new THREE.Vector3(
-    lockAxes.x ? anchorMin.x - currentMin.x : 0,
-    lockAxes.y ? anchorMin.y - currentMin.y : 0,
-    lockAxes.z ? anchorMin.z - currentMin.z : 0
-  )
-
-  object.position.add(offset)
-  object.updateMatrixWorld(true)
-}
-
-function getObjectBaseUniformSize(object: THREE.Object3D): number {
-  const fromUserData = object.userData?.baseUniformSize
-
-  if (typeof fromUserData === 'number' && Number.isFinite(fromUserData) && fromUserData > 0) {
-    return fromUserData
-  }
-
-  object.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(object)
-  const size = new THREE.Vector3()
-  box.getSize(size)
-
-  const maxDimension = Math.max(size.x, size.y, size.z)
-
-  return maxDimension > 0 ? maxDimension : 1
-}
-
-function getObjectBaseSize(object: THREE.Object3D): THREE.Vector3 {
-  const fromUserData = object.userData?.baseSize
-
-  if (fromUserData && typeof fromUserData.x === 'number') {
-    return new THREE.Vector3(fromUserData.x, fromUserData.y, fromUserData.z)
-  }
-
-  object.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(object)
-  const size = new THREE.Vector3()
-  box.getSize(size)
-
-  return new THREE.Vector3(
-    Math.max(size.x, 1),
-    Math.max(size.y, 1),
-    Math.max(size.z, 1)
-  )
-}
-
-function snapScaleAxisForObject(baseSize: number, scaleValue: number): number {
-  if (baseSize <= 0) {
-    return scaleValue
-  }
-
-  const worldSize = baseSize * scaleValue
-  const snappedWorldSize = Math.max(gridConfig.cellSize * MIN_SCALE_CELLS, snapScaleValue(worldSize))
-
-  return snappedWorldSize / baseSize
-}
-
-function getActiveAxisScaleValue(scale: THREE.Vector3, axis: string | null | undefined): number {
-  if (!axis) {
-    return Math.max(scale.x, scale.y, scale.z)
-  }
-
-  const values: number[] = []
-
-  if (axis.includes('X')) {
-    values.push(scale.x)
-  }
-
-  if (axis.includes('Y')) {
-    values.push(scale.y)
-  }
-
-  if (axis.includes('Z')) {
-    values.push(scale.z)
-  }
-
-  if (!values.length) {
-    return Math.max(scale.x, scale.y, scale.z)
-  }
-
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-}
-
-function snapUniformScaleForObject(object: THREE.Object3D, scale: THREE.Vector3, axis: string | null | undefined): number {
-  const baseUniformSize = getObjectBaseUniformSize(object)
-  const nextUniformScale = Math.max(0.01, getActiveAxisScaleValue(scale, axis))
-  const nextWorldSize = baseUniformSize * nextUniformScale
-  const snappedWorldSize = snapScaleValue(nextWorldSize)
-  const minWorldSize = gridConfig.cellSize * MIN_SCALE_CELLS
-
-  return Math.max(minWorldSize, snappedWorldSize) / baseUniformSize
-}
-
-function getScaleProfileForObject(objectId: string): ScaleProfile {
-  const objectState = sceneObjects.find((object) => object.id === objectId)
-
-  return objectState?.scaleProfile ?? 'model'
-}
-
-function createScaleInteractionContext(objectId: string, object: THREE.Object3D): ScaleInteractionContext {
-  return {
-    objectId,
-    profile: getScaleProfileForObject(objectId),
-    anchorMin: getSnappedObjectBoundsMin(object),
-    initialScale: object.scale.clone()
-  }
-}
-
-function applyModelScaleBehavior(
-  object: THREE.Object3D,
-  context: ScaleInteractionContext,
-  axis: string | null | undefined
-): THREE.Vector3 {
-  const snappedUniformScale = snapUniformScaleForObject(object, object.scale, axis)
-  const nextScale = new THREE.Vector3(snappedUniformScale, snappedUniformScale, snappedUniformScale)
-  object.scale.copy(nextScale)
-  alignObjectMinToAnchor(object, context.anchorMin)
-
-  return nextScale
-}
-
-function applyFloorScaleBehavior(object: THREE.Object3D, context: ScaleInteractionContext): THREE.Vector3 {
-  const baseSize = getObjectBaseSize(object)
-  const nextScale = object.scale.clone()
-
-  nextScale.x = snapScaleAxisForObject(baseSize.x, nextScale.x)
-  nextScale.y = context.initialScale.y
-  nextScale.z = snapScaleAxisForObject(baseSize.z, nextScale.z)
-
-  object.scale.copy(nextScale)
-  alignObjectMinToAnchorByAxis(object, context.anchorMin, { x: true, y: false, z: true })
-
-  return nextScale
-}
-
-function applyShapeScaleBehavior(object: THREE.Object3D, context: ScaleInteractionContext): THREE.Vector3 {
-  const baseSize = getObjectBaseSize(object)
-  const nextScale = object.scale.clone()
-
-  nextScale.x = snapScaleAxisForObject(baseSize.x, nextScale.x)
-  nextScale.y = snapScaleAxisForObject(baseSize.y, nextScale.y)
-  nextScale.z = snapScaleAxisForObject(baseSize.z, nextScale.z)
-
-  object.scale.copy(nextScale)
-  alignObjectMinToAnchor(object, context.anchorMin)
-
-  return nextScale
-}
-
-function updateGridTextureRepeat(): void {
-  if (!gridTexture) {
-    return
-  }
-
-  gridTexture.repeat.set(gridConfig.groundSize / gridConfig.cellSize, gridConfig.groundSize / gridConfig.cellSize)
-  gridTexture.needsUpdate = true
-}
-
-function applySceneObjectState(objectState: SceneObjectState): void {
-  const mesh = meshById.get(objectState.id)
-
-  if (!mesh) {
-    return
-  }
-
-  mesh.position.set(...objectState.position)
-  mesh.rotation.set(...objectState.rotation)
-  mesh.scale.set(...objectState.scale)
-}
-
-function resnapAllObjects(): void {
-  sceneObjects.forEach((objectState) => {
-    const snapped = snapVectorToGrid(
-      new THREE.Vector3(objectState.position[0], objectState.position[1], objectState.position[2])
-    )
-
-    objectState.position = [snapped.x, snapped.y, snapped.z]
-    applySceneObjectState(objectState)
-  })
-}
-
-function updateSceneObjectPosition(objectId: string, position: THREE.Vector3): void {
-  const objectState = sceneObjects.find((object) => object.id === objectId)
-
-  if (!objectState) {
-    return
-  }
-
-  objectState.position = [position.x, position.y, position.z]
-}
-
-function updateSceneObjectRotation(objectId: string, rotation: THREE.Euler): void {
-  const objectState = sceneObjects.find((object) => object.id === objectId)
-
-  if (!objectState) {
-    return
-  }
-
-  objectState.rotation = [rotation.x, rotation.y, rotation.z]
-}
-
-function updateSceneObjectScale(objectId: string, scale: THREE.Vector3): void {
-  const objectState = sceneObjects.find((object) => object.id === objectId)
-
-  if (!objectState) {
-    return
-  }
-
-  objectState.scale = [scale.x, scale.y, scale.z]
-}
-
-function getSelectableRoot(object: THREE.Object3D | null): THREE.Object3D | null {
-  let current: THREE.Object3D | null = object
-
-  while (current) {
-    if (current.userData && current.userData.selectableRootId) {
-      return current
-    }
-
-    current = current.parent
-  }
-
-  return null
-}
-
-function registerSelectableRoot(objectId: string, root: THREE.Object3D): void {
-  root.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(root)
-  const size = new THREE.Vector3()
-  box.getSize(size)
-  const baseUniformSize = Math.max(size.x, size.y, size.z, 1)
-  const baseSize = new THREE.Vector3(
-    Math.max(size.x, 1),
-    Math.max(size.y, 1),
-    Math.max(size.z, 1)
-  )
-
-  root.userData.objectId = objectId
-  root.userData.selectableRootId = objectId
-  root.userData.baseUniformSize = baseUniformSize
-  root.userData.baseSize = baseSize
-  selectableRoots.push(root)
-  meshById.set(objectId, root)
-}
-
-function clearEmissiveHighlight(): void {
-  if (!activeEmissiveMaterials.size) {
-    return
-  }
-
-  runEmissiveTransition(activeEmissiveMaterials, false)
-  activeEmissiveMaterials.clear()
-}
-
-function applyEmissiveHighlight(target: THREE.Object3D | null): void {
-  clearEmissiveHighlight()
-
-  if (!target) {
-    return
-  }
-
-  const highlightColor = new THREE.Color('#f3e6a2')
-  const nextMaterials = new Set<THREE.Material>()
-
-  target.traverse((child: THREE.Object3D) => {
-    if (!(child instanceof THREE.Mesh)) {
-      return
-    }
-
-    const materials = Array.isArray(child.material) ? child.material : [child.material]
-
-    materials.forEach((material: THREE.Material) => {
-      if (!('emissive' in material)) {
-        return
-      }
-
-      if (!emissiveCache.has(material)) {
-        emissiveCache.set(material, {
-          color: material.emissive.clone(),
-          intensity: 'emissiveIntensity' in material ? material.emissiveIntensity : 1
-        })
-      }
-
-      nextMaterials.add(material)
-    })
-  })
-
-  if (!nextMaterials.size) {
-    return
-  }
-
-  activeEmissiveMaterials.clear()
-  nextMaterials.forEach((material) => activeEmissiveMaterials.add(material))
-  runEmissiveTransition(nextMaterials, true, highlightColor)
-}
-
-function runEmissiveTransition(
-  materials: Set<THREE.Material>,
-  toHighlight: boolean,
-  highlightColor = new THREE.Color('#f3e6a2')
-): void {
-  if (emissiveAnimationFrame) {
-    cancelAnimationFrame(emissiveAnimationFrame)
-  }
-
-  emissiveTransitions.clear()
-
-  materials.forEach((material) => {
-    if (!('emissive' in material)) {
-      return
-    }
-
-    const cached = emissiveCache.get(material)
-
-    if (!cached) {
-      return
-    }
-
-    const fromColor = material.emissive.clone()
-    const toColor = toHighlight ? highlightColor.clone() : cached.color.clone()
-    const fromIntensity = 'emissiveIntensity' in material ? material.emissiveIntensity : cached.intensity
-    const toIntensity = toHighlight ? GLOW_TARGET_INTENSITY : cached.intensity
-
-    emissiveTransitions.set(material, { fromColor, toColor, fromIntensity, toIntensity })
-  })
-
-  if (!emissiveTransitions.size) {
-    return
-  }
-
-  const start = performance.now()
-
-  const tick = (now: number) => {
-    const elapsed = now - start
-    const progress = Math.min(elapsed / GLOW_TRANSITION_MS, 1)
-    const eased = progress * progress * (3 - 2 * progress)
-
-    emissiveTransitions.forEach((transition, material) => {
-      if (!('emissive' in material)) {
-        return
-      }
-
-      material.emissive.copy(transition.fromColor).lerp(transition.toColor, eased)
-
-      if ('emissiveIntensity' in material) {
-        material.emissiveIntensity = THREE.MathUtils.lerp(
-          transition.fromIntensity,
-          transition.toIntensity,
-          eased
-        )
-      }
-    })
-
-    if (progress < 1) {
-      emissiveAnimationFrame = requestAnimationFrame(tick)
-      return
-    }
-
-    emissiveAnimationFrame = 0
-    emissiveTransitions.clear()
-  }
-
-  emissiveAnimationFrame = requestAnimationFrame(tick)
-}
-
-function setSelectedObjectId(objectId: string | null): void {
+function setSelectedObjectId(objectId) {
   selectedObjectId.value = objectId
 
   const selectedMesh = objectId ? meshById.get(objectId) ?? null : null
@@ -627,12 +123,12 @@ function setSelectedObjectId(objectId: string | null): void {
     outlinePass.selectedObjects = selectedMesh ? [selectedMesh] : []
   }
 
-  applyEmissiveHighlight(selectedMesh)
+  highlightManager.applyEmissiveHighlight(selectedMesh)
 
   syncTransformControlsState()
 }
 
-function syncTransformControlsState(): void {
+function syncTransformControlsState() {
   if (!transformControls) {
     return
   }
@@ -663,7 +159,7 @@ function syncTransformControlsState(): void {
   }
   transformControls.setSpace('world')
   if (isScaleActive) {
-    const scaleProfile = getScaleProfileForObject(selectedObjectId.value ?? '')
+    const scaleProfile = getScaleProfileForObject(sceneObjects, selectedObjectId.value ?? '')
     transformControls.showY = scaleProfile !== 'floor'
   } else {
     transformControls.showY = true
@@ -686,7 +182,7 @@ watch(
   }
 )
 
-function handlePointerDown(event: PointerEvent): void {
+function handlePointerDown(event) {
   if (!renderer || !camera || !scene || isTransforming) {
     return
   }
@@ -705,7 +201,7 @@ function handlePointerDown(event: PointerEvent): void {
   pointerDownClientY = event.clientY
 }
 
-function handlePointerMove(event: PointerEvent): void {
+function handlePointerMove(event) {
   if (!pointerIsDown) {
     return
   }
@@ -719,7 +215,7 @@ function handlePointerMove(event: PointerEvent): void {
   }
 }
 
-function handlePointerUp(event: PointerEvent): void {
+function handlePointerUp(event) {
   if (!renderer || !camera || !scene) {
     return
   }
@@ -759,7 +255,7 @@ function handlePointerUp(event: PointerEvent): void {
   }
 }
 
-function resizeRenderer(): void {
+function resizeRenderer() {
   if (!renderer || !camera || !containerRef.value) {
     return
   }
@@ -779,7 +275,7 @@ function resizeRenderer(): void {
   outlinePass?.setSize(clientWidth, clientHeight)
 }
 
-function animate(): void {
+function animate() {
   if (!renderer || !scene || !camera || !controls) {
     return
   }
@@ -805,7 +301,7 @@ onMounted(() => {
   scene.fog = new THREE.Fog('#e9ede5', 70, 180)
 
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 240)
-  setCameraStartPosition(28, 30, 20)
+  setCameraStartPosition(camera, 28, 30, 20, THREE)
   camera.lookAt(0, 0.8, 0)
 
   renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -830,7 +326,7 @@ onMounted(() => {
   sunLight.castShadow = false
   scene.add(sunLight)
 
-  gridTexture = poolTexture(createRoundedGridTexture(gridConfig.groundSize, gridConfig.cellSize))
+  gridTexture = poolTexture(createRoundedGridTexture(THREE, gridConfig.groundSize, gridConfig.cellSize))
 
   if (renderer.capabilities) {
     gridTexture.anisotropy = renderer.capabilities.getMaxAnisotropy()
@@ -874,8 +370,8 @@ onMounted(() => {
       })
     )
   )
-  registerSelectableRoot('placeholder', placeholder)
-  resnapAllObjects()
+  registerSelectableRoot(THREE, selectableRoots, meshById, 'placeholder', placeholder)
+  resnapAllObjects(THREE, sceneObjects, gridConfig, meshById)
   scene.add(placeholder)
 
   composer = new EffectComposer(renderer)
@@ -915,8 +411,8 @@ onMounted(() => {
   transformHelper = transformControls.getHelper()
   transformHelper.visible = false
   transformHelper.renderOrder = 10
-  const helperHandlesToRemove: THREE.Object3D[] = []
-  transformHelper.traverse((child: THREE.Object3D) => {
+  const helperHandlesToRemove = []
+  transformHelper.traverse((child) => {
     child.renderOrder = 10
 
     if (child.name === 'E') {
@@ -924,7 +420,7 @@ onMounted(() => {
     }
 
     if ('material' in child) {
-      const material = child.material as THREE.Material | THREE.Material[] | undefined
+      const material = child.material
       const materials = Array.isArray(material) ? material : material ? [material] : []
 
       materials.forEach((item) => {
@@ -937,7 +433,7 @@ onMounted(() => {
   helperHandlesToRemove.forEach((child) => {
     child.parent?.remove(child)
   })
-  transformControls.addEventListener('dragging-changed', (event: { value: boolean }) => {
+  transformControls.addEventListener('dragging-changed', (event) => {
     isTransforming = event.value
 
     if (controls) {
@@ -951,7 +447,13 @@ onMounted(() => {
       const objectId = transformControls.object.userData?.objectId
 
       if (typeof objectId === 'string') {
-        activeScaleContext = createScaleInteractionContext(objectId, transformControls.object)
+        activeScaleContext = createScaleInteractionContext(
+          THREE,
+          sceneObjects,
+          gridConfig,
+          objectId,
+          transformControls.object
+        )
       }
     }
   })
@@ -971,32 +473,57 @@ onMounted(() => {
     }
 
     if (transformControls.getMode() === 'translate') {
-      const snapped = snapVectorToGrid(transformControls.object.position)
+      const snapped = snapVectorToGrid(THREE, gridConfig, transformControls.object.position)
       transformControls.object.position.copy(snapped)
-      updateSceneObjectPosition(objectId, snapped)
+      updateSceneObjectPosition(sceneObjects, objectId, snapped)
       return
     }
 
     if (transformControls.getMode() === 'scale') {
-      const scaleContext = activeScaleContext ?? createScaleInteractionContext(objectId, transformControls.object)
+      const scaleContext = activeScaleContext ?? createScaleInteractionContext(
+        THREE,
+        sceneObjects,
+        gridConfig,
+        objectId,
+        transformControls.object
+      )
       activeScaleContext = scaleContext
 
-      let nextScale: THREE.Vector3
+      let nextScale
 
       if (scaleContext.profile === 'floor') {
-        nextScale = applyFloorScaleBehavior(transformControls.object, scaleContext)
+        nextScale = applyFloorScaleBehavior(
+          THREE,
+          transformControls.object,
+          scaleContext,
+          gridConfig,
+          MIN_SCALE_CELLS
+        )
       } else if (scaleContext.profile === 'shape') {
-        nextScale = applyShapeScaleBehavior(transformControls.object, scaleContext)
+        nextScale = applyShapeScaleBehavior(
+          THREE,
+          transformControls.object,
+          scaleContext,
+          gridConfig,
+          MIN_SCALE_CELLS
+        )
       } else {
-        nextScale = applyModelScaleBehavior(transformControls.object, scaleContext, transformControls.axis)
+        nextScale = applyModelScaleBehavior(
+          THREE,
+          transformControls.object,
+          scaleContext,
+          transformControls.axis,
+          gridConfig,
+          MIN_SCALE_CELLS
+        )
       }
 
-      updateSceneObjectScale(objectId, nextScale)
-      updateSceneObjectPosition(objectId, transformControls.object.position)
+      updateSceneObjectScale(sceneObjects, objectId, nextScale)
+      updateSceneObjectPosition(sceneObjects, objectId, transformControls.object.position)
       return
     }
 
-    updateSceneObjectRotation(objectId, transformControls.object.rotation)
+    updateSceneObjectRotation(sceneObjects, objectId, transformControls.object.rotation)
   })
   gizmoScene.add(transformHelper)
 
@@ -1015,11 +542,11 @@ onMounted(() => {
         return
       }
 
-      updateGridTextureRepeat()
+      updateGridTextureRepeat(gridTexture, gridConfig)
       if (transformControls?.getMode() === 'translate') {
         transformControls.setTranslationSnap(cellSize)
       }
-      resnapAllObjects()
+      resnapAllObjects(THREE, sceneObjects, gridConfig, meshById)
     }
   )
 
@@ -1032,6 +559,8 @@ onBeforeUnmount(() => {
   if (frameId) {
     window.cancelAnimationFrame(frameId)
   }
+
+  highlightManager.dispose()
 
   resizeObserver?.disconnect()
   controls?.dispose()

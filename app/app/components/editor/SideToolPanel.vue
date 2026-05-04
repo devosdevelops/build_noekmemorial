@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 

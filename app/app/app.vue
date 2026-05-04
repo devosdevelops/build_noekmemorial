@@ -14,7 +14,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
@@ -22,11 +22,9 @@ import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 
-type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
+const activeTool = ref('move')
 
-const activeTool = ref<EditorTool>('move')
-
-function handleToolChange(nextTool: EditorTool): void {
+function handleToolChange(nextTool) {
   activeTool.value = nextTool
 }
 </script>

@@ -1,16 +1,11 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-type EditorTool = 'select' | 'move' | 'rotate' | 'scale'
-type EditorControlId = EditorTool | 'scale' | 'undo' | 'redo'
+const emit = defineEmits(['tool-change'])
 
-const emit = defineEmits<{
-  (event: 'tool-change', value: EditorTool): void
-}>()
-
-const controls: { id: EditorControlId; label: string }[] = [
+const controls = [
   { id: 'select', label: 'Select' },
   { id: 'move', label: 'Move' },
   { id: 'rotate', label: 'Rotate' },
@@ -19,13 +14,13 @@ const controls: { id: EditorControlId; label: string }[] = [
   { id: 'redo', label: 'Redo' }
 ]
 
-const selectedTool = ref<EditorTool>('move')
+const selectedTool = ref('move')
 
-function isToolControl(controlId: EditorControlId): controlId is EditorTool {
+function isToolControl(controlId) {
   return controlId === 'select' || controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
 }
 
-function handleControlClick(controlId: EditorControlId): void {
+function handleControlClick(controlId) {
   if (!isToolControl(controlId)) {
     return
   }

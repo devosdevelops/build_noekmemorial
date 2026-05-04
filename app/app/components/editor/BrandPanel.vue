@@ -8,7 +8,7 @@
   </OverlayCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import OverlayCard from '../ui/OverlayCard.vue'
 </script>
 
