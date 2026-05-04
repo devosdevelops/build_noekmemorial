@@ -34,6 +34,8 @@ import {
 import { createSelectionHighlightManager } from './viewport/selectionHighlight.js'
 import { createSceneBootstrap } from './viewport/sceneBootstrap.js'
 import { createTransformRuntime } from './viewport/transformRuntime.js'
+import { createHistoryRuntime } from './viewport/historyRuntime.js'
+import { createCameraNavigationRuntime } from './viewport/cameraNavigationRuntime.js'
 
 const containerRef = ref(null)
 
@@ -68,13 +70,7 @@ const sceneObjects = reactive([
 ])
 
 const MAX_HISTORY_ENTRIES = 50
-
-const historyState = {
-  undoStack: [],
-  redoStack: [],
-  activeSnapshot: null
-}
-const initialObjectStateById = new Map()
+const CAMERA_CENTER_TRANSITION_MS = 1000
 
 const selectedObjectId = ref(null)
 
@@ -93,18 +89,8 @@ let resizeObserver = null
 let frameId = 0
 let gridTexture = null
 let gridPlane = null
-const defaultCameraPosition = new THREE.Vector3()
-const defaultCameraTarget = new THREE.Vector3()
-const CAMERA_CENTER_TRANSITION_MS = 1000
-const cameraTransition = {
-  isActive: false,
-  startTime: 0,
-  duration: CAMERA_CENTER_TRANSITION_MS,
-  fromPosition: new THREE.Vector3(),
-  toPosition: new THREE.Vector3(),
-  fromTarget: new THREE.Vector3(),
-  toTarget: new THREE.Vector3()
-}
+let historyRuntime = null
+let cameraNavigationRuntime = null
 const interactionState = {
   isTransforming: false,
   isUsingTransformGizmo: false,
@@ -121,212 +107,19 @@ let pointerIsDown = false
 let pointerMoved = false
 let pointerDownClientX = 0
 let pointerDownClientY = 0
-let panPointerIsDown = false
 
 const CLICK_MOVE_THRESHOLD_PX = 6
 
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 
-function cloneSceneObject(objectState) {
-  return {
-    id: objectState.id,
-    scaleProfile: objectState.scaleProfile,
-    position: [...objectState.position],
-    rotation: [...objectState.rotation],
-    scale: [...objectState.scale]
-  }
-}
-
-function createSceneSnapshot() {
-  return sceneObjects.map((objectState) => cloneSceneObject(objectState))
-}
-
-function captureInitialObjectState() {
-  initialObjectStateById.clear()
-  sceneObjects.forEach((objectState) => {
-    initialObjectStateById.set(objectState.id, cloneSceneObject(objectState))
-  })
-}
-
-function areSnapshotsEqual(firstSnapshot, secondSnapshot) {
-  return JSON.stringify(firstSnapshot) === JSON.stringify(secondSnapshot)
-}
-
-function trimHistoryStack(stack) {
-  if (stack.length <= MAX_HISTORY_ENTRIES) {
-    return
-  }
-
-  stack.splice(0, stack.length - MAX_HISTORY_ENTRIES)
-}
-
-function easeInOutCubic(progress) {
-  if (progress < 0.5) {
-    return 4 * progress * progress * progress
-  }
-
-  return 1 - Math.pow(-2 * progress + 2, 3) / 2
-}
-
-function startCameraTransition(nextPosition, nextTarget) {
-  if (!camera || !controls) {
-    return
-  }
-
-  cameraTransition.fromPosition.copy(camera.position)
-  cameraTransition.toPosition.copy(nextPosition)
-  cameraTransition.fromTarget.copy(controls.target)
-  cameraTransition.toTarget.copy(nextTarget)
-  cameraTransition.startTime = performance.now()
-  cameraTransition.duration = CAMERA_CENTER_TRANSITION_MS
-  cameraTransition.isActive = true
-}
-
-function updateCameraTransition() {
-  if (!cameraTransition.isActive || !camera || !controls) {
-    return
-  }
-
-  const elapsed = performance.now() - cameraTransition.startTime
-  const progress = Math.min(elapsed / cameraTransition.duration, 1)
-  const easedProgress = easeInOutCubic(progress)
-
-  camera.position.lerpVectors(cameraTransition.fromPosition, cameraTransition.toPosition, easedProgress)
-  controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.toTarget, easedProgress)
-  camera.updateProjectionMatrix()
-
-  if (progress >= 1) {
-    cameraTransition.isActive = false
-  }
-}
-
-function applySceneSnapshot(snapshot) {
-  const clonedSnapshot = snapshot.map((objectState) => cloneSceneObject(objectState))
-  sceneObjects.splice(0, sceneObjects.length, ...clonedSnapshot)
-
-  sceneObjects.forEach((objectState) => {
-    applySceneObjectState(meshById, objectState)
-  })
-
-  if (selectedObjectId.value && !sceneObjects.some((objectState) => objectState.id === selectedObjectId.value)) {
-    setSelectedObjectId(null)
-    return
-  }
-
-  syncTransformControlsState()
-}
-
-function beginHistoryCapture() {
-  historyState.activeSnapshot = createSceneSnapshot()
-}
-
-function commitHistoryCapture() {
-  if (!historyState.activeSnapshot) {
-    return
-  }
-
-  const beforeSnapshot = historyState.activeSnapshot
-  historyState.activeSnapshot = null
-
-  const afterSnapshot = createSceneSnapshot()
-
-  if (areSnapshotsEqual(beforeSnapshot, afterSnapshot)) {
-    return
-  }
-
-  historyState.undoStack.push(beforeSnapshot)
-  trimHistoryStack(historyState.undoStack)
-  historyState.redoStack.length = 0
-}
-
-function runHistoryAction(actionType) {
-  if (actionType === 'undo') {
-    const previousSnapshot = historyState.undoStack.pop()
-
-    if (!previousSnapshot) {
-      return
-    }
-
-    historyState.redoStack.push(createSceneSnapshot())
-    trimHistoryStack(historyState.redoStack)
-    applySceneSnapshot(previousSnapshot)
-    return
-  }
-
-  if (actionType === 'redo') {
-    const nextSnapshot = historyState.redoStack.pop()
-
-    if (!nextSnapshot) {
-      return
-    }
-
-    historyState.undoStack.push(createSceneSnapshot())
-    trimHistoryStack(historyState.undoStack)
-    applySceneSnapshot(nextSnapshot)
-    return
-  }
-
-  if (actionType === 'reset') {
-    if (!selectedObjectId.value) {
-      return
-    }
-
-    const targetObject = sceneObjects.find((objectState) => objectState.id === selectedObjectId.value)
-    const initialObjectState = initialObjectStateById.get(selectedObjectId.value)
-
-    if (!targetObject || !initialObjectState) {
-      return
-    }
-
-    const beforeSnapshot = createSceneSnapshot()
-
-    if (props.activeTool === 'move') {
-      targetObject.position = [...initialObjectState.position]
-    } else if (props.activeTool === 'rotate') {
-      targetObject.rotation = [...initialObjectState.rotation]
-    } else if (props.activeTool === 'scale') {
-      targetObject.scale = [...initialObjectState.scale]
-    } else {
-      return
-    }
-
-    applySceneObjectState(meshById, targetObject)
-    syncTransformControlsState()
-
-    const afterSnapshot = createSceneSnapshot()
-
-    if (areSnapshotsEqual(beforeSnapshot, afterSnapshot)) {
-      return
-    }
-
-    historyState.undoStack.push(beforeSnapshot)
-    trimHistoryStack(historyState.undoStack)
-    historyState.redoStack.length = 0
-    return
-  }
-
+function handleEditorAction(actionType) {
   if (actionType === 'center') {
-    if (!camera || !controls) {
-      return
-    }
-
-    const selectedMesh = selectedObjectId.value ? meshById.get(selectedObjectId.value) ?? null : null
-    const nextTarget = new THREE.Vector3()
-
-    if (selectedMesh) {
-      const bounds = new THREE.Box3().setFromObject(selectedMesh)
-      bounds.getCenter(nextTarget)
-    } else {
-      nextTarget.copy(defaultCameraTarget)
-    }
-
-    const nextPosition = selectedMesh
-      ? nextTarget.clone().add(camera.position.clone().sub(controls.target))
-      : defaultCameraPosition.clone()
-
-    startCameraTransition(nextPosition, nextTarget)
+    cameraNavigationRuntime?.centerOnSelectionOrDefault()
+    return
   }
+
+  historyRuntime?.runHistoryAction(actionType)
 }
 
 const materialPool = []
@@ -360,28 +153,6 @@ function setSelectedObjectId(objectId) {
   highlightManager.applyEmissiveHighlight(selectedMesh)
 
   syncTransformControlsState()
-}
-
-function syncNavigationMode() {
-  if (!controls) {
-    return
-  }
-
-  const isPanActive = props.activeTool === 'pan'
-
-  controls.mouseButtons.LEFT = isPanActive ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
-  controls.mouseButtons.RIGHT = isPanActive ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN
-
-  if (!renderer?.domElement) {
-    return
-  }
-
-  if (isPanActive) {
-    renderer.domElement.style.cursor = panPointerIsDown ? 'grabbing' : 'grab'
-    return
-  }
-
-  renderer.domElement.style.cursor = ''
 }
 
 function syncTransformControlsState() {
@@ -435,8 +206,7 @@ watch(
   () => props.activeTool,
   () => {
     syncTransformControlsState()
-    panPointerIsDown = false
-    syncNavigationMode()
+    cameraNavigationRuntime?.handleToolChange()
   }
 )
 
@@ -447,7 +217,7 @@ watch(
       return
     }
 
-    runHistoryAction(props.historyAction.type)
+    handleEditorAction(props.historyAction.type)
   }
 )
 
@@ -456,15 +226,9 @@ function handlePointerDown(event) {
     return
   }
 
-  cameraTransition.isActive = false
+  cameraNavigationRuntime?.cancelTransition()
 
-  if (props.activeTool === 'pan') {
-    if (event.button !== 0) {
-      return
-    }
-
-    panPointerIsDown = true
-    syncNavigationMode()
+  if (cameraNavigationRuntime?.handlePointerDown(event)) {
     return
   }
 
@@ -501,13 +265,7 @@ function handlePointerUp(event) {
     return
   }
 
-  if (props.activeTool === 'pan') {
-    if (!panPointerIsDown) {
-      return
-    }
-
-    panPointerIsDown = false
-    syncNavigationMode()
+  if (cameraNavigationRuntime?.handlePointerUp()) {
     return
   }
 
@@ -572,7 +330,7 @@ function animate() {
   }
 
   frameId = window.requestAnimationFrame(animate)
-  updateCameraTransition()
+  cameraNavigationRuntime?.updateCameraTransition()
   controls.update()
   if (composer) {
     composer.render()
@@ -621,8 +379,17 @@ onMounted(() => {
   gridTexture = sceneBootstrap.gridTexture
   gridPlane = sceneBootstrap.gridPlane
 
-  defaultCameraPosition.copy(camera.position)
-  defaultCameraTarget.copy(controls.target)
+  cameraNavigationRuntime = createCameraNavigationRuntime({
+    THREE,
+    camera,
+    controls,
+    renderer,
+    meshById,
+    getActiveTool: () => props.activeTool,
+    getSelectedObjectId: () => selectedObjectId.value,
+    transitionDurationMs: CAMERA_CENTER_TRANSITION_MS
+  })
+  cameraNavigationRuntime.captureDefaultView()
 
   const transformRuntime = createTransformRuntime({
     THREE,
@@ -647,11 +414,23 @@ onMounted(() => {
 
   transformControls = transformRuntime.transformControls
   transformHelper = transformRuntime.transformHelper
-  transformControls.addEventListener('mouseDown', beginHistoryCapture)
-  transformControls.addEventListener('mouseUp', commitHistoryCapture)
 
-  captureInitialObjectState()
-  syncNavigationMode()
+  historyRuntime = createHistoryRuntime({
+    sceneObjects,
+    meshById,
+    applySceneObjectState,
+    getActiveTool: () => props.activeTool,
+    getSelectedObjectId: () => selectedObjectId.value,
+    setSelectedObjectId,
+    syncTransformControlsState,
+    maxHistoryEntries: MAX_HISTORY_ENTRIES
+  })
+  historyRuntime.captureInitialObjectState()
+
+  transformControls.addEventListener('mouseDown', historyRuntime.beginHistoryCapture)
+  transformControls.addEventListener('mouseUp', historyRuntime.commitHistoryCapture)
+
+  cameraNavigationRuntime.syncNavigationMode()
 
   resizeRenderer()
   resizeObserver = new ResizeObserver(resizeRenderer)
@@ -684,6 +463,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (frameId) {
     window.cancelAnimationFrame(frameId)
+  }
+
+  if (transformControls && historyRuntime) {
+    transformControls.removeEventListener('mouseDown', historyRuntime.beginHistoryCapture)
+    transformControls.removeEventListener('mouseUp', historyRuntime.commitHistoryCapture)
   }
 
   highlightManager.dispose()
@@ -721,6 +505,8 @@ onBeforeUnmount(() => {
   resizeObserver = null
   gridTexture = null
   gridPlane = null
+  historyRuntime = null
+  cameraNavigationRuntime = null
 })
 </script>
 
