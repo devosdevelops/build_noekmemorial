@@ -35,7 +35,7 @@ function handleToolChange(nextTool) {
 }
 
 function handleHistoryAction(actionType) {
-  if (actionType !== 'undo' && actionType !== 'redo' && actionType !== 'reset') {
+  if (actionType !== 'undo' && actionType !== 'redo' && actionType !== 'reset' && actionType !== 'center') {
     return
   }
 

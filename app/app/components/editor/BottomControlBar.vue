@@ -8,7 +8,8 @@ const emit = defineEmits(['tool-change', 'history-action'])
 const groupedControls = [
   [
     { id: 'select', label: 'Select' },
-    { id: 'pan', label: 'Pan' }
+    { id: 'pan', label: 'Pan' },
+    { id: 'center', label: 'Center' }
   ],
   [
     { id: 'move', label: 'Move' },
@@ -35,7 +36,7 @@ function handleControlClick(controlId) {
     return
   }
 
-  if (controlId === 'undo' || controlId === 'redo' || controlId === 'reset') {
+  if (controlId === 'undo' || controlId === 'redo' || controlId === 'reset' || controlId === 'center') {
     emit('history-action', controlId)
   }
 }

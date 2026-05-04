@@ -93,6 +93,8 @@ let resizeObserver = null
 let frameId = 0
 let gridTexture = null
 let gridPlane = null
+const defaultCameraPosition = new THREE.Vector3()
+const defaultCameraTarget = new THREE.Vector3()
 const interactionState = {
   isTransforming: false,
   isUsingTransformGizmo: false,
@@ -251,6 +253,32 @@ function runHistoryAction(actionType) {
     historyState.undoStack.push(beforeSnapshot)
     trimHistoryStack(historyState.undoStack)
     historyState.redoStack.length = 0
+    return
+  }
+
+  if (actionType === 'center') {
+    if (!camera || !controls) {
+      return
+    }
+
+    const selectedMesh = selectedObjectId.value ? meshById.get(selectedObjectId.value) ?? null : null
+    const nextTarget = new THREE.Vector3()
+
+    if (selectedMesh) {
+      const bounds = new THREE.Box3().setFromObject(selectedMesh)
+      bounds.getCenter(nextTarget)
+    } else {
+      nextTarget.copy(defaultCameraTarget)
+    }
+
+    const nextPosition = selectedMesh
+      ? nextTarget.clone().add(camera.position.clone().sub(controls.target))
+      : defaultCameraPosition.clone()
+
+    controls.target.copy(nextTarget)
+    camera.position.copy(nextPosition)
+    camera.updateProjectionMatrix()
+    controls.update()
   }
 }
 
@@ -542,6 +570,9 @@ onMounted(() => {
   outputPass = sceneBootstrap.outputPass
   gridTexture = sceneBootstrap.gridTexture
   gridPlane = sceneBootstrap.gridPlane
+
+  defaultCameraPosition.copy(camera.position)
+  defaultCameraTarget.copy(controls.target)
 
   const transformRuntime = createTransformRuntime({
     THREE,
