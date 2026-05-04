@@ -31,6 +31,8 @@ import {
   updateSceneObjectScale
 } from './viewport/sceneObjectState.js'
 import { createSelectionHighlightManager } from './viewport/selectionHighlight.js'
+import { createSceneBootstrap } from './viewport/sceneBootstrap.js'
+import { createTransformRuntime } from './viewport/transformRuntime.js'
 
 const containerRef = ref(null)
 
@@ -74,10 +76,11 @@ let resizeObserver = null
 let frameId = 0
 let gridTexture = null
 let gridPlane = null
-let isTransforming = false
-let isUsingTransformGizmo = false
-
-let activeScaleContext = null
+const interactionState = {
+  isTransforming: false,
+  isUsingTransformGizmo: false,
+  activeScaleContext: null
+}
 
 const selectableRoots = []
 const meshById = new Map()
@@ -142,7 +145,7 @@ function syncTransformControlsState() {
     transformControls.detach()
     transformControls.enabled = false
     transformControls.visible = false
-    activeScaleContext = null
+    interactionState.activeScaleContext = null
     if (transformHelper) {
       transformHelper.visible = false
     }
@@ -183,7 +186,7 @@ watch(
 )
 
 function handlePointerDown(event) {
-  if (!renderer || !camera || !scene || isTransforming) {
+  if (!renderer || !camera || !scene || interactionState.isTransforming) {
     return
   }
 
@@ -191,7 +194,7 @@ function handlePointerDown(event) {
     return
   }
 
-  if (isUsingTransformGizmo || transformControls?.dragging) {
+  if (interactionState.isUsingTransformGizmo || transformControls?.dragging) {
     return
   }
 
@@ -226,12 +229,12 @@ function handlePointerUp(event) {
 
   pointerIsDown = false
 
-  if (pointerMoved || isTransforming) {
+  if (pointerMoved || interactionState.isTransforming) {
     return
   }
 
-  if (isUsingTransformGizmo || transformControls?.dragging) {
-    isUsingTransformGizmo = false
+  if (interactionState.isUsingTransformGizmo || transformControls?.dragging) {
+    interactionState.isUsingTransformGizmo = false
     return
   }
 
@@ -296,236 +299,62 @@ onMounted(() => {
     return
   }
 
-  scene = new THREE.Scene()
-  scene.background = new THREE.Color('#e9ede5')
-  scene.fog = new THREE.Fog('#e9ede5', 70, 180)
-
-  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 240)
-  setCameraStartPosition(camera, 28, 30, 20, THREE)
-  camera.lookAt(0, 0.8, 0)
-
-  renderer = new THREE.WebGLRenderer({ antialias: true })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.outputColorSpace = THREE.SRGBColorSpace
-  container.appendChild(renderer.domElement)
-
-  controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = true
-  controls.dampingFactor = 0.05
-  controls.target.set(0, 0.8, 0)
-  controls.minDistance = 12
-  controls.maxDistance = 60
-  controls.minPolarAngle = THREE.MathUtils.degToRad(18)
-  controls.maxPolarAngle = THREE.MathUtils.degToRad(82)
-
-  const hemiLight = new THREE.HemisphereLight('#f7faef', '#b9c7b2', 0.82)
-  scene.add(hemiLight)
-
-  const sunLight = new THREE.DirectionalLight('#ffffff', 0.84)
-  sunLight.position.set(20, 38, 14)
-  sunLight.castShadow = false
-  scene.add(sunLight)
-
-  gridTexture = poolTexture(createRoundedGridTexture(THREE, gridConfig.groundSize, gridConfig.cellSize))
-
-  if (renderer.capabilities) {
-    gridTexture.anisotropy = renderer.capabilities.getMaxAnisotropy()
-  }
-
-  gridPlane = new THREE.Mesh(
-    poolGeometry(new THREE.PlaneGeometry(gridConfig.groundSize, gridConfig.groundSize)),
-    poolMaterial(
-      new THREE.MeshBasicMaterial({
-        map: gridTexture,
-        transparent: true,
-        opacity: 0.9,
-        depthWrite: false
-      })
-    )
-  )
-  gridPlane.rotation.x = -Math.PI / 2
-  gridPlane.position.y = 0
-  scene.add(gridPlane)
-
-  const plinth = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(10, 0.8, 10)),
-    poolMaterial(
-      new THREE.MeshStandardMaterial({
-        color: '#7a8fa0',
-        roughness: 0.86,
-        metalness: 0.04
-      })
-    )
-  )
-  plinth.position.set(0, 0.4, 0)
-  scene.add(plinth)
-
-  const placeholder = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(2, 2, 2)),
-    poolMaterial(
-      new THREE.MeshStandardMaterial({
-        color: '#f5b8ca',
-        roughness: 0.53,
-        metalness: 0.02
-      })
-    )
-  )
-  registerSelectableRoot(THREE, selectableRoots, meshById, 'placeholder', placeholder)
-  resnapAllObjects(THREE, sceneObjects, gridConfig, meshById)
-  scene.add(placeholder)
-
-  composer = new EffectComposer(renderer)
-  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  composer.addPass(new RenderPass(scene, camera))
-
-  outlinePass = new OutlinePass(new THREE.Vector2(1, 1), scene, camera)
-  outlinePass.edgeStrength = 4.1
-  outlinePass.edgeGlow = 0.6
-  outlinePass.edgeThickness = 1.8
-  outlinePass.visibleEdgeColor.set('#f2d68c')
-  outlinePass.hiddenEdgeColor.set('#e6c978')
-  composer.addPass(outlinePass)
-
-  gizmoScene = new THREE.Scene()
-  gizmoRenderPass = new RenderPass(gizmoScene, camera)
-  gizmoRenderPass.clear = false
-  gizmoRenderPass.clearDepth = true
-  composer.addPass(gizmoRenderPass)
-
-  outputPass = new OutputPass()
-  composer.addPass(outputPass)
-
-  transformControls = new TransformControls(camera, renderer.domElement)
-  transformControls.setMode('translate')
-  transformControls.setTranslationSnap(gridConfig.cellSize)
-  transformControls.setScaleSnap(null)
-  transformControls.setRotationSnap(null)
-  transformControls.showY = true
-  transformControls.showX = true
-  transformControls.showZ = true
-  transformControls.showXY = false
-  transformControls.showYZ = false
-  transformControls.showXZ = false
-  transformControls.size = 1.2
-  transformControls.visible = false
-  transformHelper = transformControls.getHelper()
-  transformHelper.visible = false
-  transformHelper.renderOrder = 10
-  const helperHandlesToRemove = []
-  transformHelper.traverse((child) => {
-    child.renderOrder = 10
-
-    if (child.name === 'E') {
-      helperHandlesToRemove.push(child)
-    }
-
-    if ('material' in child) {
-      const material = child.material
-      const materials = Array.isArray(material) ? material : material ? [material] : []
-
-      materials.forEach((item) => {
-        item.depthTest = false
-        item.depthWrite = false
-        item.transparent = true
-      })
-    }
+  const sceneBootstrap = createSceneBootstrap({
+    THREE,
+    OrbitControls,
+    EffectComposer,
+    RenderPass,
+    OutlinePass,
+    OutputPass,
+    container,
+    gridConfig,
+    poolMaterial,
+    poolGeometry,
+    poolTexture,
+    setCameraStartPosition,
+    createRoundedGridTexture,
+    registerSelectableRoot,
+    resnapAllObjects,
+    selectableRoots,
+    meshById,
+    sceneObjects
   })
-  helperHandlesToRemove.forEach((child) => {
-    child.parent?.remove(child)
+
+  scene = sceneBootstrap.scene
+  camera = sceneBootstrap.camera
+  renderer = sceneBootstrap.renderer
+  controls = sceneBootstrap.controls
+  composer = sceneBootstrap.composer
+  outlinePass = sceneBootstrap.outlinePass
+  gizmoScene = sceneBootstrap.gizmoScene
+  gizmoRenderPass = sceneBootstrap.gizmoRenderPass
+  outputPass = sceneBootstrap.outputPass
+  gridTexture = sceneBootstrap.gridTexture
+  gridPlane = sceneBootstrap.gridPlane
+
+  const transformRuntime = createTransformRuntime({
+    THREE,
+    TransformControls,
+    camera,
+    renderer,
+    controls,
+    gizmoScene,
+    gridConfig,
+    sceneObjects,
+    interactionState,
+    minScaleCells: MIN_SCALE_CELLS,
+    createScaleInteractionContext,
+    applyFloorScaleBehavior,
+    applyShapeScaleBehavior,
+    applyModelScaleBehavior,
+    snapVectorToGrid,
+    updateSceneObjectPosition,
+    updateSceneObjectScale,
+    updateSceneObjectRotation
   })
-  transformControls.addEventListener('dragging-changed', (event) => {
-    isTransforming = event.value
 
-    if (controls) {
-      controls.enabled = !event.value
-    }
-  })
-  transformControls.addEventListener('mouseDown', () => {
-    isUsingTransformGizmo = true
-
-    if (transformControls?.getMode() === 'scale' && transformControls.object) {
-      const objectId = transformControls.object.userData?.objectId
-
-      if (typeof objectId === 'string') {
-        activeScaleContext = createScaleInteractionContext(
-          THREE,
-          sceneObjects,
-          gridConfig,
-          objectId,
-          transformControls.object
-        )
-      }
-    }
-  })
-  transformControls.addEventListener('mouseUp', () => {
-    isUsingTransformGizmo = false
-    activeScaleContext = null
-  })
-  transformControls.addEventListener('objectChange', () => {
-    if (!transformControls || !transformControls.object) {
-      return
-    }
-
-    const objectId = transformControls.object.userData?.objectId
-
-    if (typeof objectId !== 'string') {
-      return
-    }
-
-    if (transformControls.getMode() === 'translate') {
-      const snapped = snapVectorToGrid(THREE, gridConfig, transformControls.object.position)
-      transformControls.object.position.copy(snapped)
-      updateSceneObjectPosition(sceneObjects, objectId, snapped)
-      return
-    }
-
-    if (transformControls.getMode() === 'scale') {
-      const scaleContext = activeScaleContext ?? createScaleInteractionContext(
-        THREE,
-        sceneObjects,
-        gridConfig,
-        objectId,
-        transformControls.object
-      )
-      activeScaleContext = scaleContext
-
-      let nextScale
-
-      if (scaleContext.profile === 'floor') {
-        nextScale = applyFloorScaleBehavior(
-          THREE,
-          transformControls.object,
-          scaleContext,
-          gridConfig,
-          MIN_SCALE_CELLS
-        )
-      } else if (scaleContext.profile === 'shape') {
-        nextScale = applyShapeScaleBehavior(
-          THREE,
-          transformControls.object,
-          scaleContext,
-          gridConfig,
-          MIN_SCALE_CELLS
-        )
-      } else {
-        nextScale = applyModelScaleBehavior(
-          THREE,
-          transformControls.object,
-          scaleContext,
-          transformControls.axis,
-          gridConfig,
-          MIN_SCALE_CELLS
-        )
-      }
-
-      updateSceneObjectScale(sceneObjects, objectId, nextScale)
-      updateSceneObjectPosition(sceneObjects, objectId, transformControls.object.position)
-      return
-    }
-
-    updateSceneObjectRotation(sceneObjects, objectId, transformControls.object.rotation)
-  })
-  gizmoScene.add(transformHelper)
+  transformControls = transformRuntime.transformControls
+  transformHelper = transformRuntime.transformHelper
 
   resizeRenderer()
   resizeObserver = new ResizeObserver(resizeRenderer)

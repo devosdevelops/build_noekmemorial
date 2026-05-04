@@ -14,6 +14,12 @@
 - **Internal Model Library** → curated 3D assets (within same
     Supabase)
 
+### Language Standard (Project Convention)
+
+- Authored application code uses **JavaScript**, not TypeScript
+- Use `.js` files for config/modules and Vue `<script setup>` (without `lang="ts"`)
+- Do not introduce authored `.ts`, `.tsx`, or `.d.ts` files in this repository
+
 ------------------------------------------------------------------------
 
 ## 2. Full System Architecture
