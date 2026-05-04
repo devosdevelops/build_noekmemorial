@@ -68,6 +68,7 @@ const sceneObjects = reactive([
 ])
 
 const MAX_HISTORY_ENTRIES = 50
+
 const historyState = {
   undoStack: [],
   redoStack: [],
