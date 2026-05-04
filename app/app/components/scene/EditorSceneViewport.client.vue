@@ -74,6 +74,7 @@ const historyState = {
   redoStack: [],
   activeSnapshot: null
 }
+const initialObjectStateById = new Map()
 
 const selectedObjectId = ref(null)
 
@@ -126,6 +127,13 @@ function cloneSceneObject(objectState) {
 
 function createSceneSnapshot() {
   return sceneObjects.map((objectState) => cloneSceneObject(objectState))
+}
+
+function captureInitialObjectState() {
+  initialObjectStateById.clear()
+  sceneObjects.forEach((objectState) => {
+    initialObjectStateById.set(objectState.id, cloneSceneObject(objectState))
+  })
 }
 
 function areSnapshotsEqual(firstSnapshot, secondSnapshot) {
@@ -203,6 +211,45 @@ function runHistoryAction(actionType) {
     historyState.undoStack.push(createSceneSnapshot())
     trimHistoryStack(historyState.undoStack)
     applySceneSnapshot(nextSnapshot)
+    return
+  }
+
+  if (actionType === 'reset') {
+    if (!selectedObjectId.value) {
+      return
+    }
+
+    const targetObject = sceneObjects.find((objectState) => objectState.id === selectedObjectId.value)
+    const initialObjectState = initialObjectStateById.get(selectedObjectId.value)
+
+    if (!targetObject || !initialObjectState) {
+      return
+    }
+
+    const beforeSnapshot = createSceneSnapshot()
+
+    if (props.activeTool === 'move') {
+      targetObject.position = [...initialObjectState.position]
+    } else if (props.activeTool === 'rotate') {
+      targetObject.rotation = [...initialObjectState.rotation]
+    } else if (props.activeTool === 'scale') {
+      targetObject.scale = [...initialObjectState.scale]
+    } else {
+      return
+    }
+
+    applySceneObjectState(meshById, targetObject)
+    syncTransformControlsState()
+
+    const afterSnapshot = createSceneSnapshot()
+
+    if (areSnapshotsEqual(beforeSnapshot, afterSnapshot)) {
+      return
+    }
+
+    historyState.undoStack.push(beforeSnapshot)
+    trimHistoryStack(historyState.undoStack)
+    historyState.redoStack.length = 0
   }
 }
 
@@ -476,6 +523,8 @@ onMounted(() => {
   transformHelper = transformRuntime.transformHelper
   transformControls.addEventListener('mouseDown', beginHistoryCapture)
   transformControls.addEventListener('mouseUp', commitHistoryCapture)
+
+  captureInitialObjectState()
 
   resizeRenderer()
   resizeObserver = new ResizeObserver(resizeRenderer)

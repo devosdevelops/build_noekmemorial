@@ -10,6 +10,7 @@ const controls = [
   { id: 'move', label: 'Move' },
   { id: 'rotate', label: 'Rotate' },
   { id: 'scale', label: 'Scale' },
+  { id: 'reset', label: 'Reset' },
   { id: 'undo', label: 'Undo' },
   { id: 'redo', label: 'Redo' }
 ]
@@ -27,7 +28,7 @@ function handleControlClick(controlId) {
     return
   }
 
-  if (controlId === 'undo' || controlId === 'redo') {
+  if (controlId === 'undo' || controlId === 'redo' || controlId === 'reset') {
     emit('history-action', controlId)
   }
 }
