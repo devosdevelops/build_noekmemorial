@@ -7,7 +7,8 @@ const emit = defineEmits(['tool-change', 'history-action'])
 
 const groupedControls = [
   [
-    { id: 'select', label: 'Select' }
+    { id: 'select', label: 'Select' },
+    { id: 'pan', label: 'Pan' }
   ],
   [
     { id: 'move', label: 'Move' },
@@ -24,7 +25,7 @@ const groupedControls = [
 const selectedTool = ref('move')
 
 function isToolControl(controlId) {
-  return controlId === 'select' || controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
+  return controlId === 'select' || controlId === 'pan' || controlId === 'move' || controlId === 'rotate' || controlId === 'scale'
 }
 
 function handleControlClick(controlId) {

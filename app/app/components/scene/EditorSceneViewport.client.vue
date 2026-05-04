@@ -109,6 +109,7 @@ let pointerIsDown = false
 let pointerMoved = false
 let pointerDownClientX = 0
 let pointerDownClientY = 0
+let panPointerIsDown = false
 
 const CLICK_MOVE_THRESHOLD_PX = 6
 
@@ -286,6 +287,28 @@ function setSelectedObjectId(objectId) {
   syncTransformControlsState()
 }
 
+function syncNavigationMode() {
+  if (!controls) {
+    return
+  }
+
+  const isPanActive = props.activeTool === 'pan'
+
+  controls.mouseButtons.LEFT = isPanActive ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
+  controls.mouseButtons.RIGHT = isPanActive ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN
+
+  if (!renderer?.domElement) {
+    return
+  }
+
+  if (isPanActive) {
+    renderer.domElement.style.cursor = panPointerIsDown ? 'grabbing' : 'grab'
+    return
+  }
+
+  renderer.domElement.style.cursor = ''
+}
+
 function syncTransformControlsState() {
   if (!transformControls) {
     return
@@ -337,6 +360,8 @@ watch(
   () => props.activeTool,
   () => {
     syncTransformControlsState()
+    panPointerIsDown = false
+    syncNavigationMode()
   }
 )
 
@@ -353,6 +378,16 @@ watch(
 
 function handlePointerDown(event) {
   if (!renderer || !camera || !scene || interactionState.isTransforming) {
+    return
+  }
+
+  if (props.activeTool === 'pan') {
+    if (event.button !== 0) {
+      return
+    }
+
+    panPointerIsDown = true
+    syncNavigationMode()
     return
   }
 
@@ -386,6 +421,16 @@ function handlePointerMove(event) {
 
 function handlePointerUp(event) {
   if (!renderer || !camera || !scene) {
+    return
+  }
+
+  if (props.activeTool === 'pan') {
+    if (!panPointerIsDown) {
+      return
+    }
+
+    panPointerIsDown = false
+    syncNavigationMode()
     return
   }
 
@@ -525,6 +570,7 @@ onMounted(() => {
   transformControls.addEventListener('mouseUp', commitHistoryCapture)
 
   captureInitialObjectState()
+  syncNavigationMode()
 
   resizeRenderer()
   resizeObserver = new ResizeObserver(resizeRenderer)
