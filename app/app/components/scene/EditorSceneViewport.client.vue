@@ -95,6 +95,16 @@ let gridTexture = null
 let gridPlane = null
 const defaultCameraPosition = new THREE.Vector3()
 const defaultCameraTarget = new THREE.Vector3()
+const CAMERA_CENTER_TRANSITION_MS = 1000
+const cameraTransition = {
+  isActive: false,
+  startTime: 0,
+  duration: CAMERA_CENTER_TRANSITION_MS,
+  fromPosition: new THREE.Vector3(),
+  toPosition: new THREE.Vector3(),
+  fromTarget: new THREE.Vector3(),
+  toTarget: new THREE.Vector3()
+}
 const interactionState = {
   isTransforming: false,
   isUsingTransformGizmo: false,
@@ -149,6 +159,46 @@ function trimHistoryStack(stack) {
   }
 
   stack.splice(0, stack.length - MAX_HISTORY_ENTRIES)
+}
+
+function easeInOutCubic(progress) {
+  if (progress < 0.5) {
+    return 4 * progress * progress * progress
+  }
+
+  return 1 - Math.pow(-2 * progress + 2, 3) / 2
+}
+
+function startCameraTransition(nextPosition, nextTarget) {
+  if (!camera || !controls) {
+    return
+  }
+
+  cameraTransition.fromPosition.copy(camera.position)
+  cameraTransition.toPosition.copy(nextPosition)
+  cameraTransition.fromTarget.copy(controls.target)
+  cameraTransition.toTarget.copy(nextTarget)
+  cameraTransition.startTime = performance.now()
+  cameraTransition.duration = CAMERA_CENTER_TRANSITION_MS
+  cameraTransition.isActive = true
+}
+
+function updateCameraTransition() {
+  if (!cameraTransition.isActive || !camera || !controls) {
+    return
+  }
+
+  const elapsed = performance.now() - cameraTransition.startTime
+  const progress = Math.min(elapsed / cameraTransition.duration, 1)
+  const easedProgress = easeInOutCubic(progress)
+
+  camera.position.lerpVectors(cameraTransition.fromPosition, cameraTransition.toPosition, easedProgress)
+  controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.toTarget, easedProgress)
+  camera.updateProjectionMatrix()
+
+  if (progress >= 1) {
+    cameraTransition.isActive = false
+  }
 }
 
 function applySceneSnapshot(snapshot) {
@@ -275,10 +325,7 @@ function runHistoryAction(actionType) {
       ? nextTarget.clone().add(camera.position.clone().sub(controls.target))
       : defaultCameraPosition.clone()
 
-    controls.target.copy(nextTarget)
-    camera.position.copy(nextPosition)
-    camera.updateProjectionMatrix()
-    controls.update()
+    startCameraTransition(nextPosition, nextTarget)
   }
 }
 
@@ -409,6 +456,8 @@ function handlePointerDown(event) {
     return
   }
 
+  cameraTransition.isActive = false
+
   if (props.activeTool === 'pan') {
     if (event.button !== 0) {
       return
@@ -523,6 +572,7 @@ function animate() {
   }
 
   frameId = window.requestAnimationFrame(animate)
+  updateCameraTransition()
   controls.update()
   if (composer) {
     composer.render()
