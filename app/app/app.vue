@@ -4,12 +4,14 @@
     <EditorSceneViewport
       class="scene-layer"
       :active-tool="activeTool"
+      :history-action="historyAction"
     />
     <BrandPanel />
     <SideToolPanel />
     <TopActionBar />
     <BottomControlBar
       @tool-change="handleToolChange"
+      @history-action="handleHistoryAction"
     />
   </div>
 </template>
@@ -23,9 +25,24 @@ import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 
 const activeTool = ref('move')
+const historyAction = ref({
+  type: null,
+  sequence: 0
+})
 
 function handleToolChange(nextTool) {
   activeTool.value = nextTool
+}
+
+function handleHistoryAction(actionType) {
+  if (actionType !== 'undo' && actionType !== 'redo') {
+    return
+  }
+
+  historyAction.value = {
+    type: actionType,
+    sequence: historyAction.value.sequence + 1
+  }
 }
 </script>
 

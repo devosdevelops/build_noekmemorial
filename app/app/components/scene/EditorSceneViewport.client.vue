@@ -23,6 +23,7 @@ import {
   updateGridTextureRepeat
 } from './viewport/sceneMath.js'
 import {
+  applySceneObjectState,
   getSelectableRoot,
   registerSelectableRoot,
   resnapAllObjects,
@@ -40,6 +41,13 @@ const props = defineProps({
   activeTool: {
     type: String,
     default: 'select'
+  },
+  historyAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      sequence: 0
+    })
   }
 })
 
@@ -58,6 +66,13 @@ const sceneObjects = reactive([
     scale: [1, 1, 1]
   }
 ])
+
+const MAX_HISTORY_ENTRIES = 80
+const historyState = {
+  undoStack: [],
+  redoStack: [],
+  activeSnapshot: null
+}
 
 const selectedObjectId = ref(null)
 
@@ -97,6 +112,98 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
+
+function cloneSceneObject(objectState) {
+  return {
+    id: objectState.id,
+    scaleProfile: objectState.scaleProfile,
+    position: [...objectState.position],
+    rotation: [...objectState.rotation],
+    scale: [...objectState.scale]
+  }
+}
+
+function createSceneSnapshot() {
+  return sceneObjects.map((objectState) => cloneSceneObject(objectState))
+}
+
+function areSnapshotsEqual(firstSnapshot, secondSnapshot) {
+  return JSON.stringify(firstSnapshot) === JSON.stringify(secondSnapshot)
+}
+
+function trimHistoryStack(stack) {
+  if (stack.length <= MAX_HISTORY_ENTRIES) {
+    return
+  }
+
+  stack.splice(0, stack.length - MAX_HISTORY_ENTRIES)
+}
+
+function applySceneSnapshot(snapshot) {
+  const clonedSnapshot = snapshot.map((objectState) => cloneSceneObject(objectState))
+  sceneObjects.splice(0, sceneObjects.length, ...clonedSnapshot)
+
+  sceneObjects.forEach((objectState) => {
+    applySceneObjectState(meshById, objectState)
+  })
+
+  if (selectedObjectId.value && !sceneObjects.some((objectState) => objectState.id === selectedObjectId.value)) {
+    setSelectedObjectId(null)
+    return
+  }
+
+  syncTransformControlsState()
+}
+
+function beginHistoryCapture() {
+  historyState.activeSnapshot = createSceneSnapshot()
+}
+
+function commitHistoryCapture() {
+  if (!historyState.activeSnapshot) {
+    return
+  }
+
+  const beforeSnapshot = historyState.activeSnapshot
+  historyState.activeSnapshot = null
+
+  const afterSnapshot = createSceneSnapshot()
+
+  if (areSnapshotsEqual(beforeSnapshot, afterSnapshot)) {
+    return
+  }
+
+  historyState.undoStack.push(beforeSnapshot)
+  trimHistoryStack(historyState.undoStack)
+  historyState.redoStack.length = 0
+}
+
+function runHistoryAction(actionType) {
+  if (actionType === 'undo') {
+    const previousSnapshot = historyState.undoStack.pop()
+
+    if (!previousSnapshot) {
+      return
+    }
+
+    historyState.redoStack.push(createSceneSnapshot())
+    trimHistoryStack(historyState.redoStack)
+    applySceneSnapshot(previousSnapshot)
+    return
+  }
+
+  if (actionType === 'redo') {
+    const nextSnapshot = historyState.redoStack.pop()
+
+    if (!nextSnapshot) {
+      return
+    }
+
+    historyState.undoStack.push(createSceneSnapshot())
+    trimHistoryStack(historyState.undoStack)
+    applySceneSnapshot(nextSnapshot)
+  }
+}
 
 const materialPool = []
 const geometryPool = []
@@ -182,6 +289,17 @@ watch(
   () => props.activeTool,
   () => {
     syncTransformControlsState()
+  }
+)
+
+watch(
+  () => props.historyAction.sequence,
+  () => {
+    if (!props.historyAction?.type || interactionState.isTransforming) {
+      return
+    }
+
+    runHistoryAction(props.historyAction.type)
   }
 )
 
@@ -355,6 +473,8 @@ onMounted(() => {
 
   transformControls = transformRuntime.transformControls
   transformHelper = transformRuntime.transformHelper
+  transformControls.addEventListener('mouseDown', beginHistoryCapture)
+  transformControls.addEventListener('mouseUp', commitHistoryCapture)
 
   resizeRenderer()
   resizeObserver = new ResizeObserver(resizeRenderer)

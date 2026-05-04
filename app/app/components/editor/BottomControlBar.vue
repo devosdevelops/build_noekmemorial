@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const emit = defineEmits(['tool-change'])
+const emit = defineEmits(['tool-change', 'history-action'])
 
 const controls = [
   { id: 'select', label: 'Select' },
@@ -21,12 +21,15 @@ function isToolControl(controlId) {
 }
 
 function handleControlClick(controlId) {
-  if (!isToolControl(controlId)) {
+  if (isToolControl(controlId)) {
+    selectedTool.value = controlId
+    emit('tool-change', controlId)
     return
   }
 
-  selectedTool.value = controlId
-  emit('tool-change', controlId)
+  if (controlId === 'undo' || controlId === 'redo') {
+    emit('history-action', controlId)
+  }
 }
 </script>
 
