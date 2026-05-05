@@ -1,4 +1,4 @@
-import { normalizeAndValidateSceneDocument } from '../../../app/scene/sceneValidation.js'
+import { normalizeAndValidateSceneDocument } from '~/scene/sceneValidation.js'
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
 
 const SCENES_TABLE = 'app_scenes'
