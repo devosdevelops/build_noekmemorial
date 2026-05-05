@@ -41,7 +41,7 @@ import { buildSceneDocumentFromRuntime } from '../../scene/sceneSerialization.js
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 
 const containerRef = ref(null)
-const emit = defineEmits(['scene-document-prepared'])
+const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed'])
 
 const props = defineProps({
   activeInteractionMode: {
@@ -157,6 +157,8 @@ const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
 
 let createdShapeCount = 0
+let isApplyingHydration = false
+let isSceneReady = false
 
 function handleEditorAction(actionType) {
   if (actionType === 'center') {
@@ -255,98 +257,104 @@ function applyHydratedSceneDocument(sceneDocument) {
     return
   }
 
-  const runtimeObjects = hydrationResult.runtimeObjects
-  const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
-    id: 'floor',
-    kind: SCENE_KIND.FLOOR,
-    assetRef: 'floor-base',
-    scaleProfile: 'floor',
-    position: [0, -0.07, 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-    appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
-  }
-  const nextModelState = runtimeObjects.find((item) => item.kind === SCENE_KIND.MODEL) || {
-    id: 'placeholder',
-    kind: SCENE_KIND.MODEL,
-    assetRef: 'placeholder-model',
-    scaleProfile: 'model',
-    position: [0, 1, 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-    appearance: getDefaultAppearance(SCENE_KIND.MODEL)
-  }
-  const nextShapeObjects = runtimeObjects
-    .filter((item) => item.kind === SCENE_KIND.SHAPE)
-    .map((item, index) => {
-      if (item.id === 'floor' || item.id === 'placeholder') {
-        return {
-          ...item,
-          id: `shape-${index}-${Date.now()}`
-        }
-      }
+  isApplyingHydration = true
 
-      return item
+  try {
+    const runtimeObjects = hydrationResult.runtimeObjects
+    const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
+      id: 'floor',
+      kind: SCENE_KIND.FLOOR,
+      assetRef: 'floor-base',
+      scaleProfile: 'floor',
+      position: [0, -0.07, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
+    }
+    const nextModelState = runtimeObjects.find((item) => item.kind === SCENE_KIND.MODEL) || {
+      id: 'placeholder',
+      kind: SCENE_KIND.MODEL,
+      assetRef: 'placeholder-model',
+      scaleProfile: 'model',
+      position: [0, 1, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      appearance: getDefaultAppearance(SCENE_KIND.MODEL)
+    }
+    const nextShapeObjects = runtimeObjects
+      .filter((item) => item.kind === SCENE_KIND.SHAPE)
+      .map((item, index) => {
+        if (item.id === 'floor' || item.id === 'placeholder') {
+          return {
+            ...item,
+            id: `shape-${index}-${Date.now()}`
+          }
+        }
+
+        return item
+      })
+
+    removeDynamicObjectsFromScene()
+
+    const floorMesh = meshById.get('floor')
+    if (floorMesh) {
+      floorMesh.position.set(...nextFloorState.position)
+      floorMesh.rotation.set(...nextFloorState.rotation)
+      floorMesh.scale.set(...nextFloorState.scale)
+      setMeshColor(floorMesh, nextFloorState.appearance?.color)
+    }
+
+    const placeholderMesh = meshById.get('placeholder')
+    if (placeholderMesh) {
+      placeholderMesh.position.set(...nextModelState.position)
+      placeholderMesh.rotation.set(...nextModelState.rotation)
+      placeholderMesh.scale.set(...nextModelState.scale)
+      setMeshColor(placeholderMesh, nextModelState.appearance?.color)
+    }
+
+    nextShapeObjects.forEach((objectState) => {
+      const mesh = createShapeMeshFromRuntimeObject(objectState)
+      scene.add(mesh)
+      registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, mesh)
     })
 
-  removeDynamicObjectsFromScene()
+    sceneObjects.splice(0, sceneObjects.length, {
+      ...nextFloorState,
+      id: 'floor',
+      scaleProfile: 'floor'
+    }, {
+      ...nextModelState,
+      id: 'placeholder',
+      scaleProfile: 'model'
+    }, ...nextShapeObjects.map((objectState) => ({
+      ...objectState,
+      scaleProfile: 'shape'
+    })))
 
-  const floorMesh = meshById.get('floor')
-  if (floorMesh) {
-    floorMesh.position.set(...nextFloorState.position)
-    floorMesh.rotation.set(...nextFloorState.rotation)
-    floorMesh.scale.set(...nextFloorState.scale)
-    setMeshColor(floorMesh, nextFloorState.appearance?.color)
-  }
+    if (sceneDocument?.editorSettings?.grid && typeof sceneDocument.editorSettings.grid === 'object') {
+      const nextCellSize = Number(sceneDocument.editorSettings.grid.cellSize)
+      const nextGroundSize = Number(sceneDocument.editorSettings.grid.groundSize)
 
-  const placeholderMesh = meshById.get('placeholder')
-  if (placeholderMesh) {
-    placeholderMesh.position.set(...nextModelState.position)
-    placeholderMesh.rotation.set(...nextModelState.rotation)
-    placeholderMesh.scale.set(...nextModelState.scale)
-    setMeshColor(placeholderMesh, nextModelState.appearance?.color)
-  }
+      if (Number.isFinite(nextCellSize) && nextCellSize > 0) {
+        gridConfig.cellSize = nextCellSize
+      }
 
-  nextShapeObjects.forEach((objectState) => {
-    const mesh = createShapeMeshFromRuntimeObject(objectState)
-    scene.add(mesh)
-    registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, mesh)
-  })
-
-  sceneObjects.splice(0, sceneObjects.length, {
-    ...nextFloorState,
-    id: 'floor',
-    scaleProfile: 'floor'
-  }, {
-    ...nextModelState,
-    id: 'placeholder',
-    scaleProfile: 'model'
-  }, ...nextShapeObjects.map((objectState) => ({
-    ...objectState,
-    scaleProfile: 'shape'
-  })))
-
-  if (sceneDocument?.editorSettings?.grid && typeof sceneDocument.editorSettings.grid === 'object') {
-    const nextCellSize = Number(sceneDocument.editorSettings.grid.cellSize)
-    const nextGroundSize = Number(sceneDocument.editorSettings.grid.groundSize)
-
-    if (Number.isFinite(nextCellSize) && nextCellSize > 0) {
-      gridConfig.cellSize = nextCellSize
+      if (Number.isFinite(nextGroundSize) && nextGroundSize > 0) {
+        gridConfig.groundSize = nextGroundSize
+      }
     }
 
-    if (Number.isFinite(nextGroundSize) && nextGroundSize > 0) {
-      gridConfig.groundSize = nextGroundSize
+    createdShapeCount = nextShapeObjects.length
+    setSelectedObjectId(null)
+    historyRuntime?.clearHistory()
+    historyRuntime?.captureInitialObjectState()
+    syncTransformControlsState()
+
+    if (hydrationResult.warnings.length) {
+      console.info('Scene hydration warnings:', hydrationResult.warnings)
     }
-  }
-
-  createdShapeCount = nextShapeObjects.length
-  setSelectedObjectId(null)
-  historyRuntime?.clearHistory()
-  historyRuntime?.captureInitialObjectState()
-  syncTransformControlsState()
-
-  if (hydrationResult.warnings.length) {
-    console.info('Scene hydration warnings:', hydrationResult.warnings)
+  } finally {
+    isApplyingHydration = false
   }
 }
 
@@ -558,6 +566,18 @@ watch(
 
     handlePersistenceAction(props.persistenceAction)
   }
+)
+
+watch(
+  sceneObjects,
+  () => {
+    if (!isSceneReady || isApplyingHydration) {
+      return
+    }
+
+    emit('scene-runtime-changed')
+  },
+  { deep: true }
 )
 
 function handlePointerDown(event) {
@@ -795,6 +815,7 @@ onMounted(() => {
   )
 
   syncTransformControlsState()
+  isSceneReady = true
 
   animate()
 })
@@ -846,6 +867,8 @@ onBeforeUnmount(() => {
   gridPlane = null
   historyRuntime = null
   cameraNavigationRuntime = null
+  isSceneReady = false
+  isApplyingHydration = false
 })
 </script>
 

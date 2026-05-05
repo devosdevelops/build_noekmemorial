@@ -9,6 +9,7 @@
       :block-action="blockAction"
       :persistence-action="persistenceAction"
       @scene-document-prepared="handleSceneDocumentPrepared"
+      @scene-runtime-changed="handleSceneRuntimeChanged"
     />
     <BrandPanel />
     <SideToolPanel @tool-click="handleSideToolClick" />
@@ -23,7 +24,12 @@
       @close="handleAssetConfigurationClose"
       @add-to-scene="handleAssetAddToScene"
     />
-    <TopActionBar @action-click="handleTopActionClick" />
+    <TopActionBar
+      :persistence-status="persistenceStatus"
+      :persistence-error="persistenceError"
+      :is-scene-dirty="isSceneDirty"
+      @action-click="handleTopActionClick"
+    />
     <BottomControlBar
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
@@ -68,6 +74,8 @@ const latestSaveDiagnostics = ref({
   warnings: []
 })
 const lastSceneName = ref('Editor Scene')
+const isSceneDirty = ref(false)
+const skipNextDirtyEvent = ref(false)
 const selectedAsset = ref(null)
 const isAssetConfigurationVisible = ref(false)
 
@@ -175,6 +183,7 @@ function handleAssetAddToScene() {
     shapeType,
     sequence: blockAction.value.sequence + 1
   }
+  isSceneDirty.value = true
   isAssetConfigurationVisible.value = false
 }
 
@@ -225,6 +234,8 @@ async function handleSceneDocumentPrepared(payload) {
     lastSceneName.value = latestPreparedScene.value.name
   }
 
+  isSceneDirty.value = false
+
   console.info('Scene save payload prepared:', {
     scene: latestPreparedScene.value,
     diagnostics: latestSaveDiagnostics.value,
@@ -248,16 +259,33 @@ async function loadSceneIntoEditor() {
     ? loadedSceneDocument.name
     : lastSceneName.value
 
+  skipNextDirtyEvent.value = true
+
   persistenceAction.value = {
     type: 'hydrate-scene',
     sequence: persistenceAction.value.sequence + 1,
     sceneDocument: loadedSceneDocument
   }
 
+  isSceneDirty.value = false
+
   console.info('Loaded scene from Supabase and sent to viewport hydration.', {
     sceneId: response.scene.id,
     name: response.scene.name
   })
+}
+
+function handleSceneRuntimeChanged() {
+  if (skipNextDirtyEvent.value) {
+    skipNextDirtyEvent.value = false
+    return
+  }
+
+  if (persistenceStatus.value === 'loading') {
+    return
+  }
+
+  isSceneDirty.value = true
 }
 </script>
 
