@@ -2,15 +2,28 @@
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const actions = ['Home', 'Settings', 'Save', 'Preview']
+const emit = defineEmits(['action-click'])
+
+const actions = [
+  { id: 'home', label: 'Home' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'load', label: 'Load' },
+  { id: 'save', label: 'Save' },
+  { id: 'preview', label: 'Preview' }
+]
+
+function handleActionClick(actionId) {
+  emit('action-click', actionId)
+}
 </script>
 
 <template>
   <OverlayCard class="top-actions" aria-label="Top actions">
     <OverlayButton
       v-for="action in actions"
-      :key="action"
-      :label="action"
+      :key="action.id"
+      :label="action.label"
+      @click="handleActionClick(action.id)"
     />
   </OverlayCard>
 </template>

@@ -7,6 +7,8 @@
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
       :block-action="blockAction"
+      :persistence-action="persistenceAction"
+      @scene-document-prepared="handleSceneDocumentPrepared"
     />
     <BrandPanel />
     <SideToolPanel @tool-click="handleSideToolClick" />
@@ -21,7 +23,7 @@
       @close="handleAssetConfigurationClose"
       @add-to-scene="handleAssetAddToScene"
     />
-    <TopActionBar />
+    <TopActionBar @action-click="handleTopActionClick" />
     <BottomControlBar
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
@@ -41,6 +43,7 @@ import BrandPanel from './components/editor/BrandPanel.vue'
 import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
+import { useScenePersistence } from './composables/useScenePersistence.js'
 
 const activeInteractionMode = ref('select')
 const activeEditTool = ref('move')
@@ -54,8 +57,27 @@ const blockAction = ref({
   shapeType: null,
   sequence: 0
 })
+const persistenceAction = ref({
+  type: null,
+  sequence: 0
+})
+const latestPreparedScene = ref(null)
+const latestSaveDiagnostics = ref({
+  isValid: true,
+  errors: [],
+  warnings: []
+})
+const lastSceneName = ref('Editor Scene')
 const selectedAsset = ref(null)
 const isAssetConfigurationVisible = ref(false)
+
+const {
+  persistenceStatus,
+  persistenceError,
+  lastSavedSceneId,
+  saveSceneDocument,
+  loadSceneDocument
+} = useScenePersistence()
 
 const blockLabelByType = {
   square: 'Square',
@@ -154,6 +176,88 @@ function handleAssetAddToScene() {
     sequence: blockAction.value.sequence + 1
   }
   isAssetConfigurationVisible.value = false
+}
+
+function handleTopActionClick(actionId) {
+  if (actionId === 'load') {
+    loadSceneIntoEditor()
+    return
+  }
+
+  if (actionId !== 'save') {
+    return
+  }
+
+  persistenceAction.value = {
+    type: 'prepare-save',
+    sequence: persistenceAction.value.sequence + 1
+  }
+}
+
+async function handleSceneDocumentPrepared(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return
+  }
+
+  latestPreparedScene.value = payload.sceneDocument ?? null
+  latestSaveDiagnostics.value = {
+    isValid: Boolean(payload.isValid),
+    errors: Array.isArray(payload.errors) ? payload.errors : [],
+    warnings: Array.isArray(payload.warnings) ? payload.warnings : []
+  }
+
+  if (!latestSaveDiagnostics.value.isValid || !latestPreparedScene.value) {
+    console.warn('Scene document is invalid and was not saved.', latestSaveDiagnostics.value)
+    return
+  }
+
+  const response = await saveSceneDocument(latestPreparedScene.value)
+
+  if (!response?.ok) {
+    console.error('Failed to persist scene document.', {
+      persistenceStatus: persistenceStatus.value,
+      persistenceError: persistenceError.value
+    })
+    return
+  }
+
+  if (typeof latestPreparedScene.value.name === 'string' && latestPreparedScene.value.name.length) {
+    lastSceneName.value = latestPreparedScene.value.name
+  }
+
+  console.info('Scene save payload prepared:', {
+    scene: latestPreparedScene.value,
+    diagnostics: latestSaveDiagnostics.value,
+    savedSceneId: lastSavedSceneId.value
+  })
+}
+
+async function loadSceneIntoEditor() {
+  const response = await loadSceneDocument(lastSavedSceneId.value)
+
+  if (!response?.ok || !response.scene?.scene_data) {
+    console.error('Failed to load scene document.', {
+      persistenceStatus: persistenceStatus.value,
+      persistenceError: persistenceError.value
+    })
+    return
+  }
+
+  const loadedSceneDocument = response.scene.scene_data
+  lastSceneName.value = typeof loadedSceneDocument.name === 'string' && loadedSceneDocument.name.length
+    ? loadedSceneDocument.name
+    : lastSceneName.value
+
+  persistenceAction.value = {
+    type: 'hydrate-scene',
+    sequence: persistenceAction.value.sequence + 1,
+    sceneDocument: loadedSceneDocument
+  }
+
+  console.info('Loaded scene from Supabase and sent to viewport hydration.', {
+    sceneId: response.scene.id,
+    name: response.scene.name
+  })
 }
 </script>
 

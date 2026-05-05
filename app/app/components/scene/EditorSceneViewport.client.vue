@@ -36,8 +36,12 @@ import { createSceneBootstrap } from './viewport/sceneBootstrap.js'
 import { createTransformRuntime } from './viewport/transformRuntime.js'
 import { createHistoryRuntime } from './viewport/historyRuntime.js'
 import { createCameraNavigationRuntime } from './viewport/cameraNavigationRuntime.js'
+import { SCENE_KIND, SHAPE_COLOR_BY_TYPE, getDefaultAppearance } from '../../scene/sceneContract.js'
+import { buildSceneDocumentFromRuntime } from '../../scene/sceneSerialization.js'
+import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 
 const containerRef = ref(null)
+const emit = defineEmits(['scene-document-prepared'])
 
 const props = defineProps({
   activeInteractionMode: {
@@ -62,6 +66,13 @@ const props = defineProps({
       shapeType: null,
       sequence: 0
     })
+  },
+  persistenceAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      sequence: 0
+    })
   }
 })
 
@@ -74,17 +85,29 @@ const gridConfig = reactive({
 const sceneObjects = reactive([
   {
     id: 'floor',
+    kind: SCENE_KIND.FLOOR,
+    assetRef: 'floor-base',
     scaleProfile: 'floor',
     position: [0, -0.07, 0],
     rotation: [0, 0, 0],
-    scale: [1, 1, 1]
+    scale: [1, 1, 1],
+    appearance: {
+      ...getDefaultAppearance(SCENE_KIND.FLOOR),
+      color: '#7a8fa0'
+    }
   },
   {
     id: 'placeholder',
+    kind: SCENE_KIND.MODEL,
+    assetRef: 'placeholder-model',
     scaleProfile: 'model',
     position: [0, 1, 0],
     rotation: [0, 0, 0],
-    scale: [1, 1, 1]
+    scale: [1, 1, 1],
+    appearance: {
+      ...getDefaultAppearance(SCENE_KIND.MODEL),
+      color: '#f5b8ca'
+    }
   }
 ])
 
@@ -132,12 +155,6 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
-const SHAPE_COLOR_BY_TYPE = {
-  square: '#b4c9a6',
-  sphere: '#dfc08f',
-  cylinder: '#9eb8c8',
-  cone: '#d8a59f'
-}
 
 let createdShapeCount = 0
 
@@ -164,6 +181,173 @@ function createBlockGeometry(shapeType) {
   }
 
   return poolGeometry(new THREE.BoxGeometry(2, 2, 2))
+}
+
+function setMeshColor(mesh, colorValue) {
+  if (!mesh) {
+    return
+  }
+
+  const materials = Array.isArray(mesh.material)
+    ? mesh.material
+    : mesh.material
+      ? [mesh.material]
+      : []
+
+  materials.forEach((material) => {
+    if (material?.color?.set && typeof colorValue === 'string') {
+      material.color.set(colorValue)
+    }
+  })
+}
+
+function removeSelectableRootById(objectId) {
+  const index = selectableRoots.findIndex((root) => root?.userData?.objectId === objectId)
+
+  if (index >= 0) {
+    selectableRoots.splice(index, 1)
+  }
+
+  meshById.delete(objectId)
+}
+
+function removeDynamicObjectsFromScene() {
+  const idsToKeep = new Set(['floor', 'placeholder'])
+  const dynamicIds = sceneObjects
+    .filter((objectState) => !idsToKeep.has(objectState.id))
+    .map((objectState) => objectState.id)
+
+  dynamicIds.forEach((objectId) => {
+    const mesh = meshById.get(objectId)
+    if (mesh) {
+      scene?.remove(mesh)
+    }
+    removeSelectableRootById(objectId)
+  })
+}
+
+function createShapeMeshFromRuntimeObject(objectState) {
+  const shapeType = typeof objectState.assetRef === 'string' ? objectState.assetRef : 'square'
+  const geometry = createBlockGeometry(shapeType)
+  const material = poolMaterial(
+    new THREE.MeshStandardMaterial({
+      color: objectState.appearance?.color || SHAPE_COLOR_BY_TYPE[shapeType] || '#b4c9a6',
+      roughness: objectState.appearance?.finish?.roughness ?? 0.56,
+      metalness: objectState.appearance?.finish?.metalness ?? 0.03
+    })
+  )
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.position.set(...objectState.position)
+  mesh.rotation.set(...objectState.rotation)
+  mesh.scale.set(...objectState.scale)
+  return mesh
+}
+
+function applyHydratedSceneDocument(sceneDocument) {
+  if (!scene || !camera || !renderer) {
+    return
+  }
+
+  const hydrationResult = hydrateRuntimeSceneState(sceneDocument)
+
+  if (!hydrationResult.isValid) {
+    console.warn('Loaded scene document failed validation and was not applied.', hydrationResult)
+    return
+  }
+
+  const runtimeObjects = hydrationResult.runtimeObjects
+  const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
+    id: 'floor',
+    kind: SCENE_KIND.FLOOR,
+    assetRef: 'floor-base',
+    scaleProfile: 'floor',
+    position: [0, -0.07, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+    appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
+  }
+  const nextModelState = runtimeObjects.find((item) => item.kind === SCENE_KIND.MODEL) || {
+    id: 'placeholder',
+    kind: SCENE_KIND.MODEL,
+    assetRef: 'placeholder-model',
+    scaleProfile: 'model',
+    position: [0, 1, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+    appearance: getDefaultAppearance(SCENE_KIND.MODEL)
+  }
+  const nextShapeObjects = runtimeObjects
+    .filter((item) => item.kind === SCENE_KIND.SHAPE)
+    .map((item, index) => {
+      if (item.id === 'floor' || item.id === 'placeholder') {
+        return {
+          ...item,
+          id: `shape-${index}-${Date.now()}`
+        }
+      }
+
+      return item
+    })
+
+  removeDynamicObjectsFromScene()
+
+  const floorMesh = meshById.get('floor')
+  if (floorMesh) {
+    floorMesh.position.set(...nextFloorState.position)
+    floorMesh.rotation.set(...nextFloorState.rotation)
+    floorMesh.scale.set(...nextFloorState.scale)
+    setMeshColor(floorMesh, nextFloorState.appearance?.color)
+  }
+
+  const placeholderMesh = meshById.get('placeholder')
+  if (placeholderMesh) {
+    placeholderMesh.position.set(...nextModelState.position)
+    placeholderMesh.rotation.set(...nextModelState.rotation)
+    placeholderMesh.scale.set(...nextModelState.scale)
+    setMeshColor(placeholderMesh, nextModelState.appearance?.color)
+  }
+
+  nextShapeObjects.forEach((objectState) => {
+    const mesh = createShapeMeshFromRuntimeObject(objectState)
+    scene.add(mesh)
+    registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, mesh)
+  })
+
+  sceneObjects.splice(0, sceneObjects.length, {
+    ...nextFloorState,
+    id: 'floor',
+    scaleProfile: 'floor'
+  }, {
+    ...nextModelState,
+    id: 'placeholder',
+    scaleProfile: 'model'
+  }, ...nextShapeObjects.map((objectState) => ({
+    ...objectState,
+    scaleProfile: 'shape'
+  })))
+
+  if (sceneDocument?.editorSettings?.grid && typeof sceneDocument.editorSettings.grid === 'object') {
+    const nextCellSize = Number(sceneDocument.editorSettings.grid.cellSize)
+    const nextGroundSize = Number(sceneDocument.editorSettings.grid.groundSize)
+
+    if (Number.isFinite(nextCellSize) && nextCellSize > 0) {
+      gridConfig.cellSize = nextCellSize
+    }
+
+    if (Number.isFinite(nextGroundSize) && nextGroundSize > 0) {
+      gridConfig.groundSize = nextGroundSize
+    }
+  }
+
+  createdShapeCount = nextShapeObjects.length
+  setSelectedObjectId(null)
+  historyRuntime?.clearHistory()
+  historyRuntime?.captureInitialObjectState()
+  syncTransformControlsState()
+
+  if (hydrationResult.warnings.length) {
+    console.info('Scene hydration warnings:', hydrationResult.warnings)
+  }
 }
 
 function addBlockToScene(shapeType) {
@@ -194,10 +378,16 @@ function addBlockToScene(shapeType) {
 
   sceneObjects.push({
     id: blockId,
+    kind: SCENE_KIND.SHAPE,
+    assetRef: shapeType,
     scaleProfile: 'shape',
     position: [spawnPosition.x, spawnPosition.y, spawnPosition.z],
     rotation: [0, 0, 0],
-    scale: [1, 1, 1]
+    scale: [1, 1, 1],
+    appearance: {
+      ...getDefaultAppearance(SCENE_KIND.SHAPE),
+      color: SHAPE_COLOR_BY_TYPE[shapeType] ?? '#b4c9a6'
+    }
   })
 
   setSelectedObjectId(blockId)
@@ -300,6 +490,31 @@ function syncTransformControlsState() {
   }
 }
 
+function prepareSceneDocumentForSave() {
+  const result = buildSceneDocumentFromRuntime({
+    sceneName: 'Editor Scene',
+    sceneObjects,
+    gridConfig
+  })
+
+  emit('scene-document-prepared', result)
+}
+
+function handlePersistenceAction(action) {
+  if (!action || typeof action !== 'object') {
+    return
+  }
+
+  if (action.type === 'prepare-save') {
+    prepareSceneDocumentForSave()
+    return
+  }
+
+  if (action.type === 'hydrate-scene') {
+    applyHydratedSceneDocument(action.sceneDocument)
+  }
+}
+
 watch(
   () => [props.activeInteractionMode, props.activeEditTool],
   () => {
@@ -331,6 +546,17 @@ watch(
     }
 
     addBlockToScene(props.blockAction.shapeType)
+  }
+)
+
+watch(
+  () => props.persistenceAction.sequence,
+  () => {
+    if (!props.persistenceAction?.type) {
+      return
+    }
+
+    handlePersistenceAction(props.persistenceAction)
   }
 )
 

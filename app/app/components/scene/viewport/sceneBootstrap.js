@@ -18,6 +18,16 @@ export function createSceneBootstrap({
   meshById,
   sceneObjects
 }) {
+  function getObjectColor(objectId, fallbackColor) {
+    const objectState = sceneObjects.find((item) => item.id === objectId)
+
+    if (typeof objectState?.appearance?.color === 'string' && objectState.appearance.color.length) {
+      return objectState.appearance.color
+    }
+
+    return fallbackColor
+  }
+
   const scene = new THREE.Scene()
   scene.background = new THREE.Color('#e9ede5')
   scene.fog = new THREE.Fog('#e9ede5', 70, 180)
@@ -74,7 +84,7 @@ export function createSceneBootstrap({
     poolGeometry(new THREE.BoxGeometry(10, plinthThickness, 10)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
-        color: '#7a8fa0',
+        color: getObjectColor('floor', '#7a8fa0'),
         roughness: 0.86,
         metalness: 0.04
       })
@@ -87,7 +97,7 @@ export function createSceneBootstrap({
     poolGeometry(new THREE.BoxGeometry(2, 2, 2)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
-        color: '#f5b8ca',
+        color: getObjectColor('placeholder', '#f5b8ca'),
         roughness: 0.53,
         metalness: 0.02
       })
