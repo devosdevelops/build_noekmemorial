@@ -34,6 +34,7 @@ function handleToolClick(toolId) {
 .left-panel {
   top: 28%;
   left: 1.5rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;

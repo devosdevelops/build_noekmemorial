@@ -43,8 +43,8 @@ function handleClose() {
 
 <style scoped>
 .blocks-library {
-  top: 20%;
-  left: 12.8rem;
+  top: 28%;
+  left: calc(1.5rem + 10.2rem + 16px);
   z-index: 3;
   width: min(19rem, calc(100vw - 2rem));
   padding: 0.9rem;
