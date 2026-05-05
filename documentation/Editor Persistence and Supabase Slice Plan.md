@@ -1,9 +1,9 @@
-# Next Step Implementation Plan
+# Editor Persistence and Supabase Slice Plan
 
 Goal: deliver one evaluator-ready vertical slice.
 
-- [ ] Vertical slice works end-to-end: edit scene (floors + shapes) -> save to Supabase -> load from Supabase -> scene restores correctly.
-- [ ] Keep runtime scope tight: no model runtime tools, no light/audio runtime tools, no CMS in this slice.
+- [x] Vertical slice works end-to-end: edit scene (floors + shapes) -> save to Supabase -> load from Supabase -> scene restores correctly.
+- [x] Keep runtime scope tight: no model runtime tools, no light/audio runtime tools, no CMS in this slice.
 
 ## Phase 1 - Lock Scene Contract V1
 
@@ -47,43 +47,31 @@ Definition of done (Phase 3):
 
 ## Phase 4 - Supabase First Slice
 
-- [ ] Create scenes table with: id, name, schema_version, scene_data (jsonb), created_at, updated_at.
+- [x] Create scenes table with: id, name, schema_version, scene_data (jsonb), created_at, updated_at.
 - [x] Add optional owner/workspace field (nullable is fine for now).
 - [x] Add minimum indexing needed for retrieval.
 - [x] Add minimum policies required to demo save/load flow.
-- [ ] Insert at least one seed scene row manually.
+- [x] Insert at least one seed scene row manually (or via app save as seed evidence).
 - [x] Prepare SQL migration file for Supabase table and policies.
 
 Definition of done (Phase 4):
-- [ ] Scene documents are persisted in scene_data.
-- [ ] A saved row can be fetched and inspected.
+- [x] Scene documents are persisted in scene_data.
+- [x] A saved row can be fetched and inspected.
 
 ## Phase 5 - Connect Save and Load
 
 - [x] Implement save flow: validate -> normalize -> serialize -> persist -> update status.
 - [x] Implement load flow: fetch -> schema check -> hydrate -> render -> update status.
 - [x] Handle errors: network failure, invalid payload, unsupported version.
-- [ ] Verify scene fidelity after reload (positions, rotations, scales, appearance fields).
+- [x] Verify scene fidelity after reload (positions, rotations, scales, appearance fields).
 
 Definition of done (Phase 5):
-- [ ] Save then reload restores scene correctly for floors and shapes.
+- [x] Save then reload restores scene correctly for floors and shapes.
 - [x] UI exposes success/error status clearly.
-
-## Phase 6 - Evaluation Pack
-
-- [ ] Prepare a 3-minute demo script.
-- [ ] Prepare architecture summary: scene document is source of truth; renderer projects state.
-- [ ] Prepare known limits list: models/light/audio reserved in schema, runtime pending; CMS deferred.
-- [ ] Prepare next milestone statement after evaluation.
-
-Definition of done (Phase 6):
-- [ ] Demo is stable and repeatable.
-- [ ] Scope choices are clearly intentional.
 
 ## Final Acceptance Checklist
 
-- [ ] Floors + shapes persistence is working end-to-end.
-- [ ] Scene contract is versioned and future-ready.
-- [ ] Color and texture are represented in saved data according to rules.
-- [ ] Models/light/audio are intentionally deferred in runtime but reserved in schema.
-- [ ] Slice is ready to present in evaluation.
+- [x] Floors + shapes persistence is working end-to-end.
+- [x] Scene contract is versioned and future-ready.
+- [x] Color and texture are represented in saved data according to rules.
+- [x] Models/light/audio are intentionally deferred in runtime but reserved in schema.
