@@ -202,6 +202,7 @@ CC-BY).
 
 ## ✍️ Author
 
+Ben Devos\
 Bachelor Project -- Digital Experience Design\
 2025--2026
 
