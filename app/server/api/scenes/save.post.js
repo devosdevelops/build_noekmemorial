@@ -7,6 +7,9 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const sceneDocument = body?.sceneDocument
   const sceneId = typeof body?.sceneId === 'string' && body.sceneId.length ? body.sceneId : null
+  const workspaceId = typeof body?.workspaceId === 'string' && body.workspaceId.length
+    ? body.workspaceId
+    : null
 
   const normalized = normalizeAndValidateSceneDocument(sceneDocument)
 
@@ -26,6 +29,7 @@ export default defineEventHandler(async (event) => {
 
   const row = {
     id: sceneId || normalized.sceneDocument.id || undefined,
+    workspace_id: workspaceId,
     name: normalized.sceneDocument.name,
     schema_version: normalized.sceneDocument.schemaVersion,
     scene_data: normalized.sceneDocument,
@@ -35,7 +39,7 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await supabase
     .from(SCENES_TABLE)
     .upsert(row, { onConflict: 'id' })
-    .select('id, name, schema_version, scene_data, created_at, updated_at')
+    .select('id, workspace_id, name, schema_version, scene_data, created_at, updated_at')
     .single()
 
   if (error) {

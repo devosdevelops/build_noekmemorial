@@ -5,6 +5,7 @@ export function useScenePersistence() {
   const persistenceError = ref('')
   const lastSavedSceneId = ref('')
   const latestLoadedScene = ref(null)
+  const workspaceId = ref('')
 
   async function saveSceneDocument(sceneDocument) {
     persistenceStatus.value = 'saving'
@@ -15,7 +16,8 @@ export function useScenePersistence() {
         method: 'POST',
         body: {
           sceneDocument,
-          sceneId: lastSavedSceneId.value || null
+          sceneId: lastSavedSceneId.value || null,
+          workspaceId: workspaceId.value || null
         }
       })
 
@@ -42,7 +44,11 @@ export function useScenePersistence() {
         ? `/api/scenes/${encodeURIComponent(sceneId)}`
         : '/api/scenes/latest'
 
-      const response = await $fetch(endpoint)
+      const query = workspaceId.value && workspaceId.value.length
+        ? { workspaceId: workspaceId.value }
+        : undefined
+
+      const response = await $fetch(endpoint, { query })
       latestLoadedScene.value = response?.scene?.scene_data ?? null
 
       if (typeof response?.scene?.id === 'string') {
@@ -63,6 +69,7 @@ export function useScenePersistence() {
     persistenceError,
     lastSavedSceneId,
     latestLoadedScene,
+    workspaceId,
     saveSceneDocument,
     loadSceneDocument
   }

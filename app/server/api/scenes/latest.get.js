@@ -2,13 +2,21 @@ import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
 
 const SCENES_TABLE = 'app_scenes'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  const workspaceId = getQuery(event)?.workspaceId
+
   const supabase = createSupabaseServerClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from(SCENES_TABLE)
-    .select('id, name, schema_version, scene_data, created_at, updated_at')
+    .select('id, workspace_id, name, schema_version, scene_data, created_at, updated_at')
     .order('updated_at', { ascending: false })
     .limit(1)
+
+  if (typeof workspaceId === 'string' && workspaceId.length) {
+    query = query.eq('workspace_id', workspaceId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw createError({

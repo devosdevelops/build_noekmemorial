@@ -5,6 +5,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.app_scenes (
   id uuid primary key default gen_random_uuid(),
+  workspace_id uuid null,
   name text not null default 'Untitled Scene',
   schema_version integer not null default 1,
   scene_data jsonb not null,
@@ -13,6 +14,7 @@ create table if not exists public.app_scenes (
 );
 
 create index if not exists app_scenes_updated_at_idx on public.app_scenes (updated_at desc);
+create index if not exists app_scenes_workspace_updated_at_idx on public.app_scenes (workspace_id, updated_at desc);
 
 create or replace function public.set_app_scenes_updated_at()
 returns trigger

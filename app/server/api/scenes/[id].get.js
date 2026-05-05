@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const supabase = createSupabaseServerClient()
   const { data, error } = await supabase
     .from(SCENES_TABLE)
-    .select('id, name, schema_version, scene_data, created_at, updated_at')
+    .select('id, workspace_id, name, schema_version, scene_data, created_at, updated_at')
     .eq('id', sceneId)
     .single()
 
