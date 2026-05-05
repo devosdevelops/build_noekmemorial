@@ -22,7 +22,7 @@ Definition of done (Phase 1):
 
 - [x] Add appearance.color for all kinds (floor, shape, model, future kinds if needed).
 - [x] Add appearance.texture for floor and shape only.
-- [ ] Reserve model material override structure for future (no runtime support required now).
+- [x] Reserve model material override structure for future (no runtime support required now).
 - [x] Define kind-aware validation rules (blocking vs non-blocking).
 - [x] Define normalization defaults for missing optional fields.
 - [x] Define behavior for unsupported fields (ignore safely, do not crash).
@@ -34,10 +34,10 @@ Definition of done (Phase 2):
 
 ## Phase 3 - Editor Persistence Readiness
 
-- [ ] Confirm single source of truth for scene state.
+- [x] Confirm single source of truth for scene state.
 - [x] Define serializer mapping: state -> Scene V1 document.
 - [x] Define hydrator mapping: Scene V1 document -> editor state.
-- [ ] Add dirty-state tracking.
+- [x] Add dirty-state tracking.
 - [x] Add persistence UI state machine: idle, saving, saved, loading, error.
 - [x] Verify local roundtrip behavior for floors/shapes before backend wiring.
 
@@ -48,7 +48,7 @@ Definition of done (Phase 3):
 ## Phase 4 - Supabase First Slice
 
 - [ ] Create scenes table with: id, name, schema_version, scene_data (jsonb), created_at, updated_at.
-- [ ] Add optional owner/workspace field (nullable is fine for now).
+- [x] Add optional owner/workspace field (nullable is fine for now).
 - [x] Add minimum indexing needed for retrieval.
 - [x] Add minimum policies required to demo save/load flow.
 - [ ] Insert at least one seed scene row manually.
@@ -67,7 +67,7 @@ Definition of done (Phase 4):
 
 Definition of done (Phase 5):
 - [ ] Save then reload restores scene correctly for floors and shapes.
-- [ ] UI exposes success/error status clearly.
+- [x] UI exposes success/error status clearly.
 
 ## Phase 6 - Evaluation Pack
 
