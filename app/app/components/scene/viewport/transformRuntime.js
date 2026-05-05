@@ -61,6 +61,54 @@ export function createTransformRuntime({
     child.parent?.remove(child)
   })
 
+  function getAxisAnchorModeFromActiveHandle() {
+    const defaultAxisAnchorMode = {
+      x: 'min',
+      y: 'min',
+      z: 'min'
+    }
+
+    if (!transformControls.object) {
+      return defaultAxisAnchorMode
+    }
+
+    const axis = typeof transformControls.axis === 'string' ? transformControls.axis : ''
+
+    if (!axis) {
+      return defaultAxisAnchorMode
+    }
+
+    const pointStart = transformControls.pointStart
+
+    if (
+      !pointStart ||
+      !Number.isFinite(pointStart.x) ||
+      !Number.isFinite(pointStart.y) ||
+      !Number.isFinite(pointStart.z)
+    ) {
+      return defaultAxisAnchorMode
+    }
+
+    const worldQuaternion = new THREE.Quaternion()
+    transformControls.object.getWorldQuaternion(worldQuaternion)
+    const localPointStart = pointStart.clone().applyQuaternion(worldQuaternion.invert())
+    const axisAnchorMode = { ...defaultAxisAnchorMode }
+
+    if (axis.includes('X')) {
+      axisAnchorMode.x = localPointStart.x < 0 ? 'max' : 'min'
+    }
+
+    if (axis.includes('Y')) {
+      axisAnchorMode.y = localPointStart.y < 0 ? 'max' : 'min'
+    }
+
+    if (axis.includes('Z')) {
+      axisAnchorMode.z = localPointStart.z < 0 ? 'max' : 'min'
+    }
+
+    return axisAnchorMode
+  }
+
   transformControls.addEventListener('dragging-changed', (event) => {
     interactionState.isTransforming = event.value
 
@@ -87,7 +135,8 @@ export function createTransformRuntime({
       sceneObjects,
       gridConfig,
       objectId,
-      transformControls.object
+      transformControls.object,
+      getAxisAnchorModeFromActiveHandle()
     )
   })
 
@@ -127,7 +176,8 @@ export function createTransformRuntime({
         sceneObjects,
         gridConfig,
         objectId,
-        transformControls.object
+        transformControls.object,
+        getAxisAnchorModeFromActiveHandle()
       )
       interactionState.activeScaleContext = scaleContext
 

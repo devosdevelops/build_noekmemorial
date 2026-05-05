@@ -90,6 +90,13 @@ function getObjectBoundsMin(THREE, object) {
   return box.min.clone()
 }
 
+function getObjectBoundsMax(THREE, object) {
+  object.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(object)
+
+  return box.max.clone()
+}
+
 function getSnappedObjectBoundsMin(THREE, object, gridConfig) {
   const min = getObjectBoundsMin(THREE, object)
   const [originX, originY, originZ] = gridConfig.origin
@@ -101,20 +108,36 @@ function getSnappedObjectBoundsMin(THREE, object, gridConfig) {
   )
 }
 
-function alignObjectMinToAnchor(THREE, object, anchorMin) {
-  const currentMin = getObjectBoundsMin(THREE, object)
-  const offset = anchorMin.clone().sub(currentMin)
+function getSnappedObjectBoundsMax(THREE, object, gridConfig) {
+  const max = getObjectBoundsMax(THREE, object)
+  const [originX, originY, originZ] = gridConfig.origin
 
-  object.position.add(offset)
-  object.updateMatrixWorld(true)
+  return new THREE.Vector3(
+    snapValueToGrid(max.x, gridConfig.cellSize, originX),
+    snapValueToGrid(max.y, gridConfig.cellSize, originY),
+    snapValueToGrid(max.z, gridConfig.cellSize, originZ)
+  )
 }
 
-function alignObjectMinToAnchorByAxis(THREE, object, anchorMin, lockAxes) {
+function alignObjectBoundsToAnchorsByAxis(THREE, object, anchorMin, anchorMax, anchorModes) {
   const currentMin = getObjectBoundsMin(THREE, object)
+  const currentMax = getObjectBoundsMax(THREE, object)
   const offset = new THREE.Vector3(
-    lockAxes.x ? anchorMin.x - currentMin.x : 0,
-    lockAxes.y ? anchorMin.y - currentMin.y : 0,
-    lockAxes.z ? anchorMin.z - currentMin.z : 0
+    anchorModes.x === 'max'
+      ? anchorMax.x - currentMax.x
+      : anchorModes.x === 'min'
+        ? anchorMin.x - currentMin.x
+        : 0,
+    anchorModes.y === 'max'
+      ? anchorMax.y - currentMax.y
+      : anchorModes.y === 'min'
+        ? anchorMin.y - currentMin.y
+        : 0,
+    anchorModes.z === 'max'
+      ? anchorMax.z - currentMax.z
+      : anchorModes.z === 'min'
+        ? anchorMin.z - currentMin.z
+        : 0
   )
 
   object.position.add(offset)
@@ -210,13 +233,40 @@ export function getScaleProfileForObject(sceneObjects, objectId) {
   return objectState?.scaleProfile ?? 'model'
 }
 
-export function createScaleInteractionContext(THREE, sceneObjects, gridConfig, objectId, object) {
+export function createScaleInteractionContext(
+  THREE,
+  sceneObjects,
+  gridConfig,
+  objectId,
+  object,
+  axisAnchorModeInput
+) {
+  const defaultAxisAnchorMode = {
+    x: 'min',
+    y: 'min',
+    z: 'min'
+  }
+
+  const axisAnchorMode = axisAnchorModeInput
+    ? {
+      x: axisAnchorModeValueOrDefault(axisAnchorModeInput.x),
+      y: axisAnchorModeValueOrDefault(axisAnchorModeInput.y),
+      z: axisAnchorModeValueOrDefault(axisAnchorModeInput.z)
+    }
+    : defaultAxisAnchorMode
+
   return {
     objectId,
     profile: getScaleProfileForObject(sceneObjects, objectId),
     anchorMin: getSnappedObjectBoundsMin(THREE, object, gridConfig),
+    anchorMax: getSnappedObjectBoundsMax(THREE, object, gridConfig),
+    axisAnchorMode,
     initialScale: object.scale.clone()
   }
+}
+
+function axisAnchorModeValueOrDefault(mode) {
+  return mode === 'max' ? 'max' : 'min'
 }
 
 export function applyModelScaleBehavior(THREE, object, context, axis, gridConfig, minScaleCells) {
@@ -230,7 +280,13 @@ export function applyModelScaleBehavior(THREE, object, context, axis, gridConfig
   )
   const nextScale = new THREE.Vector3(snappedUniformScale, snappedUniformScale, snappedUniformScale)
   object.scale.copy(nextScale)
-  alignObjectMinToAnchor(THREE, object, context.anchorMin)
+  alignObjectBoundsToAnchorsByAxis(
+    THREE,
+    object,
+    context.anchorMin,
+    context.anchorMax,
+    context.axisAnchorMode
+  )
 
   return nextScale
 }
@@ -244,7 +300,17 @@ export function applyFloorScaleBehavior(THREE, object, context, gridConfig, minS
   nextScale.z = snapScaleAxisForObject(gridConfig.cellSize, minScaleCells, baseSize.z, nextScale.z)
 
   object.scale.copy(nextScale)
-  alignObjectMinToAnchorByAxis(THREE, object, context.anchorMin, { x: true, y: false, z: true })
+  alignObjectBoundsToAnchorsByAxis(
+    THREE,
+    object,
+    context.anchorMin,
+    context.anchorMax,
+    {
+      x: context.axisAnchorMode.x,
+      y: null,
+      z: context.axisAnchorMode.z
+    }
+  )
 
   return nextScale
 }
@@ -258,7 +324,13 @@ export function applyShapeScaleBehavior(THREE, object, context, gridConfig, minS
   nextScale.z = snapScaleAxisForObject(gridConfig.cellSize, minScaleCells, baseSize.z, nextScale.z)
 
   object.scale.copy(nextScale)
-  alignObjectMinToAnchor(THREE, object, context.anchorMin)
+  alignObjectBoundsToAnchorsByAxis(
+    THREE,
+    object,
+    context.anchorMin,
+    context.anchorMax,
+    context.axisAnchorMode
+  )
 
   return nextScale
 }
