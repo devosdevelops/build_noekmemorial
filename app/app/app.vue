@@ -13,7 +13,13 @@
     <BlocksLibraryPanel
       v-if="isBlocksLibraryVisible"
       @close="handleBlocksLibraryClose"
-      @add-block="handleAddBlock"
+      @select-block="handleSelectBlock"
+    />
+    <AssetConfigurationPanel
+      v-if="isAssetConfigurationVisible && selectedAsset"
+      :selected-asset="selectedAsset"
+      @close="handleAssetConfigurationClose"
+      @add-to-scene="handleAssetAddToScene"
     />
     <TopActionBar />
     <BottomControlBar
@@ -28,6 +34,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
@@ -47,6 +54,15 @@ const blockAction = ref({
   shapeType: null,
   sequence: 0
 })
+const selectedAsset = ref(null)
+const isAssetConfigurationVisible = ref(false)
+
+const blockLabelByType = {
+  square: 'Square',
+  sphere: 'Sphere',
+  cylinder: 'Cylinder',
+  cone: 'Cone'
+}
 
 function handleInteractionModeChange(nextMode) {
   activeInteractionMode.value = nextMode
@@ -74,13 +90,60 @@ function handleSideToolClick(toolId) {
   }
 
   isBlocksLibraryVisible.value = false
+
+  if (toolId === 'floors') {
+    selectedAsset.value = {
+      assetType: 'floor',
+      assetId: 'floor',
+      label: 'Floor'
+    }
+    isAssetConfigurationVisible.value = true
+    return
+  }
+
+  if (toolId === 'models') {
+    selectedAsset.value = {
+      assetType: 'model',
+      assetId: 'placeholder-model',
+      label: '3D Model'
+    }
+    isAssetConfigurationVisible.value = true
+    return
+  }
+
+  isAssetConfigurationVisible.value = false
+  selectedAsset.value = null
 }
 
 function handleBlocksLibraryClose() {
   isBlocksLibraryVisible.value = false
 }
 
-function handleAddBlock(shapeType) {
+function handleSelectBlock(shapeType) {
+  if (typeof shapeType !== 'string' || !shapeType.length) {
+    return
+  }
+
+  selectedAsset.value = {
+    assetType: 'block',
+    assetId: shapeType,
+    label: blockLabelByType[shapeType] ?? 'Block'
+  }
+  isAssetConfigurationVisible.value = true
+  isBlocksLibraryVisible.value = false
+}
+
+function handleAssetConfigurationClose() {
+  isAssetConfigurationVisible.value = false
+}
+
+function handleAssetAddToScene() {
+  if (!selectedAsset.value || selectedAsset.value.assetType !== 'block') {
+    return
+  }
+
+  const shapeType = selectedAsset.value.assetId
+
   if (typeof shapeType !== 'string' || !shapeType.length) {
     return
   }
@@ -90,7 +153,7 @@ function handleAddBlock(shapeType) {
     shapeType,
     sequence: blockAction.value.sequence + 1
   }
-  isBlocksLibraryVisible.value = false
+  isAssetConfigurationVisible.value = false
 }
 </script>
 

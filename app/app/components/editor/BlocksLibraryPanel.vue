@@ -2,7 +2,7 @@
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const emit = defineEmits(['close', 'add-block'])
+const emit = defineEmits(['close', 'select-block'])
 
 const availableBlocks = [
   { id: 'square', label: 'Square' },
@@ -12,7 +12,7 @@ const availableBlocks = [
 ]
 
 function handleAddBlock(blockType) {
-  emit('add-block', blockType)
+  emit('select-block', blockType)
 }
 
 function handleClose() {
