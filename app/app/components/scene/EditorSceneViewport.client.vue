@@ -54,6 +54,14 @@ const props = defineProps({
       type: null,
       sequence: 0
     })
+  },
+  blockAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      shapeType: null,
+      sequence: 0
+    })
   }
 })
 
@@ -124,6 +132,14 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
+const SHAPE_COLOR_BY_TYPE = {
+  square: '#b4c9a6',
+  sphere: '#dfc08f',
+  cylinder: '#9eb8c8',
+  cone: '#d8a59f'
+}
+
+let createdShapeCount = 0
 
 function handleEditorAction(actionType) {
   if (actionType === 'center') {
@@ -132,6 +148,61 @@ function handleEditorAction(actionType) {
   }
 
   historyRuntime?.runHistoryAction(actionType)
+}
+
+function createBlockGeometry(shapeType) {
+  if (shapeType === 'sphere') {
+    return poolGeometry(new THREE.SphereGeometry(1, 24, 18))
+  }
+
+  if (shapeType === 'cylinder') {
+    return poolGeometry(new THREE.CylinderGeometry(1, 1, 2, 28))
+  }
+
+  if (shapeType === 'cone') {
+    return poolGeometry(new THREE.ConeGeometry(1, 2, 28))
+  }
+
+  return poolGeometry(new THREE.BoxGeometry(2, 2, 2))
+}
+
+function addBlockToScene(shapeType) {
+  if (!scene) {
+    return
+  }
+
+  const blockId = `block-${shapeType}-${Date.now()}-${createdShapeCount}`
+  createdShapeCount += 1
+
+  const geometry = createBlockGeometry(shapeType)
+  const material = poolMaterial(
+    new THREE.MeshStandardMaterial({
+      color: SHAPE_COLOR_BY_TYPE[shapeType] ?? '#b4c9a6',
+      roughness: 0.56,
+      metalness: 0.03
+    })
+  )
+  const mesh = new THREE.Mesh(geometry, material)
+
+  const spawnPosition = snapVectorToGrid(THREE, gridConfig, new THREE.Vector3(0, 1, 0))
+  mesh.position.copy(spawnPosition)
+  mesh.rotation.set(0, 0, 0)
+  mesh.scale.set(1, 1, 1)
+
+  scene.add(mesh)
+  registerSelectableRoot(THREE, selectableRoots, meshById, blockId, mesh)
+
+  sceneObjects.push({
+    id: blockId,
+    scaleProfile: 'shape',
+    position: [spawnPosition.x, spawnPosition.y, spawnPosition.z],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  })
+
+  setSelectedObjectId(blockId)
+  historyRuntime?.clearHistory()
+  historyRuntime?.captureInitialObjectState()
 }
 
 const materialPool = []
@@ -245,6 +316,21 @@ watch(
     }
 
     handleEditorAction(props.historyAction.type)
+  }
+)
+
+watch(
+  () => props.blockAction.sequence,
+  () => {
+    if (props.blockAction?.type !== 'add-block') {
+      return
+    }
+
+    if (typeof props.blockAction.shapeType !== 'string' || !props.blockAction.shapeType.length) {
+      return
+    }
+
+    addBlockToScene(props.blockAction.shapeType)
   }
 )
 

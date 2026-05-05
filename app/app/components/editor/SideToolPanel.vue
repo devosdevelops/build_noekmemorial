@@ -2,16 +2,30 @@
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const tools = ['Models', 'Floors', 'Blocks', 'Light', 'Audio', 'Media']
+const emit = defineEmits(['tool-click'])
+
+const tools = [
+  { id: 'models', label: 'Models' },
+  { id: 'floors', label: 'Floors' },
+  { id: 'blocks', label: 'Blocks' },
+  { id: 'light', label: 'Light' },
+  { id: 'audio', label: 'Audio' },
+  { id: 'media', label: 'Media' }
+]
+
+function handleToolClick(toolId) {
+  emit('tool-click', toolId)
+}
 </script>
 
 <template>
   <OverlayCard class="left-panel">
     <OverlayButton
       v-for="tool in tools"
-      :key="tool"
-      :label="tool"
+      :key="tool.id"
+      :label="tool.label"
       class="tool-button"
+      @click="handleToolClick(tool.id)"
     />
   </OverlayCard>
 </template>

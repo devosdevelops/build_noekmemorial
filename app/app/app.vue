@@ -6,9 +6,15 @@
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
+      :block-action="blockAction"
     />
     <BrandPanel />
-    <SideToolPanel />
+    <SideToolPanel @tool-click="handleSideToolClick" />
+    <BlocksLibraryPanel
+      v-if="isBlocksLibraryVisible"
+      @close="handleBlocksLibraryClose"
+      @add-block="handleAddBlock"
+    />
     <TopActionBar />
     <BottomControlBar
       :active-interaction-mode="activeInteractionMode"
@@ -22,6 +28,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
 import SideToolPanel from './components/editor/SideToolPanel.vue'
@@ -32,6 +39,12 @@ const activeInteractionMode = ref('select')
 const activeEditTool = ref('move')
 const historyAction = ref({
   type: null,
+  sequence: 0
+})
+const isBlocksLibraryVisible = ref(false)
+const blockAction = ref({
+  type: null,
+  shapeType: null,
   sequence: 0
 })
 
@@ -52,6 +65,32 @@ function handleHistoryAction(actionType) {
     type: actionType,
     sequence: historyAction.value.sequence + 1
   }
+}
+
+function handleSideToolClick(toolId) {
+  if (toolId === 'blocks') {
+    isBlocksLibraryVisible.value = true
+    return
+  }
+
+  isBlocksLibraryVisible.value = false
+}
+
+function handleBlocksLibraryClose() {
+  isBlocksLibraryVisible.value = false
+}
+
+function handleAddBlock(shapeType) {
+  if (typeof shapeType !== 'string' || !shapeType.length) {
+    return
+  }
+
+  blockAction.value = {
+    type: 'add-block',
+    shapeType,
+    sequence: blockAction.value.sequence + 1
+  }
+  isBlocksLibraryVisible.value = false
 }
 </script>
 

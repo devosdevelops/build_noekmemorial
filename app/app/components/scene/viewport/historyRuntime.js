@@ -160,10 +160,17 @@ export function createHistoryRuntime({
     historyState.redoStack.length = 0
   }
 
+  function clearHistory() {
+    historyState.undoStack.length = 0
+    historyState.redoStack.length = 0
+    historyState.activeSnapshot = null
+  }
+
   return {
     beginHistoryCapture,
     commitHistoryCapture,
     runHistoryAction,
-    captureInitialObjectState
+    captureInitialObjectState,
+    clearHistory
   }
 }
