@@ -69,8 +69,9 @@ export function createSceneBootstrap({
   gridPlane.position.y = 0
   scene.add(gridPlane)
 
+  const plinthThickness = 0.12
   const plinth = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(10, 0.8, 10)),
+    poolGeometry(new THREE.BoxGeometry(10, plinthThickness, 10)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
         color: '#7a8fa0',
@@ -79,7 +80,8 @@ export function createSceneBootstrap({
       })
     )
   )
-  plinth.position.set(0, 0.4, 0)
+  // Keep the slab just below the grid (y = 0) so the grid remains visible on top.
+  plinth.position.set(0, -0.01 - plinthThickness / 2, 0)
   scene.add(plinth)
 
   const placeholder = new THREE.Mesh(
