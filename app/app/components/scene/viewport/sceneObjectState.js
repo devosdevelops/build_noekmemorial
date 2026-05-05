@@ -20,7 +20,11 @@ export function resnapAllObjects(THREE, sceneObjects, gridConfig, meshById) {
       new THREE.Vector3(objectState.position[0], objectState.position[1], objectState.position[2])
     )
 
-    objectState.position = [snapped.x, snapped.y, snapped.z]
+    if (objectState.scaleProfile === 'floor') {
+      objectState.position = [snapped.x, objectState.position[1], snapped.z]
+    } else {
+      objectState.position = [snapped.x, snapped.y, snapped.z]
+    }
     applySceneObjectState(meshById, objectState)
   })
 }

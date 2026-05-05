@@ -65,6 +65,13 @@ const gridConfig = reactive({
 
 const sceneObjects = reactive([
   {
+    id: 'floor',
+    scaleProfile: 'floor',
+    position: [0, -0.07, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  },
+  {
     id: 'placeholder',
     scaleProfile: 'model',
     position: [0, 1, 0],
@@ -116,6 +123,7 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
+const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
 
 function handleEditorAction(actionType) {
   if (actionType === 'center') {
@@ -169,6 +177,8 @@ function syncTransformControlsState() {
   const isMoveActive = props.activeEditTool === 'move'
   const isRotateActive = props.activeEditTool === 'rotate'
   const isScaleActive = props.activeEditTool === 'scale'
+  const scaleProfile = getScaleProfileForObject(sceneObjects, selectedObjectId.value ?? '')
+  const isFloorSelection = scaleProfile === 'floor'
 
   if (!selectedMesh || !isSelectionMode || (!isMoveActive && !isRotateActive && !isScaleActive)) {
     transformControls.detach()
@@ -190,17 +200,29 @@ function syncTransformControlsState() {
     transformControls.setMode('scale')
   }
   transformControls.setSpace('world')
-  if (isScaleActive) {
-    const scaleProfile = getScaleProfileForObject(sceneObjects, selectedObjectId.value ?? '')
-    transformControls.showY = scaleProfile !== 'floor'
-  } else {
+    transformControls.showX = true
     transformControls.showY = true
+    transformControls.showZ = true
+    if (isMoveActive && isFloorSelection) {
+      transformControls.showY = false
+    } else if (isRotateActive && isFloorSelection) {
+      transformControls.showX = false
+      transformControls.showY = true
+      transformControls.showZ = false
+    } else if (isScaleActive && isFloorSelection) {
+      transformControls.showY = false
   }
   transformControls.enabled = true
   transformControls.visible = true
   transformControls.setTranslationSnap(isMoveActive ? gridConfig.cellSize : null)
   transformControls.setScaleSnap(null)
-  transformControls.setRotationSnap(isRotateActive ? ROTATION_SNAP_RADIANS : null)
+    transformControls.setRotationSnap(
+      isRotateActive
+        ? isFloorSelection
+          ? FLOOR_ROTATION_SNAP_RADIANS
+          : ROTATION_SNAP_RADIANS
+        : null
+    )
   if (transformHelper) {
     transformHelper.visible = true
     transformHelper.updateMatrixWorld(true)

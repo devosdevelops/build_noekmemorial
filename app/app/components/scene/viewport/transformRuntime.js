@@ -109,6 +109,13 @@ export function createTransformRuntime({
 
     if (transformControls.getMode() === 'translate') {
       const snapped = snapVectorToGrid(THREE, gridConfig, transformControls.object.position)
+
+      const objectState = sceneObjects.find((object) => object.id === objectId)
+
+      if (objectState?.scaleProfile === 'floor') {
+        snapped.y = objectState.position[1]
+      }
+
       transformControls.object.position.copy(snapped)
       updateSceneObjectPosition(sceneObjects, objectId, snapped)
       return

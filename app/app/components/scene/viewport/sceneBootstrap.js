@@ -80,9 +80,8 @@ export function createSceneBootstrap({
       })
     )
   )
-  // Keep the slab just below the grid (y = 0) so the grid remains visible on top.
-  plinth.position.set(0, -0.01 - plinthThickness / 2, 0)
   scene.add(plinth)
+  registerSelectableRoot(THREE, selectableRoots, meshById, 'floor', plinth)
 
   const placeholder = new THREE.Mesh(
     poolGeometry(new THREE.BoxGeometry(2, 2, 2)),
