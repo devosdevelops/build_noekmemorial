@@ -2,7 +2,7 @@
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
-const tools = ['Models', 'Light', 'Audio', 'Media']
+const tools = ['Models', 'Floors', 'Blocks', 'Light', 'Audio', 'Media']
 </script>
 
 <template>
