@@ -5,4 +5,13 @@
   --font-display: 'Poppins', sans-serif;
 }
 
+html,
+body,
+#__nuxt {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
 /* Shared global styles and reusable tokens belong here. */
