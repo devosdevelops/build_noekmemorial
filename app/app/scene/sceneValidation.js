@@ -28,6 +28,31 @@ function asVector2(input, fallback) {
   return [input[0], input[1]]
 }
 
+function normalizeMaterialOverrides(input) {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => {
+      const materialName = typeof entry.materialName === 'string' ? entry.materialName.trim() : ''
+      const color = typeof entry.color === 'string' && HEX_COLOR_PATTERN.test(entry.color)
+        ? entry.color
+        : null
+      const textureId = typeof entry.textureId === 'string' && entry.textureId.trim().length
+        ? entry.textureId.trim()
+        : null
+
+      return {
+        materialName,
+        color,
+        textureId
+      }
+    })
+    .filter((entry) => entry.materialName.length > 0)
+}
+
 function normalizeAppearance(kind, appearanceInput, warnings, objectId) {
   const defaults = getDefaultAppearance(kind)
 
@@ -47,6 +72,7 @@ function normalizeAppearance(kind, appearanceInput, warnings, objectId) {
   const metalness = isFiniteNumber(finishInput?.metalness) ? finishInput.metalness : defaults.finish.metalness
 
   let texture = null
+  let materialOverrides = defaults.materialOverrides
 
   if (appearanceInput.texture && typeof appearanceInput.texture === 'object') {
     if (kind === SCENE_KIND.FLOOR || kind === SCENE_KIND.SHAPE) {
@@ -68,9 +94,18 @@ function normalizeAppearance(kind, appearanceInput, warnings, objectId) {
     }
   }
 
+  if (appearanceInput.materialOverrides !== undefined) {
+    if (kind === SCENE_KIND.MODEL) {
+      materialOverrides = normalizeMaterialOverrides(appearanceInput.materialOverrides)
+    } else {
+      warnings.push(`Object "${objectId}" has materialOverrides on unsupported kind "${kind}"; ignored.`)
+    }
+  }
+
   return {
     color: nextColor,
     texture,
+    materialOverrides,
     finish: {
       roughness,
       metalness

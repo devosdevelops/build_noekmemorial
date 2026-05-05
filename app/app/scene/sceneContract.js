@@ -35,6 +35,7 @@ export function getDefaultAppearance(kind) {
   return {
     color: getDefaultColorForKind(kind),
     texture: null,
+    materialOverrides: kind === SCENE_KIND.MODEL ? [] : null,
     finish: {
       roughness: 0.56,
       metalness: 0.03

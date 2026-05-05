@@ -32,6 +32,16 @@ function cloneAppearance(kind, appearanceInput) {
             : 1
         }
       : null,
+    materialOverrides: kind === SCENE_KIND.MODEL && Array.isArray(appearanceInput.materialOverrides)
+      ? appearanceInput.materialOverrides
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+          materialName: typeof entry.materialName === 'string' ? entry.materialName : '',
+          color: typeof entry.color === 'string' ? entry.color : null,
+          textureId: typeof entry.textureId === 'string' ? entry.textureId : null
+        }))
+        .filter((entry) => entry.materialName.length > 0)
+      : defaults.materialOverrides,
     finish: {
       roughness: typeof appearanceInput.finish?.roughness === 'number'
         ? appearanceInput.finish.roughness
