@@ -154,6 +154,22 @@ function handleBlocksLibraryClose() {
   isBlocksLibraryVisible.value = false
 }
 
+function handleModelsLibraryClose() {
+  isModelsLibraryVisible.value = false
+}
+
+function handleSelectModel({ downloadUrl, title, attribution, licence }) {
+  isModelsLibraryVisible.value = false
+  modelAction.value = {
+    type: 'add-model',
+    downloadUrl,
+    title,
+    attribution,
+    licence,
+    sequence: modelAction.value.sequence + 1
+  }
+}
+
 function handleSelectBlock(shapeType) {
   if (typeof shapeType !== 'string' || !shapeType.length) {
     return
