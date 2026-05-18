@@ -3,4 +3,8 @@
 // Each ID corresponds to a curated list on https://poly.pizza
 export const POLY_PIZZA_LIST_IDS = [
   // 'YOUR_LIST_ID_HERE'
+  'PG7JoV77qh',
+  't1qOmzWvB',
+  'JNxwMPvx48',
+  'RggYIdGBDn'
 ]
