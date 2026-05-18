@@ -44,6 +44,7 @@
 import { ref } from 'vue'
 import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
+import ModelsLibraryPanel from './components/editor/ModelsLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
 import SideToolPanel from './components/editor/SideToolPanel.vue'
