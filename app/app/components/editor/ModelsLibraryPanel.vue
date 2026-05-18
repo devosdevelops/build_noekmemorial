@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
@@ -31,6 +32,26 @@ function mergeAndDeduplicate(arrays) {
   }
   return result
 }
+
+const models = ref([])
+const isLoading = ref(false)
+const loadError = ref(null)
+
+async function loadModels() {
+  if (!POLY_PIZZA_LIST_IDS.length) return
+  isLoading.value = true
+  loadError.value = null
+  try {
+    const results = await Promise.all(POLY_PIZZA_LIST_IDS.map(fetchList))
+    models.value = mergeAndDeduplicate(results)
+  } catch (err) {
+    loadError.value = err.message ?? 'Failed to load models.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadModels)
 
 function handleClose() {
   emit('close')
