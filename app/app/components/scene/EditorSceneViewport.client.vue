@@ -412,6 +412,65 @@ function addBlockToScene(shapeType) {
   historyRuntime?.captureInitialObjectState()
 }
 
+const gltfLoader = new GLTFLoader()
+
+function addModelToScene(downloadUrl) {
+  if (!scene || !downloadUrl) return
+
+  const modelId = `model-${Date.now()}`
+
+  gltfLoader.load(
+    downloadUrl,
+    (gltf) => {
+      const root = gltf.scene
+
+      // Normalise scale so the model fits within a consistent bounding box.
+      const box = new THREE.Box3().setFromObject(root)
+      const size = new THREE.Vector3()
+      box.getSize(size)
+      const maxDim = Math.max(size.x, size.y, size.z)
+      if (maxDim > 0) {
+        const targetSize = 2
+        root.scale.setScalar(targetSize / maxDim)
+      }
+
+      // Re-centre at ground level after scaling.
+      box.setFromObject(root)
+      const center = new THREE.Vector3()
+      box.getCenter(center)
+      root.position.x -= center.x
+      root.position.z -= center.z
+      root.position.y -= box.min.y
+
+      const spawnPosition = snapVectorToGrid(THREE, gridConfig, new THREE.Vector3(0, 0, 0))
+      root.position.x += spawnPosition.x
+      root.position.z += spawnPosition.z
+
+      scene.add(root)
+      registerSelectableRoot(THREE, selectableRoots, meshById, modelId, root)
+
+      sceneObjects.push({
+        id: modelId,
+        kind: SCENE_KIND.MODEL,
+        assetRef: downloadUrl,
+        scaleProfile: 'model',
+        position: [root.position.x, root.position.y, root.position.z],
+        rotation: [0, 0, 0],
+        scale: [root.scale.x, root.scale.y, root.scale.z],
+        appearance: getDefaultAppearance(SCENE_KIND.MODEL)
+      })
+
+      setSelectedObjectId(modelId)
+      historyRuntime?.clearHistory()
+      historyRuntime?.captureInitialObjectState()
+    },
+    undefined,
+    (err) => {
+      console.error(`[EditorSceneViewport] Failed to load model "${downloadUrl}":`, err)
+    }
+  )
+}
+
 const materialPool = []
 const geometryPool = []
 const texturePool = []
