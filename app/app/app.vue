@@ -59,9 +59,15 @@ const historyAction = ref({
   sequence: 0
 })
 const isBlocksLibraryVisible = ref(false)
+const isModelsLibraryVisible = ref(false)
 const blockAction = ref({
   type: null,
   shapeType: null,
+  sequence: 0
+})
+const modelAction = ref({
+  type: null,
+  downloadUrl: null,
   sequence: 0
 })
 const persistenceAction = ref({
