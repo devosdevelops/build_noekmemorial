@@ -18,6 +18,20 @@ async function fetchList(listId) {
   return Array.isArray(data?.Models) ? data.Models : []
 }
 
+function mergeAndDeduplicate(arrays) {
+  const seen = new Set()
+  const result = []
+  for (const models of arrays) {
+    for (const model of models) {
+      if (model?.ID && !seen.has(model.ID)) {
+        seen.add(model.ID)
+        result.push(model)
+      }
+    }
+  }
+  return result
+}
+
 function handleClose() {
   emit('close')
 }
