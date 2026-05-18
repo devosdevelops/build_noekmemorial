@@ -77,7 +77,29 @@ function handleSelectModel(model) {
 
     <p class="library-subtitle">Pick a 3D model to add to the scene.</p>
 
-    <p class="library-placeholder">No models loaded yet.</p>
+    <p v-if="isLoading" class="library-status">Loading models…</p>
+    <p v-else-if="loadError" class="library-status library-status--error">{{ loadError }}</p>
+    <p v-else-if="!models.length" class="library-status">No models available.</p>
+
+    <div v-else class="models-grid">
+      <button
+        v-for="model in models"
+        :key="model.ID"
+        type="button"
+        class="model-card"
+        :title="model.Title"
+        @click="handleSelectModel(model)"
+      >
+        <img
+          v-if="model.Thumbnail"
+          :src="model.Thumbnail"
+          :alt="model.Title"
+          class="model-thumbnail"
+          loading="lazy"
+        />
+        <span class="model-label">{{ model.Title }}</span>
+      </button>
+    </div>
   </OverlayCard>
 </template>
 
