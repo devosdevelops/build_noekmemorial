@@ -2,11 +2,7 @@
 import { onMounted, ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
-
-// Add or remove Poly Pizza list IDs here to control which models appear.
-const POLY_PIZZA_LIST_IDS = [
-  // 'YOUR_LIST_ID_HERE'
-]
+import { POLY_PIZZA_LIST_IDS } from '../../config/polypizza.js'
 
 const emit = defineEmits(['close', 'select-model'])
 
