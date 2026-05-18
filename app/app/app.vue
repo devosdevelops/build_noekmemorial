@@ -7,6 +7,7 @@
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
       :block-action="blockAction"
+      :model-action="modelAction"
       :persistence-action="persistenceAction"
       @scene-document-prepared="handleSceneDocumentPrepared"
       @scene-runtime-changed="handleSceneRuntimeChanged"
@@ -17,6 +18,11 @@
       v-if="isBlocksLibraryVisible"
       @close="handleBlocksLibraryClose"
       @select-block="handleSelectBlock"
+    />
+    <ModelsLibraryPanel
+      v-if="isModelsLibraryVisible"
+      @close="handleModelsLibraryClose"
+      @select-model="handleSelectModel"
     />
     <AssetConfigurationPanel
       v-if="isAssetConfigurationVisible && selectedAsset"
