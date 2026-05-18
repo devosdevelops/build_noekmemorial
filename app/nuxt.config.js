@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/global.css'],
   runtimeConfig: {
     supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+    polypizzaApiKey: process.env.POLYPIZZA_API_KEY,
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY
