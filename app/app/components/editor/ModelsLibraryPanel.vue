@@ -147,6 +147,61 @@ function handleSelectModel(model) {
   padding: 1rem 0;
 }
 
+.library-status {
+  margin: 0;
+  color: rgba(68, 80, 56, 0.5);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.library-status--error {
+  color: #b94040;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.model-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(124, 138, 110, 0.28);
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+  text-align: center;
+}
+
+.model-card:hover {
+  border-color: rgba(114, 131, 98, 0.55);
+  box-shadow: 0 2px 8px rgba(73, 88, 60, 0.12);
+}
+
+.model-thumbnail {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 0.4rem;
+  background: rgba(68, 80, 56, 0.06);
+}
+
+.model-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4e5b41;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
 @media (max-width: 900px) {
   .models-library {
     left: 1rem;
