@@ -56,6 +56,16 @@ onMounted(loadModels)
 function handleClose() {
   emit('close')
 }
+
+function handleSelectModel(model) {
+  emit('select-model', {
+    id: model.ID,
+    title: model.Title,
+    downloadUrl: model.Download,
+    attribution: model.Attribution ?? '',
+    licence: model.Licence ?? ''
+  })
+}
 </script>
 
 <template>
