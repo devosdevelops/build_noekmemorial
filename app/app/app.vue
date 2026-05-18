@@ -123,26 +123,24 @@ function handleHistoryAction(actionType) {
 function handleSideToolClick(toolId) {
   if (toolId === 'blocks') {
     isBlocksLibraryVisible.value = true
+    isModelsLibraryVisible.value = false
+    return
+  }
+
+  if (toolId === 'models') {
+    isModelsLibraryVisible.value = true
+    isBlocksLibraryVisible.value = false
     return
   }
 
   isBlocksLibraryVisible.value = false
+  isModelsLibraryVisible.value = false
 
   if (toolId === 'floors') {
     selectedAsset.value = {
       assetType: 'floor',
       assetId: 'floor',
       label: 'Floor'
-    }
-    isAssetConfigurationVisible.value = true
-    return
-  }
-
-  if (toolId === 'models') {
-    selectedAsset.value = {
-      assetType: 'model',
-      assetId: 'placeholder-model',
-      label: '3D Model'
     }
     isAssetConfigurationVisible.value = true
     return
