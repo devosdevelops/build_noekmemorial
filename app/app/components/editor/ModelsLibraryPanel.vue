@@ -9,6 +9,15 @@ const POLY_PIZZA_LIST_IDS = [
 
 const emit = defineEmits(['close', 'select-model'])
 
+async function fetchList(listId) {
+  const res = await fetch(`/api/polypizza/list/${encodeURIComponent(listId)}`)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch list "${listId}": ${res.status}`)
+  }
+  const data = await res.json()
+  return Array.isArray(data?.Models) ? data.Models : []
+}
+
 function handleClose() {
   emit('close')
 }
