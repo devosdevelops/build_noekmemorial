@@ -626,6 +626,21 @@ watch(
 )
 
 watch(
+  () => props.modelAction.sequence,
+  () => {
+    if (props.modelAction?.type !== 'add-model') {
+      return
+    }
+
+    if (typeof props.modelAction.downloadUrl !== 'string' || !props.modelAction.downloadUrl.length) {
+      return
+    }
+
+    addModelToScene(props.modelAction.downloadUrl)
+  }
+)
+
+watch(
   () => props.persistenceAction.sequence,
   () => {
     if (!props.persistenceAction?.type) {
