@@ -67,6 +67,14 @@ const props = defineProps({
       sequence: 0
     })
   },
+  modelAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      downloadUrl: null,
+      sequence: 0
+    })
+  },
   persistenceAction: {
     type: Object,
     default: () => ({
