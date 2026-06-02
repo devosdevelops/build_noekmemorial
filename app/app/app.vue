@@ -181,12 +181,12 @@ function handleSelectBlock(shapeType) {
     return
   }
 
-  selectedAsset.value = {
-    assetType: 'block',
-    assetId: shapeType,
-    label: blockLabelByType[shapeType] ?? 'Blok'
+  blockAction.value = {
+    type: 'add-block',
+    shapeType,
+    sequence: blockAction.value.sequence + 1
   }
-  isAssetConfigurationVisible.value = true
+  isSceneDirty.value = true
   isBlocksLibraryVisible.value = false
 }
 

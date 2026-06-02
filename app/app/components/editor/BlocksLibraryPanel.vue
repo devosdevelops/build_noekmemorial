@@ -1,4 +1,6 @@
 <script setup>
+import { onMounted, ref } from 'vue'
+import * as THREE from 'three'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
@@ -11,6 +13,65 @@ const availableBlocks = [
   { id: 'cone', label: 'Kegel' }
 ]
 
+const blockPreviews = ref({})
+const previewsLoading = ref(true)
+
+function createBlockGeometry(shapeType) {
+  if (shapeType === 'sphere') {
+    return new THREE.SphereGeometry(1, 24, 18)
+  }
+
+  if (shapeType === 'cylinder') {
+    return new THREE.CylinderGeometry(1, 1, 2, 28)
+  }
+
+  if (shapeType === 'cone') {
+    return new THREE.ConeGeometry(1, 2, 28)
+  }
+
+  return new THREE.BoxGeometry(2, 2, 2)
+}
+
+function generateBlockPreview(shapeType) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+
+  const scene = new THREE.Scene()
+  scene.background = new THREE.Color(0xf6f8f2)
+
+  const light1 = new THREE.DirectionalLight(0xffffff, 0.8)
+  light1.position.set(5, 5, 5)
+  scene.add(light1)
+
+  const light2 = new THREE.DirectionalLight(0xffffff, 0.4)
+  light2.position.set(-5, 3, -5)
+  scene.add(light2)
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
+  scene.add(ambientLight)
+
+  const geometry = createBlockGeometry(shapeType)
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xa8ba9e,
+    roughness: 0.56,
+    metalness: 0.03
+  })
+  const mesh = new THREE.Mesh(geometry, material)
+  scene.add(mesh)
+
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
+  camera.position.z = 4
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false })
+  renderer.setSize(256, 256)
+  renderer.setPixelRatio(window.devicePixelRatio || 1)
+
+  renderer.render(scene, camera)
+
+  return canvas.toDataURL('image/png')
+}
+
 function handleAddBlock(blockType) {
   emit('select-block', blockType)
 }
@@ -18,6 +79,18 @@ function handleAddBlock(blockType) {
 function handleClose() {
   emit('close')
 }
+
+onMounted(() => {
+  try {
+    availableBlocks.forEach((block) => {
+      blockPreviews.value[block.id] = generateBlockPreview(block.id)
+    })
+  } catch (err) {
+    console.error('Failed to generate block previews:', err)
+  } finally {
+    previewsLoading.value = false
+  }
+})
 </script>
 
 <template>
@@ -29,14 +102,24 @@ function handleClose() {
 
     <p class="library-subtitle">Kies een basisblok om aan de scène toe te voegen.</p>
 
-    <div class="blocks-grid">
-      <OverlayButton
+    <p v-if="previewsLoading" class="library-status">Voorbeelden laden...</p>
+
+    <div v-else class="blocks-grid">
+      <button
         v-for="block in availableBlocks"
         :key="block.id"
-        :label="block.label"
-        class="block-button"
+        type="button"
+        class="block-card"
+        :title="block.label"
         @click="handleAddBlock(block.id)"
-      />
+      >
+        <img
+          :src="blockPreviews[block.id]"
+          :alt="block.label"
+          class="block-thumbnail"
+        />
+        <span class="block-label">{{ block.label }}</span>
+      </button>
     </div>
   </OverlayCard>
 </template>
@@ -46,7 +129,7 @@ function handleClose() {
   top: 28%;
   left: calc(1.5rem + 10.2rem + 16px);
   z-index: 3;
-  width: min(19rem, calc(100vw - 2rem));
+  width: min(22rem, calc(100vw - 2rem));
   padding: 0.9rem;
   border-radius: 0.9rem;
 }
@@ -77,14 +160,55 @@ function handleClose() {
   font-size: 0.88rem;
 }
 
-.blocks-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.52rem;
+.library-status {
+  margin: 0;
+  color: rgba(68, 80, 56, 0.5);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
 }
 
-.block-button {
-  text-align: left;
+.blocks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.block-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(124, 138, 110, 0.28);
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+  text-align: center;
+}
+
+.block-card:hover {
+  border-color: rgba(114, 131, 98, 0.55);
+  box-shadow: 0 2px 8px rgba(73, 88, 60, 0.12);
+}
+
+.block-thumbnail {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 0.4rem;
+  background: rgba(68, 80, 56, 0.06);
+}
+
+.block-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4e5b41;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 @media (max-width: 900px) {
