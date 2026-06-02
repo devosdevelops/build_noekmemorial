@@ -8,15 +8,22 @@
 [] if possible have search bar work in both dutch and englihs
 [x] add textures
 [x] add textures to floors
-[] add textures to blocks
+[x] add textures to blocks
+[] add texture size to 
+    [] blocks  
+    [] floor
+[] add missing textures
 [] add favicon
 [] deploy room
+[] add ambient noise options
+[] add lighting options
 
 ## Fixes
 
 [] Auto deselect any other object
 [] load models with loader
 [] change selected mode because current glow hides the color
+[] add new floors not just change the texture of the one existing floor
 [x] make sure models are saved to the supabase 
 [x] block preview in 3D instead of flat shapes
 [x] translate to dutch
@@ -30,3 +37,5 @@
 [] scale object from menu
 [] save colors / recently used colors
 [] swap betwen hex and RGB
+[] add more textures
+[] add more models

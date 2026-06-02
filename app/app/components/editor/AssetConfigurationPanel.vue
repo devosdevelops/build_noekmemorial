@@ -20,7 +20,7 @@ const selectedTexturePreviewId = ref('no-texture')
 
 const texturePreviewOptions = FLOOR_TEXTURE_OPTIONS.map((option) => ({
   id: option.id,
-  name: option.label,
+  name: option.id === 'no-texture' ? 'Standaard materiaal' : option.label,
   previewUrl: option.previewUrl
 }))
 
@@ -127,7 +127,7 @@ function selectTexturePreview(textureId) {
           :aria-selected="activeMaterialTab === 'texture'"
           @click="setMaterialTab('texture')"
         >
-          Textuur
+          Materiaal
         </button>
       </div>
 
@@ -151,9 +151,9 @@ function selectTexturePreview(textureId) {
         <ColorDiskPicker :model-value="currentColor" @update:model-value="handleColorChange" />
       </div>
 
-      <div v-else class="material-panel" role="tabpanel" aria-label="Textuur tab">
-        <h3 class="section-title">Textuurstijl</h3>
-        <p class="section-copy">Kies een textuur voor het geselecteerde blok.</p>
+      <div v-else class="material-panel" role="tabpanel" aria-label="Materiaal tab">
+        <h3 class="section-title">Materiaalstijl</h3>
+        <p class="section-copy">Scroll door materialen en kies er een voor het geselecteerde blok.</p>
 
         <div class="texture-grid">
           <button
@@ -364,9 +364,28 @@ function selectTexturePreview(textureId) {
 
 .texture-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.46rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
   margin-top: 0.2rem;
+  max-height: 18rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.42rem;
+  scrollbar-gutter: stable;
+}
+
+.texture-grid::-webkit-scrollbar {
+  width: 0.44rem;
+}
+
+.texture-grid::-webkit-scrollbar-thumb {
+  background: rgba(96, 111, 130, 0.44);
+  border-radius: 999px;
+}
+
+.texture-grid::-webkit-scrollbar-track {
+  background: rgba(231, 236, 245, 0.52);
+  border-radius: 999px;
 }
 
 .texture-tile {
