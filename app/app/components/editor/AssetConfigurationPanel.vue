@@ -12,11 +12,12 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'update-color', 'update-texture'])
+const emit = defineEmits(['close', 'update-color', 'update-texture', 'update-texture-scale'])
 
 const currentColor = ref('#b4c9a6')
 const activeMaterialTab = ref('color')
 const selectedTexturePreviewId = ref('no-texture')
+const textureScale = ref(1)
 
 const texturePreviewOptions = FLOOR_TEXTURE_OPTIONS.map((option) => ({
   id: option.id,
@@ -45,6 +46,7 @@ const panelTitle = computed(() => {
 })
 
 const isBlockAsset = computed(() => props.selectedAsset?.assetType === 'block')
+const hasActiveTexture = computed(() => selectedTexturePreviewId.value !== 'no-texture')
 
 watch(
   () => props.selectedAsset?.color,
@@ -73,6 +75,16 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => props.selectedAsset?.textureScale,
+  (nextTextureScale) => {
+    textureScale.value = typeof nextTextureScale === 'number' && Number.isFinite(nextTextureScale)
+      ? Math.min(4, Math.max(0.5, nextTextureScale))
+      : 1
+  },
+  { immediate: true }
+)
+
 function handleClose() {
   emit('close')
 }
@@ -97,6 +109,21 @@ function selectTexturePreview(textureId) {
 
   selectedTexturePreviewId.value = textureId
   emit('update-texture', textureId)
+}
+
+function handleTextureScaleInput(event) {
+  if (!hasActiveTexture.value) {
+    return
+  }
+
+  const nextScale = Number.parseFloat(event?.target?.value)
+
+  if (!Number.isFinite(nextScale)) {
+    return
+  }
+
+  textureScale.value = nextScale
+  emit('update-texture-scale', nextScale)
 }
 </script>
 
@@ -171,6 +198,23 @@ function selectTexturePreview(textureId) {
             />
             <span class="texture-tile__name">{{ texture.name }}</span>
           </button>
+        </div>
+
+        <div class="texture-scale">
+          <div class="texture-scale__row">
+            <span class="texture-scale__label">Materiaalgrootte</span>
+            <span class="texture-scale__value">{{ textureScale.toFixed(1) }}x</span>
+          </div>
+          <input
+            class="texture-scale__slider"
+            type="range"
+            min="0.5"
+            max="4"
+            step="0.1"
+            :value="textureScale"
+            :disabled="!hasActiveTexture"
+            @input="handleTextureScaleInput"
+          >
         </div>
       </div>
     </section>
@@ -434,6 +478,36 @@ function selectTexturePreview(textureId) {
   background-size: 10px 10px;
   background-position: 0 0, 0 5px, 5px -5px, -5px 0;
   background-color: rgba(241, 244, 248, 0.92);
+}
+
+.texture-scale {
+  margin-top: 0.46rem;
+  padding-top: 0.46rem;
+  border-top: 1px solid rgba(102, 112, 138, 0.22);
+}
+
+.texture-scale__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.texture-scale__label {
+  color: rgba(69, 71, 91, 0.9);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.texture-scale__value {
+  color: rgba(56, 60, 82, 0.92);
+  font-size: 0.79rem;
+  font-weight: 800;
+}
+
+.texture-scale__slider {
+  width: 100%;
+  margin-top: 0.4rem;
 }
 
 @media (max-width: 900px) {

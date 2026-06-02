@@ -720,6 +720,37 @@ function applyBlockTextureById(objectId, textureId) {
   }
 }
 
+function applyBlockTextureScale(objectId, textureScale) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof textureScale !== 'number' || !Number.isFinite(textureScale)) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.SHAPE)
+
+  if (!objectState || !objectState.appearance?.texture) {
+    return
+  }
+
+  const nextScale = Math.min(4, Math.max(0.5, textureScale))
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    texture: {
+      ...objectState.appearance.texture,
+      uvScale: [nextScale, nextScale]
+    }
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyShapeAppearance(mesh, objectState.appearance)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
 function createModelLayoutFromBounds(box) {
   const size = new THREE.Vector3()
   const center = new THREE.Vector3()
@@ -1043,6 +1074,11 @@ watch(
 
     if (props.blockAppearanceAction?.type === 'update-block-texture') {
       applyBlockTextureById(props.blockAppearanceAction.objectId, props.blockAppearanceAction.textureId)
+      return
+    }
+
+    if (props.blockAppearanceAction?.type === 'update-block-texture-scale') {
+      applyBlockTextureScale(props.blockAppearanceAction.objectId, props.blockAppearanceAction.textureScale)
     }
   }
 )

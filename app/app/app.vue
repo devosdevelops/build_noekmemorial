@@ -39,6 +39,7 @@
       @close="handleAssetConfigurationClose"
       @update-color="handleBlockColorChange"
       @update-texture="handleBlockTextureChange"
+      @update-texture-scale="handleBlockTextureScaleChange"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -88,6 +89,7 @@ const blockAppearanceAction = ref({
   objectId: null,
   color: null,
   textureId: null,
+  textureScale: null,
   sequence: 0
 })
 const floorAction = ref({
@@ -256,6 +258,10 @@ function handleSelectionChanged(selection) {
     textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
       ? selection.appearance.texture.textureId
       : 'no-texture',
+    textureScale: Array.isArray(selection.appearance?.texture?.uvScale)
+      && typeof selection.appearance.texture.uvScale[0] === 'number'
+      ? selection.appearance.texture.uvScale[0]
+      : 1,
     color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
       ? selection.appearance.color
       : '#b4c9a6'
@@ -294,7 +300,27 @@ function handleBlockTextureChange(textureId) {
 
   selectedAsset.value = {
     ...selectedAsset.value,
-    textureId
+    textureId,
+    textureScale: textureId === 'no-texture' ? 1 : selectedAsset.value.textureScale
+  }
+  isSceneDirty.value = true
+}
+
+function handleBlockTextureScaleChange(textureScale) {
+  if (!selectedAsset.value?.objectId || typeof textureScale !== 'number' || !Number.isFinite(textureScale)) {
+    return
+  }
+
+  blockAppearanceAction.value = {
+    type: 'update-block-texture-scale',
+    objectId: selectedAsset.value.objectId,
+    textureScale,
+    sequence: blockAppearanceAction.value.sequence + 1
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    textureScale
   }
   isSceneDirty.value = true
 }
