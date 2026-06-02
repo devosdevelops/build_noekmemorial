@@ -91,11 +91,19 @@ function handleSelectModel(model) {
 <template>
   <OverlayCard class="models-library" aria-label="Modellenbibliotheek">
     <header class="library-header">
-      <h2 class="library-title">Modellen</h2>
+      <div class="library-heading">
+        <h2 class="library-title">Modellen</h2>
+        <button
+          type="button"
+          class="library-info"
+          aria-label="Modellen uitleg"
+          data-tooltip="Kies een 3D-model om aan de scene toe te voegen."
+        >
+          i
+        </button>
+      </div>
       <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
     </header>
-
-    <p class="library-subtitle">Kies een 3D-model om aan de scène toe te voegen.</p>
 
     <div v-if="isLoading" class="library-status library-status--loading" role="status" aria-live="polite">
       <span class="loading-spinner" aria-hidden="true"></span>
@@ -163,6 +171,12 @@ function handleSelectModel(model) {
   gap: 0.7rem;
 }
 
+.library-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.44rem;
+}
+
 .library-title {
   margin: 0;
   color: #4e5b41;
@@ -176,16 +190,77 @@ function handleSelectModel(model) {
   font-size: 0.84rem;
 }
 
-.library-subtitle {
-  margin: 0.66rem 0 0.72rem;
-  color: rgba(68, 80, 56, 0.82);
-  font-size: 0.88rem;
+.library-info {
+  position: relative;
+  width: 1.14rem;
+  height: 1.14rem;
+  border: 1px solid rgba(88, 103, 72, 0.45);
+  border-radius: 999px;
+  background: rgba(246, 247, 252, 0.86);
+  color: #4e5b41;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+}
+
+.library-info::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.58rem);
+  transform: translateX(-50%);
+  min-width: 13rem;
+  max-width: 15rem;
+  padding: 0.44rem 0.56rem;
+  border-radius: 0.7rem;
+  background: rgba(106, 106, 110, 0.97);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+  z-index: 4;
+}
+
+.library-info::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.22rem);
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 0.34rem solid transparent;
+  border-right: 0.34rem solid transparent;
+  border-top: 0.38rem solid rgba(106, 106, 110, 0.97);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+  z-index: 4;
+}
+
+.library-info:hover::after,
+.library-info:hover::before,
+.library-info:focus-visible::after,
+.library-info:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
 }
 
 .library-search {
   display: flex;
   align-items: stretch;
   width: 100%;
+  margin-top: 0.62rem;
   margin-bottom: 0.72rem;
   border: 2px solid rgba(124, 138, 110, 0.68);
   border-radius: 0.95rem;
