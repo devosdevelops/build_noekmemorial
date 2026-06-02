@@ -35,26 +35,6 @@ const panelTitle = computed(() => {
   return 'Asset configureren'
 })
 
-const previewShapeClass = computed(() => {
-  if (!props.selectedAsset || props.selectedAsset.assetType !== 'block') {
-    return 'preview-shape--generic'
-  }
-
-  if (props.selectedAsset.assetId === 'sphere') {
-    return 'preview-shape--sphere'
-  }
-
-  if (props.selectedAsset.assetId === 'cylinder') {
-    return 'preview-shape--cylinder'
-  }
-
-  if (props.selectedAsset.assetId === 'cone') {
-    return 'preview-shape--cone'
-  }
-
-  return 'preview-shape--square'
-})
-
 const isBlockAsset = computed(() => props.selectedAsset?.assetType === 'block')
 
 watch(
@@ -87,13 +67,6 @@ function handleColorChange(nextColor) {
     </header>
 
     <p class="asset-name">{{ selectedAsset?.label ?? 'Geen selectie' }}</p>
-
-    <section class="preview-section" aria-label="Objectvoorbeeld">
-      <h3 class="section-title">Voorbeeld</h3>
-      <div class="preview-canvas">
-        <div class="preview-shape" :class="previewShapeClass" :style="{ background: currentColor }" />
-      </div>
-    </section>
 
     <section class="future-controls" aria-label="Materiaalkleur">
       <h3 class="section-title">Materiaal en kleur</h3>
@@ -148,7 +121,6 @@ function handleColorChange(nextColor) {
   font-weight: 700;
 }
 
-.preview-section,
 .future-controls {
   margin-top: 0.76rem;
 }
@@ -160,50 +132,6 @@ function handleColorChange(nextColor) {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.preview-canvas {
-  display: grid;
-  place-items: center;
-  margin-top: 0.48rem;
-  min-height: 6.8rem;
-  border: 1px solid rgba(124, 138, 110, 0.28);
-  border-radius: 0.7rem;
-  background: linear-gradient(170deg, rgba(246, 249, 241, 0.95), rgba(224, 233, 214, 0.88));
-}
-
-.preview-shape {
-  width: 3rem;
-  height: 3rem;
-  background: linear-gradient(180deg, #b8cba7, #95ab84);
-}
-
-.preview-shape--square {
-  border-radius: 0.5rem;
-}
-
-.preview-shape--sphere {
-  border-radius: 50%;
-}
-
-.preview-shape--cylinder {
-  width: 3.2rem;
-  height: 2.2rem;
-  border-radius: 1.1rem;
-}
-
-.preview-shape--cone {
-  width: 0;
-  height: 0;
-  border-left: 1.45rem solid transparent;
-  border-right: 1.45rem solid transparent;
-  border-bottom: 3rem solid #9eb28e;
-  background: transparent;
-}
-
-.preview-shape--generic {
-  border-radius: 0.42rem;
-  transform: rotate(16deg);
 }
 
 .section-copy {
