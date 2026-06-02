@@ -73,7 +73,10 @@ function handleSelectModel(model) {
 
     <p class="library-subtitle">Kies een 3D-model om aan de scène toe te voegen.</p>
 
-    <p v-if="isLoading" class="library-status">Modellen laden...</p>
+    <div v-if="isLoading" class="library-status library-status--loading" role="status" aria-live="polite">
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <span>Modellenbibliotheek wordt geladen...</span>
+    </div>
     <p v-else-if="loadError" class="library-status library-status--error">{{ loadError }}</p>
     <p v-else-if="!models.length" class="library-status">Geen modellen beschikbaar.</p>
 
@@ -151,8 +154,33 @@ function handleSelectModel(model) {
   padding: 1rem 0;
 }
 
+.library-status--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  color: #4e5b41;
+  font-weight: 700;
+}
+
+.loading-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid rgba(78, 91, 65, 0.2);
+  border-top-color: #4e5b41;
+  border-radius: 999px;
+  animation: spin 0.7s linear infinite;
+}
+
 .library-status--error {
   color: #b94040;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .models-grid {

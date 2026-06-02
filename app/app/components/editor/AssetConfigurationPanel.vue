@@ -235,8 +235,9 @@ function handleTextureScaleInput(event) {
 
 <style scoped>
 .asset-config-panel {
-  top: 28%;
+  top: 50%;
   right: 1.5rem;
+  transform: translateY(-50%);
   z-index: 3;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0;
@@ -523,6 +524,7 @@ function handleTextureScaleInput(event) {
     top: auto;
     right: 1rem;
     bottom: 12.4rem;
+    transform: none;
     width: min(22rem, calc(100vw - 2rem));
   }
 
