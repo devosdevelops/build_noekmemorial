@@ -47,6 +47,10 @@ const containerRef = ref(null)
 const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed', 'selection-changed'])
 
 const props = defineProps({
+  showGrid: {
+    type: Boolean,
+    default: true
+  },
   activeInteractionMode: {
     type: String,
     default: 'select'
@@ -146,6 +150,8 @@ const sceneObjects = reactive([
 
 const MAX_HISTORY_ENTRIES = 50
 const CAMERA_CENTER_TRANSITION_MS = 1000
+const GRID_BASE_OPACITY = 0.9
+const GRID_FADE_LERP = 0.12
 
 const selectedObjectId = ref(null)
 
@@ -166,6 +172,8 @@ let gridTexture = null
 let gridPlane = null
 let historyRuntime = null
 let cameraNavigationRuntime = null
+let gridOpacity = GRID_BASE_OPACITY
+let gridOpacityTarget = GRID_BASE_OPACITY
 const interactionState = {
   isTransforming: false,
   isUsingTransformGizmo: false,
@@ -1240,6 +1248,39 @@ function handlePersistenceAction(action) {
   }
 }
 
+function applyGridVisibility(isVisible) {
+  if (!gridPlane) {
+    return
+  }
+
+  const nextVisible = Boolean(isVisible)
+
+  if (nextVisible) {
+    gridPlane.visible = true
+  }
+
+  gridOpacityTarget = nextVisible ? GRID_BASE_OPACITY : 0
+}
+
+function updateGridFadeAnimation() {
+  if (!gridPlane || !gridPlane.material) {
+    return
+  }
+
+  const material = gridPlane.material
+  gridOpacity += (gridOpacityTarget - gridOpacity) * GRID_FADE_LERP
+
+  if (Math.abs(gridOpacityTarget - gridOpacity) < 0.01) {
+    gridOpacity = gridOpacityTarget
+  }
+
+  material.opacity = gridOpacity
+
+  if (gridOpacity <= 0.005 && gridOpacityTarget === 0) {
+    gridPlane.visible = false
+  }
+}
+
 watch(
   () => [props.activeInteractionMode, props.activeEditTool],
   () => {
@@ -1365,6 +1406,14 @@ watch(
 )
 
 watch(
+  () => props.showGrid,
+  (isVisible) => {
+    applyGridVisibility(isVisible)
+  },
+  { immediate: true }
+)
+
+watch(
   sceneObjects,
   () => {
     if (!isSceneReady || isApplyingHydration) {
@@ -1487,6 +1536,7 @@ function animate() {
   frameId = window.requestAnimationFrame(animate)
   cameraNavigationRuntime?.updateCameraTransition()
   controls.update()
+  updateGridFadeAnimation()
   if (composer) {
     composer.render()
   } else {
@@ -1533,6 +1583,12 @@ onMounted(() => {
   outputPass = sceneBootstrap.outputPass
   gridTexture = sceneBootstrap.gridTexture
   gridPlane = sceneBootstrap.gridPlane
+  gridOpacity = props.showGrid ? GRID_BASE_OPACITY : 0
+  gridOpacityTarget = gridOpacity
+  if (gridPlane?.material) {
+    gridPlane.material.opacity = gridOpacity
+  }
+  applyGridVisibility(props.showGrid)
 
   const floorMesh = meshById.get('floor')
   const floorState = sceneObjects.find((item) => item.id === 'floor')

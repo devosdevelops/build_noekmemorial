@@ -19,8 +19,10 @@
 [] deploy room
 [] add ambient noise options
 [] add lighting options
-[] hide grid 
+[x] hide grid 
 [] add special pinboard and candle objects
+[] add all tool icons 
+    [] add hinting for toolbar
 
 ## Fixes
 

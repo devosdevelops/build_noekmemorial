@@ -15,18 +15,25 @@ const props = defineProps({
   isSceneDirty: {
     type: Boolean,
     default: false
+  },
+  isGridVisible: {
+    type: Boolean,
+    default: true
   }
 })
 
 const emit = defineEmits(['action-click'])
 
-const actions = [
+const actions = computed(() => [
   { id: 'home', label: 'Start' },
   { id: 'settings', label: 'Instellingen' },
   { id: 'load', label: 'Laden' },
   { id: 'save', label: 'Opslaan' },
-  { id: 'preview', label: 'Voorbeeld' }
-]
+  {
+    id: 'toggle-grid',
+    label: props.isGridVisible ? 'Raster verbergen' : 'Raster tonen'
+  }
+])
 
 function handleActionClick(actionId) {
   emit('action-click', actionId)

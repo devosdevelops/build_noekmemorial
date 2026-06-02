@@ -3,6 +3,7 @@
     <NuxtRouteAnnouncer />
     <EditorSceneViewport
       class="scene-layer"
+      :show-grid="isGridVisible"
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
@@ -55,6 +56,7 @@
       :persistence-status="persistenceStatus"
       :persistence-error="persistenceError"
       :is-scene-dirty="isSceneDirty"
+      :is-grid-visible="isGridVisible"
       @action-click="handleTopActionClick"
     />
     <BottomControlBar
@@ -136,6 +138,7 @@ const latestSaveDiagnostics = ref({
 })
 const lastSceneName = ref('Editor Scène')
 const isSceneDirty = ref(false)
+const isGridVisible = ref(true)
 const skipNextDirtyEvent = ref(false)
 const selectedAsset = ref(null)
 
@@ -425,6 +428,11 @@ function handleFloorTextureScaleChange(textureScale) {
 }
 
 function handleTopActionClick(actionId) {
+  if (actionId === 'toggle-grid') {
+    isGridVisible.value = !isGridVisible.value
+    return
+  }
+
   if (actionId === 'load') {
     loadSceneIntoEditor()
     return
