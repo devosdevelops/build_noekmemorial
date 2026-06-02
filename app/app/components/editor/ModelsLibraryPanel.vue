@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { POLY_PIZZA_LIST_IDS } from '../../config/polypizza.js'
@@ -32,6 +32,30 @@ function mergeAndDeduplicate(arrays) {
 const models = ref([])
 const isLoading = ref(false)
 const loadError = ref(null)
+const searchQuery = ref('')
+
+function normalizeSearch(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
+function buildModelSearchText(model) {
+  const tags = Array.isArray(model?.Tags) ? model.Tags.join(' ') : ''
+  const creatorName = model?.Creator?.Username ?? ''
+  return normalizeSearch(`${model?.Title ?? ''} ${model?.Category ?? ''} ${tags} ${creatorName}`)
+}
+
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+const filteredModels = computed(() => {
+  const query = normalizeSearch(searchQuery.value)
+  if (!query.length) {
+    return models.value
+  }
+  return models.value.filter((model) => buildModelSearchText(model).includes(query))
+})
 
 async function loadModels() {
   if (!POLY_PIZZA_LIST_IDS.length) return
@@ -80,25 +104,45 @@ function handleSelectModel(model) {
     <p v-else-if="loadError" class="library-status library-status--error">{{ loadError }}</p>
     <p v-else-if="!models.length" class="library-status">Geen modellen beschikbaar.</p>
 
-    <div v-else class="models-grid">
-      <button
-        v-for="model in models"
-        :key="model.ID"
-        type="button"
-        class="model-card"
-        :title="model.Title"
-        @click="handleSelectModel(model)"
-      >
-        <img
-          v-if="model.Thumbnail"
-          :src="model.Thumbnail"
-          :alt="model.Title"
-          class="model-thumbnail"
-          loading="lazy"
+    <template v-else>
+      <label class="library-search" for="models-search-input">
+        <span class="search-icon-wrap" aria-hidden="true">
+          <span class="search-icon"></span>
+        </span>
+        <input
+          id="models-search-input"
+          v-model="searchQuery"
+          class="library-search-input"
+          type="search"
+          placeholder="Zoeken..."
+          autocomplete="off"
         />
-        <span class="model-label">{{ model.Title }}</span>
-      </button>
-    </div>
+      </label>
+
+      <p v-if="hasSearchQuery && !filteredModels.length" class="library-status">
+        Geen modellen gevonden voor "{{ searchQuery.trim() }}".
+      </p>
+
+      <div v-else class="models-grid">
+        <button
+          v-for="model in filteredModels"
+          :key="model.ID"
+          type="button"
+          class="model-card"
+          :title="model.Title"
+          @click="handleSelectModel(model)"
+        >
+          <img
+            v-if="model.Thumbnail"
+            :src="model.Thumbnail"
+            :alt="model.Title"
+            class="model-thumbnail"
+            loading="lazy"
+          />
+          <span class="model-label">{{ model.Title }}</span>
+        </button>
+      </div>
+    </template>
   </OverlayCard>
 </template>
 
@@ -136,6 +180,61 @@ function handleSelectModel(model) {
   margin: 0.66rem 0 0.72rem;
   color: rgba(68, 80, 56, 0.82);
   font-size: 0.88rem;
+}
+
+.library-search {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin-bottom: 0.72rem;
+  border: 2px solid rgba(124, 138, 110, 0.68);
+  border-radius: 0.95rem;
+  background: rgba(249, 251, 245, 0.94);
+  overflow: hidden;
+}
+
+.search-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  flex: 0 0 2.4rem;
+  background: linear-gradient(180deg, #a6b88d, #8ea175);
+}
+
+.search-icon {
+  position: relative;
+  width: 0.74rem;
+  height: 0.74rem;
+  border: 2px solid #f8fbf2;
+  border-radius: 999px;
+}
+
+.search-icon::after {
+  content: '';
+  position: absolute;
+  width: 0.4rem;
+  height: 2px;
+  background: #f8fbf2;
+  bottom: -0.22rem;
+  right: -0.26rem;
+  transform: rotate(45deg);
+  border-radius: 999px;
+}
+
+.library-search-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0.56rem 0.72rem;
+  color: #4e5b41;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.library-search-input::placeholder {
+  color: rgba(78, 91, 65, 0.48);
 }
 
 .library-placeholder {

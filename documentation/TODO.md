@@ -8,7 +8,6 @@
 [] connect editors to accounts
 [] load screen and load holder for when models are loading
 [] search bar for models
-[] if possible have search bar work in both dutch and englihs
 [x] add textures
 [x] add textures to floors
 [x] add textures to blocks
@@ -17,7 +16,7 @@
     [x] floor
 [] add colors to models
 [x] add missing textures
-[] load models with loader wheel
+[x] load models with loader wheel
 [] add favicon
 [] deploy room
 [] add ambient noise options
@@ -50,3 +49,4 @@
 [] swap betwen hex and RGB
 [] add more textures
 [] add more models
+[] translation of models
