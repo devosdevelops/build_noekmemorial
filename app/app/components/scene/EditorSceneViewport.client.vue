@@ -44,7 +44,7 @@ import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
 
 const containerRef = ref(null)
-const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed'])
+const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed', 'selection-changed'])
 
 const props = defineProps({
   activeInteractionMode: {
@@ -70,6 +70,15 @@ const props = defineProps({
       sequence: 0
     })
   },
+  blockAppearanceAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      objectId: null,
+      color: null,
+      sequence: 0
+    })
+  },
   floorAction: {
     type: Object,
     default: () => ({
@@ -87,6 +96,13 @@ const props = defineProps({
     })
   },
   persistenceAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      sequence: 0
+    })
+  },
+  selectionAction: {
     type: Object,
     default: () => ({
       type: null,
@@ -585,6 +601,55 @@ function applyFloorTextureById(textureId) {
   }
 }
 
+function emitSelectionChanged() {
+  const objectId = selectedObjectId.value
+
+  if (!objectId) {
+    emit('selection-changed', null)
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId)
+
+  if (!objectState) {
+    emit('selection-changed', null)
+    return
+  }
+
+  emit('selection-changed', {
+    objectId: objectState.id,
+    kind: objectState.kind,
+    assetRef: objectState.assetRef,
+    appearance: objectState.appearance
+  })
+}
+
+function applyBlockColor(objectId, color) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.SHAPE)
+
+  if (!objectState) {
+    return
+  }
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    color
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    setMeshColor(mesh, color)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
 function createModelLayoutFromBounds(box) {
   const size = new THREE.Vector3()
   const center = new THREE.Vector3()
@@ -774,6 +839,7 @@ function setSelectedObjectId(objectId) {
   highlightManager.applyEmissiveHighlight(selectedMesh)
 
   syncTransformControlsState()
+  emitSelectionChanged()
 }
 
 function syncTransformControlsState() {
@@ -898,6 +964,17 @@ watch(
 )
 
 watch(
+  () => props.blockAppearanceAction.sequence,
+  () => {
+    if (props.blockAppearanceAction?.type !== 'update-block-color') {
+      return
+    }
+
+    applyBlockColor(props.blockAppearanceAction.objectId, props.blockAppearanceAction.color)
+  }
+)
+
+watch(
   () => props.floorAction.sequence,
   () => {
     if (props.floorAction?.type !== 'apply-floor-texture') {
@@ -935,6 +1012,17 @@ watch(
     }
 
     handlePersistenceAction(props.persistenceAction)
+  }
+)
+
+watch(
+  () => props.selectionAction.sequence,
+  () => {
+    if (props.selectionAction?.type !== 'clear-selection') {
+      return
+    }
+
+    setSelectedObjectId(null)
   }
 )
 

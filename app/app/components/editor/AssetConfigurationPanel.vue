@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
+import ColorDiskPicker from './ColorDiskPicker.vue'
 
 const props = defineProps({
   selectedAsset: {
@@ -10,7 +11,9 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'add-to-scene'])
+const emit = defineEmits(['close', 'update-color'])
+
+const currentColor = ref('#b4c9a6')
 
 const panelTitle = computed(() => {
   if (!props.selectedAsset) {
@@ -52,18 +55,27 @@ const previewShapeClass = computed(() => {
   return 'preview-shape--square'
 })
 
-const canAddToScene = computed(() => props.selectedAsset?.assetType === 'block')
+const isBlockAsset = computed(() => props.selectedAsset?.assetType === 'block')
+
+watch(
+  () => props.selectedAsset?.color,
+  (nextColor) => {
+    currentColor.value = typeof nextColor === 'string' && nextColor.length ? nextColor : '#b4c9a6'
+  },
+  { immediate: true }
+)
 
 function handleClose() {
   emit('close')
 }
 
-function handleAddToScene() {
-  if (!canAddToScene.value) {
+function handleColorChange(nextColor) {
+  if (!isBlockAsset.value || typeof nextColor !== 'string' || !nextColor.length) {
     return
   }
 
-  emit('add-to-scene')
+  currentColor.value = nextColor
+  emit('update-color', nextColor)
 }
 </script>
 
@@ -79,25 +91,22 @@ function handleAddToScene() {
     <section class="preview-section" aria-label="Objectvoorbeeld">
       <h3 class="section-title">Voorbeeld</h3>
       <div class="preview-canvas">
-        <div class="preview-shape" :class="previewShapeClass" />
+        <div class="preview-shape" :class="previewShapeClass" :style="{ background: currentColor }" />
       </div>
     </section>
 
-    <section class="future-controls" aria-label="Tijdelijke plaats voor materiaalopties">
+    <section class="future-controls" aria-label="Materiaalkleur">
       <h3 class="section-title">Materiaal en kleur</h3>
-      <p class="section-copy">
-        Bewerkingsopties volgen binnenkort. Dit paneel is klaar voor materiaal- en kleuropties.
-      </p>
+      <p class="section-copy">Pas de blokkleur direct aan met de kleurenschijf.</p>
+      <ColorDiskPicker
+        v-if="isBlockAsset"
+        :model-value="currentColor"
+        @update:model-value="handleColorChange"
+      />
     </section>
 
-    <OverlayButton
-      v-if="canAddToScene"
-      class="add-button"
-      label="Toevoegen aan scène"
-      @click="handleAddToScene"
-    />
-    <p v-else class="section-copy section-copy--compact">
-      Assetopties verschijnen hier wanneer vloer- en 3D-modelbibliotheken zijn toegevoegd.
+    <p v-if="!isBlockAsset" class="section-copy section-copy--compact">
+      Dit paneel ondersteunt nu alleen kleurinstellingen voor geselecteerde blokken.
     </p>
   </OverlayCard>
 </template>
@@ -206,11 +215,6 @@ function handleAddToScene() {
 
 .section-copy--compact {
   margin-top: 0.8rem;
-}
-
-.add-button {
-  width: 100%;
-  margin-top: 0.9rem;
 }
 
 @media (max-width: 900px) {

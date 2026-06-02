@@ -7,11 +7,14 @@
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
       :block-action="blockAction"
+      :block-appearance-action="blockAppearanceAction"
       :floor-action="floorAction"
       :model-action="modelAction"
       :persistence-action="persistenceAction"
+      :selection-action="selectionAction"
       @scene-document-prepared="handleSceneDocumentPrepared"
       @scene-runtime-changed="handleSceneRuntimeChanged"
+      @selection-changed="handleSelectionChanged"
     />
     <BrandPanel />
     <SideToolPanel @tool-click="handleSideToolClick" />
@@ -29,6 +32,12 @@
       v-if="isFloorLibraryVisible"
       @close="handleFloorLibraryClose"
       @select-floor="handleSelectFloor"
+    />
+    <AssetConfigurationPanel
+      v-if="selectedAsset?.assetType === 'block'"
+      :selected-asset="selectedAsset"
+      @close="handleAssetConfigurationClose"
+      @update-color="handleBlockColorChange"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -48,6 +57,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from './components/editor/FloorLibraryPanel.vue'
 import ModelsLibraryPanel from './components/editor/ModelsLibraryPanel.vue'
@@ -72,6 +82,12 @@ const blockAction = ref({
   shapeType: null,
   sequence: 0
 })
+const blockAppearanceAction = ref({
+  type: null,
+  objectId: null,
+  color: null,
+  sequence: 0
+})
 const floorAction = ref({
   type: null,
   textureId: null,
@@ -86,6 +102,10 @@ const persistenceAction = ref({
   type: null,
   sequence: 0
 })
+const selectionAction = ref({
+  type: null,
+  sequence: 0
+})
 const latestPreparedScene = ref(null)
 const latestSaveDiagnostics = ref({
   isValid: true,
@@ -95,6 +115,7 @@ const latestSaveDiagnostics = ref({
 const lastSceneName = ref('Editor Scène')
 const isSceneDirty = ref(false)
 const skipNextDirtyEvent = ref(false)
+const selectedAsset = ref(null)
 
 const {
   persistenceStatus,
@@ -170,6 +191,13 @@ function handleFloorLibraryClose() {
   isFloorLibraryVisible.value = false
 }
 
+function handleAssetConfigurationClose() {
+  selectionAction.value = {
+    type: 'clear-selection',
+    sequence: selectionAction.value.sequence + 1
+  }
+}
+
 function handleSelectModel({ downloadUrl, title, attribution, licence }) {
   isModelsLibraryVisible.value = false
   modelAction.value = {
@@ -208,6 +236,43 @@ function handleSelectFloor(textureId) {
   }
   isSceneDirty.value = true
   isFloorLibraryVisible.value = false
+}
+
+function handleSelectionChanged(selection) {
+  if (!selection || selection.kind !== 'shape') {
+    selectedAsset.value = null
+    return
+  }
+
+  const assetId = typeof selection.assetRef === 'string' ? selection.assetRef : 'square'
+
+  selectedAsset.value = {
+    assetType: 'block',
+    objectId: selection.objectId,
+    assetId,
+    label: blockLabelByType[assetId] ?? 'Blok',
+    color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
+      ? selection.appearance.color
+      : '#b4c9a6'
+  }
+}
+
+function handleBlockColorChange(color) {
+  if (!selectedAsset.value?.objectId || typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  blockAppearanceAction.value = {
+    type: 'update-block-color',
+    objectId: selectedAsset.value.objectId,
+    color,
+    sequence: blockAppearanceAction.value.sequence + 1
+  }
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    color
+  }
+  isSceneDirty.value = true
 }
 
 function handleTopActionClick(actionId) {
