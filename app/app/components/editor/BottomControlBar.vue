@@ -162,7 +162,7 @@ function confirmDelete() {
   padding: 0.84rem 0.96rem;
   border-radius: 0.82rem;
   border: 1px solid rgba(137, 47, 31, 0.62);
-  background: linear-gradient(100deg, #E54E34 0%, #E54E34 50%, #892F1F 100%);
+  background: linear-gradient(180deg, #E54E34 0%, #E54E34 50%, #892F1F 100%);
   box-shadow: 0 14px 28px rgba(103, 26, 16, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
