@@ -182,8 +182,15 @@ function updateDiskFromPointer(event) {
   const x = rawX * radiusRatio
   const y = rawY * radiusRatio
 
-  saturation.value = clamp((x / maxRadius + 1) / 2, 0, 1)
-  value.value = clamp(1 - (y / maxRadius + 1) / 2, 0, 1)
+  const normalizedX = x / maxRadius
+  const normalizedY = y / maxRadius
+  const angle = Math.atan2(normalizedY, normalizedX)
+  const edgeScale = Math.max(Math.abs(Math.cos(angle)), Math.abs(Math.sin(angle))) || 1
+  const squareX = clamp(normalizedX / edgeScale, -1, 1)
+  const squareY = clamp(normalizedY / edgeScale, -1, 1)
+
+  saturation.value = (squareX + 1) / 2
+  value.value = 1 - (squareY + 1) / 2
   emitColor()
 }
 
@@ -243,12 +250,22 @@ const hueHandleStyle = computed(() => {
   }
 })
 const diskHandleStyle = computed(() => {
-  const rawX = (saturation.value * 2 - 1) * DISK_RADIUS
-  const rawY = ((1 - value.value) * 2 - 1) * DISK_RADIUS
-  const rawRadius = Math.hypot(rawX, rawY)
-  const radiusRatio = rawRadius > DISK_HANDLE_MAX_RADIUS ? DISK_HANDLE_MAX_RADIUS / rawRadius : 1
-  const x = WHEEL_CENTER + rawX * radiusRatio
-  const y = WHEEL_CENTER + rawY * radiusRatio
+  const squareX = saturation.value * 2 - 1
+  const squareY = (1 - value.value) * 2 - 1
+
+  if (squareX === 0 && squareY === 0) {
+    return {
+      left: `${WHEEL_CENTER}px`,
+      top: `${WHEEL_CENTER}px`
+    }
+  }
+
+  const angle = Math.atan2(squareY, squareX)
+  const squareRadius = Math.hypot(squareX, squareY)
+  const edgeScale = Math.max(Math.abs(Math.cos(angle)), Math.abs(Math.sin(angle))) || 1
+  const diskRadiusRatio = Math.min(squareRadius * edgeScale, 1)
+  const x = WHEEL_CENTER + Math.cos(angle) * diskRadiusRatio * DISK_HANDLE_MAX_RADIUS
+  const y = WHEEL_CENTER + Math.sin(angle) * diskRadiusRatio * DISK_HANDLE_MAX_RADIUS
 
   return {
     left: `${x}px`,
