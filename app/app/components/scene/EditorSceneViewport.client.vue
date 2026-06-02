@@ -20,6 +20,7 @@ import {
   createScaleInteractionContext,
   getScaleProfileForObject,
   setCameraStartPosition,
+  snapObjectToGridByBounds,
   snapVectorToGrid,
   updateGridTextureRepeat
 } from './viewport/sceneMath.js'
@@ -104,19 +105,6 @@ const sceneObjects = reactive([
       ...getDefaultAppearance(SCENE_KIND.FLOOR),
       color: '#7a8fa0'
     }
-  },
-  {
-    id: 'placeholder',
-    kind: SCENE_KIND.MODEL,
-    assetRef: 'placeholder-model',
-    scaleProfile: 'model',
-    position: [0, 1, 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-    appearance: {
-      ...getDefaultAppearance(SCENE_KIND.MODEL),
-      color: '#f5b8ca'
-    }
   }
 ])
 
@@ -164,6 +152,11 @@ const CLICK_MOVE_THRESHOLD_PX = 6
 const MIN_SCALE_CELLS = 1
 const ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(15)
 const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
+const MODEL_SQUARE_RATIO_TOLERANCE = 0.12
+const MODEL_GRID_SEARCH_PADDING_CELLS = 2
+const MODEL_GRID_MAX_SEARCH_CELLS = 24
+const MODEL_DEBUG_BOX_COLOR = '#8fdfff'
+const MODEL_DEBUG_BOX_OPACITY = 0.2
 
 let createdShapeCount = 0
 let isApplyingHydration = false
@@ -223,7 +216,7 @@ function removeSelectableRootById(objectId) {
 }
 
 function removeDynamicObjectsFromScene() {
-  const idsToKeep = new Set(['floor', 'placeholder'])
+  const idsToKeep = new Set(['floor'])
   const dynamicIds = sceneObjects
     .filter((objectState) => !idsToKeep.has(objectState.id))
     .map((objectState) => objectState.id)
@@ -270,75 +263,6 @@ function applyHydratedSceneDocument(sceneDocument) {
 
   try {
     const runtimeObjects = hydrationResult.runtimeObjects
-    const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
-      id: 'floor',
-      kind: SCENE_KIND.FLOOR,
-      assetRef: 'floor-base',
-      scaleProfile: 'floor',
-      position: [0, -0.07, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
-    }
-    const nextModelState = runtimeObjects.find((item) => item.kind === SCENE_KIND.MODEL) || {
-      id: 'placeholder',
-      kind: SCENE_KIND.MODEL,
-      assetRef: 'placeholder-model',
-      scaleProfile: 'model',
-      position: [0, 1, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      appearance: getDefaultAppearance(SCENE_KIND.MODEL)
-    }
-    const nextShapeObjects = runtimeObjects
-      .filter((item) => item.kind === SCENE_KIND.SHAPE)
-      .map((item, index) => {
-        if (item.id === 'floor' || item.id === 'placeholder') {
-          return {
-            ...item,
-            id: `shape-${index}-${Date.now()}`
-          }
-        }
-
-        return item
-      })
-
-    removeDynamicObjectsFromScene()
-
-    const floorMesh = meshById.get('floor')
-    if (floorMesh) {
-      floorMesh.position.set(...nextFloorState.position)
-      floorMesh.rotation.set(...nextFloorState.rotation)
-      floorMesh.scale.set(...nextFloorState.scale)
-      setMeshColor(floorMesh, nextFloorState.appearance?.color)
-    }
-
-    const placeholderMesh = meshById.get('placeholder')
-    if (placeholderMesh) {
-      placeholderMesh.position.set(...nextModelState.position)
-      placeholderMesh.rotation.set(...nextModelState.rotation)
-      placeholderMesh.scale.set(...nextModelState.scale)
-      setMeshColor(placeholderMesh, nextModelState.appearance?.color)
-    }
-
-    nextShapeObjects.forEach((objectState) => {
-      const mesh = createShapeMeshFromRuntimeObject(objectState)
-      scene.add(mesh)
-      registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, mesh)
-    })
-
-    sceneObjects.splice(0, sceneObjects.length, {
-      ...nextFloorState,
-      id: 'floor',
-      scaleProfile: 'floor'
-    }, {
-      ...nextModelState,
-      id: 'placeholder',
-      scaleProfile: 'model'
-    }, ...nextShapeObjects.map((objectState) => ({
-      ...objectState,
-      scaleProfile: 'shape'
-    })))
 
     if (sceneDocument?.editorSettings?.grid && typeof sceneDocument.editorSettings.grid === 'object') {
       const nextCellSize = Number(sceneDocument.editorSettings.grid.cellSize)
@@ -352,6 +276,72 @@ function applyHydratedSceneDocument(sceneDocument) {
         gridConfig.groundSize = nextGroundSize
       }
     }
+
+    const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
+      id: 'floor',
+      kind: SCENE_KIND.FLOOR,
+      assetRef: 'floor-base',
+      scaleProfile: 'floor',
+      position: [0, -0.07, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
+    }
+    const nextShapeObjects = runtimeObjects
+      .filter((item) => item.kind === SCENE_KIND.SHAPE)
+      .map((item, index) => {
+        if (item.id === 'floor') {
+          return {
+            ...item,
+            id: `shape-${index}-${Date.now()}`
+          }
+        }
+
+        return item
+      })
+    const nextModelObjects = runtimeObjects.filter((item) => item.kind === SCENE_KIND.MODEL)
+
+    removeDynamicObjectsFromScene()
+
+    const floorMesh = meshById.get('floor')
+    if (floorMesh) {
+      floorMesh.position.set(...nextFloorState.position)
+      floorMesh.rotation.set(...nextFloorState.rotation)
+      floorMesh.scale.set(...nextFloorState.scale)
+      setMeshColor(floorMesh, nextFloorState.appearance?.color)
+    }
+
+    nextShapeObjects.forEach((objectState) => {
+      const mesh = createShapeMeshFromRuntimeObject(objectState)
+      scene.add(mesh)
+      registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, mesh)
+    })
+
+    nextModelObjects.forEach((objectState) => {
+      loadModelWrapper(objectState.assetRef, objectState.id)
+        .then((wrapper) => {
+          wrapper.position.set(...objectState.position)
+          wrapper.rotation.set(...objectState.rotation)
+          wrapper.scale.set(...objectState.scale)
+          scene.add(wrapper)
+          registerSelectableRoot(THREE, selectableRoots, meshById, objectState.id, wrapper)
+        })
+        .catch((error) => {
+          console.error(`[EditorSceneViewport] Failed to hydrate model "${objectState.assetRef}":`, error)
+        })
+    })
+
+    sceneObjects.splice(0, sceneObjects.length, {
+      ...nextFloorState,
+      id: 'floor',
+      scaleProfile: 'floor'
+    }, ...nextShapeObjects.map((objectState) => ({
+      ...objectState,
+      scaleProfile: 'shape'
+    })), ...nextModelObjects.map((objectState) => ({
+      ...objectState,
+      scaleProfile: 'model'
+    })))
 
     createdShapeCount = nextShapeObjects.length
     setSelectedObjectId(null)
@@ -414,61 +404,178 @@ function addBlockToScene(shapeType) {
 
 const gltfLoader = new GLTFLoader()
 
+function createModelLayoutFromBounds(box) {
+  const size = new THREE.Vector3()
+  const center = new THREE.Vector3()
+  box.getSize(size)
+  box.getCenter(center)
+
+  const safeWidth = Math.max(size.x, 0.001)
+  const safeDepth = Math.max(size.z, 0.001)
+  const rawAspectRatio = safeWidth / safeDepth
+  const isNearSquare = Math.abs(1 - rawAspectRatio) <= MODEL_SQUARE_RATIO_TOLERANCE
+  const maxAxisCells = Math.max(
+    1,
+    Math.min(
+      MODEL_GRID_MAX_SEARCH_CELLS,
+      Math.ceil(Math.max(safeWidth, safeDepth) / gridConfig.cellSize) + MODEL_GRID_SEARCH_PADDING_CELLS
+    )
+  )
+
+  let bestCandidate = null
+
+  for (let cellsX = 1; cellsX <= maxAxisCells; cellsX += 1) {
+    for (let cellsZ = 1; cellsZ <= maxAxisCells; cellsZ += 1) {
+      const candidateIsSquare = cellsX === cellsZ
+
+      if (isNearSquare && !candidateIsSquare) {
+        continue
+      }
+
+      const fitScale = Math.min(
+        (cellsX * gridConfig.cellSize) / safeWidth,
+        (cellsZ * gridConfig.cellSize) / safeDepth
+      )
+
+      if (!(fitScale > 0)) {
+        continue
+      }
+
+      const aspectPenalty = Math.abs(Math.log((cellsX / cellsZ) / rawAspectRatio))
+      const scalePenalty = Math.abs(Math.log(fitScale))
+      const areaPenalty = (cellsX * cellsZ) / (maxAxisCells * maxAxisCells)
+      const squarePenalty = !isNearSquare && candidateIsSquare ? 0.08 : 0
+      const score = aspectPenalty * 4 + scalePenalty * 2 + areaPenalty + squarePenalty
+
+      if (!bestCandidate || score < bestCandidate.score) {
+        bestCandidate = {
+          cellsX,
+          cellsZ,
+          fitScale,
+          score
+        }
+      }
+    }
+  }
+
+  const candidate = bestCandidate ?? {
+    cellsX: 1,
+    cellsZ: 1,
+    fitScale: 1
+  }
+  const groupWidth = candidate.cellsX * gridConfig.cellSize
+  const groupDepth = candidate.cellsZ * gridConfig.cellSize
+  const scaledHeight = size.y * candidate.fitScale
+  const groupHeight = Math.max(
+    gridConfig.cellSize,
+    Math.ceil(Math.max(scaledHeight, gridConfig.cellSize) / gridConfig.cellSize) * gridConfig.cellSize
+  )
+
+  return {
+    center,
+    minY: box.min.y,
+    fitScale: candidate.fitScale,
+    footprintCells: [candidate.cellsX, candidate.cellsZ],
+    groupSize: new THREE.Vector3(groupWidth, groupHeight, groupDepth)
+  }
+}
+
+function buildModelWrapper(modelId, gltfScene) {
+  gltfScene.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(gltfScene)
+  const layout = createModelLayoutFromBounds(box)
+  const wrapper = new THREE.Group()
+  const debugBox = new THREE.Mesh(
+    poolGeometry(new THREE.BoxGeometry(layout.groupSize.x, layout.groupSize.y, layout.groupSize.z)),
+    poolMaterial(
+      new THREE.MeshBasicMaterial({
+        color: MODEL_DEBUG_BOX_COLOR,
+        transparent: true,
+        opacity: MODEL_DEBUG_BOX_OPACITY,
+        depthWrite: false
+      })
+    )
+  )
+
+  wrapper.name = `${modelId}-wrapper`
+  wrapper.userData.baseUniformSize = Math.max(layout.groupSize.x, layout.groupSize.y, layout.groupSize.z)
+  wrapper.userData.baseSize = layout.groupSize.clone()
+  wrapper.userData.scaleProfile = 'model'
+  wrapper.userData.localBounds = {
+    min: [-layout.groupSize.x / 2, 0, -layout.groupSize.z / 2],
+    max: [layout.groupSize.x / 2, layout.groupSize.y, layout.groupSize.z / 2]
+  }
+  wrapper.userData.modelFootprintCells = [...layout.footprintCells]
+
+  debugBox.name = `${modelId}-debug-footprint`
+  debugBox.position.set(0, layout.groupSize.y / 2, 0)
+  debugBox.renderOrder = 4
+  wrapper.add(debugBox)
+
+  gltfScene.scale.setScalar(layout.fitScale)
+  gltfScene.position.set(
+    -layout.center.x * layout.fitScale,
+    -layout.minY * layout.fitScale,
+    -layout.center.z * layout.fitScale
+  )
+  wrapper.add(gltfScene)
+
+  return wrapper
+}
+
+function loadModelWrapper(downloadUrl, modelId) {
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(
+      downloadUrl,
+      (gltf) => {
+        try {
+          resolve(buildModelWrapper(modelId, gltf.scene))
+        } catch (error) {
+          reject(error)
+        }
+      },
+      undefined,
+      reject
+    )
+  })
+}
+
 function addModelToScene(downloadUrl) {
   if (!scene || !downloadUrl) return
 
   const modelId = `model-${Date.now()}`
 
-  gltfLoader.load(
-    downloadUrl,
-    (gltf) => {
-      const root = gltf.scene
-
-      // Normalise scale so the model fits within a consistent bounding box.
-      const box = new THREE.Box3().setFromObject(root)
-      const size = new THREE.Vector3()
-      box.getSize(size)
-      const maxDim = Math.max(size.x, size.y, size.z)
-      if (maxDim > 0) {
-        const targetSize = 2
-        root.scale.setScalar(targetSize / maxDim)
-      }
-
-      // Re-centre at ground level after scaling.
-      box.setFromObject(root)
-      const center = new THREE.Vector3()
-      box.getCenter(center)
-      root.position.x -= center.x
-      root.position.z -= center.z
-      root.position.y -= box.min.y
-
+  loadModelWrapper(downloadUrl, modelId)
+    .then((wrapper) => {
       const spawnPosition = snapVectorToGrid(THREE, gridConfig, new THREE.Vector3(0, 0, 0))
-      root.position.x += spawnPosition.x
-      root.position.z += spawnPosition.z
+      wrapper.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z)
+      snapObjectToGridByBounds(THREE, wrapper, gridConfig, {
+        x: 'min',
+        y: 'min',
+        z: 'min'
+      })
 
-      scene.add(root)
-      registerSelectableRoot(THREE, selectableRoots, meshById, modelId, root)
+      scene.add(wrapper)
+      registerSelectableRoot(THREE, selectableRoots, meshById, modelId, wrapper)
 
       sceneObjects.push({
         id: modelId,
         kind: SCENE_KIND.MODEL,
         assetRef: downloadUrl,
         scaleProfile: 'model',
-        position: [root.position.x, root.position.y, root.position.z],
+        position: [wrapper.position.x, wrapper.position.y, wrapper.position.z],
         rotation: [0, 0, 0],
-        scale: [root.scale.x, root.scale.y, root.scale.z],
+        scale: [wrapper.scale.x, wrapper.scale.y, wrapper.scale.z],
         appearance: getDefaultAppearance(SCENE_KIND.MODEL)
       })
 
       setSelectedObjectId(modelId)
       historyRuntime?.clearHistory()
       historyRuntime?.captureInitialObjectState()
-    },
-    undefined,
-    (err) => {
+    })
+    .catch((err) => {
       console.error(`[EditorSceneViewport] Failed to load model "${downloadUrl}":`, err)
-    }
-  )
+    })
 }
 
 const materialPool = []
@@ -848,7 +955,7 @@ onMounted(() => {
     applyFloorScaleBehavior,
     applyShapeScaleBehavior,
     applyModelScaleBehavior,
-    snapVectorToGrid,
+    snapObjectToGridByBounds,
     updateSceneObjectPosition,
     updateSceneObjectScale,
     updateSceneObjectRotation

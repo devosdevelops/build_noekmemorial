@@ -83,7 +83,24 @@ function snapScaleValue(value, cellSize) {
   return Math.max(cellSize, Math.round(value / cellSize) * cellSize)
 }
 
+function snapCellCenterValue(value, cellSize, origin) {
+  if (cellSize <= 0) {
+    return value
+  }
+
+  const normalized = (value - origin) / cellSize
+  const nearestCenterIndex = Math.round(normalized - 0.5)
+
+  return origin + (nearestCenterIndex + 0.5) * cellSize
+}
+
 function getObjectBoundsMin(THREE, object) {
+  const virtualBounds = getVirtualObjectBounds(THREE, object)
+
+  if (virtualBounds) {
+    return virtualBounds.min.clone()
+  }
+
   object.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(object)
 
@@ -91,10 +108,46 @@ function getObjectBoundsMin(THREE, object) {
 }
 
 function getObjectBoundsMax(THREE, object) {
+  const virtualBounds = getVirtualObjectBounds(THREE, object)
+
+  if (virtualBounds) {
+    return virtualBounds.max.clone()
+  }
+
   object.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(object)
 
   return box.max.clone()
+}
+
+function getVirtualObjectBounds(THREE, object) {
+  const min = object.userData?.localBounds?.min
+  const max = object.userData?.localBounds?.max
+
+  if (!Array.isArray(min) || !Array.isArray(max) || min.length !== 3 || max.length !== 3) {
+    return null
+  }
+
+  object.updateMatrixWorld(true)
+
+  const corners = [
+    new THREE.Vector3(min[0], min[1], min[2]),
+    new THREE.Vector3(min[0], min[1], max[2]),
+    new THREE.Vector3(min[0], max[1], min[2]),
+    new THREE.Vector3(min[0], max[1], max[2]),
+    new THREE.Vector3(max[0], min[1], min[2]),
+    new THREE.Vector3(max[0], min[1], max[2]),
+    new THREE.Vector3(max[0], max[1], min[2]),
+    new THREE.Vector3(max[0], max[1], max[2])
+  ]
+  const box = new THREE.Box3()
+
+  corners.forEach((corner) => {
+    corner.applyMatrix4(object.matrixWorld)
+    box.expandByPoint(corner)
+  })
+
+  return box
 }
 
 function getSnappedObjectBoundsMin(THREE, object, gridConfig) {
@@ -227,6 +280,92 @@ function snapUniformScaleForObject(THREE, object, scale, axis, gridConfig, minSc
   return Math.max(minWorldSize, snappedWorldSize) / baseUniformSize
 }
 
+function quantizeModelFootprintCells(rawCells) {
+  if (rawCells <= 0) {
+    return 0.5
+  }
+
+  return Math.max(0.5, Math.round(rawCells * 2) / 2)
+}
+
+function snapUniformModelScaleForObject(THREE, object, scale, axis, gridConfig) {
+  const baseSize = getObjectBaseSize(THREE, object)
+  const baseHorizontalSize = Math.max(baseSize.x, baseSize.z, 0.001)
+  const nextUniformScale = Math.max(0.01, getActiveAxisScaleValue(scale, axis))
+  const nextHorizontalWorldSize = baseHorizontalSize * nextUniformScale
+  const rawFootprintCells = nextHorizontalWorldSize / gridConfig.cellSize
+  const snappedFootprintCells = quantizeModelFootprintCells(rawFootprintCells)
+
+  return (snappedFootprintCells * gridConfig.cellSize) / baseHorizontalSize
+}
+
+export function getObjectWorldSizeFromBase(THREE, object) {
+  const baseSize = getObjectBaseSize(THREE, object)
+
+  return new THREE.Vector3(
+    baseSize.x * object.scale.x,
+    baseSize.y * object.scale.y,
+    baseSize.z * object.scale.z
+  )
+}
+
+export function alignObjectCenterToGridCellByAxis(THREE, object, gridConfig, axisModes) {
+  const min = getObjectBoundsMin(THREE, object)
+  const max = getObjectBoundsMax(THREE, object)
+  const [originX, originY, originZ] = gridConfig.origin
+  const center = new THREE.Vector3(
+    (min.x + max.x) * 0.5,
+    (min.y + max.y) * 0.5,
+    (min.z + max.z) * 0.5
+  )
+  const targetCenter = center.clone()
+
+  if (axisModes?.x) {
+    targetCenter.x = snapCellCenterValue(center.x, gridConfig.cellSize, originX)
+  }
+
+  if (axisModes?.y) {
+    targetCenter.y = snapCellCenterValue(center.y, gridConfig.cellSize, originY)
+  }
+
+  if (axisModes?.z) {
+    targetCenter.z = snapCellCenterValue(center.z, gridConfig.cellSize, originZ)
+  }
+
+  object.position.add(targetCenter.sub(center))
+  object.updateMatrixWorld(true)
+
+  return object.position.clone()
+}
+
+function alignModelFootprintToReservedCells(THREE, object, gridConfig) {
+  const min = getObjectBoundsMin(THREE, object)
+  const max = getObjectBoundsMax(THREE, object)
+  const [originX, , originZ] = gridConfig.origin
+  const sizeX = max.x - min.x
+  const sizeZ = max.z - min.z
+  const reserveCellsX = Math.max(1, Math.ceil(sizeX / gridConfig.cellSize))
+  const reserveCellsZ = Math.max(1, Math.ceil(sizeZ / gridConfig.cellSize))
+  const reserveSizeX = reserveCellsX * gridConfig.cellSize
+  const reserveSizeZ = reserveCellsZ * gridConfig.cellSize
+  const marginX = Math.max(0, (reserveSizeX - sizeX) * 0.5)
+  const marginZ = Math.max(0, (reserveSizeZ - sizeZ) * 0.5)
+  const reserveMinX = min.x - marginX
+  const reserveMinZ = min.z - marginZ
+  const snappedReserveMinX = snapValueToGrid(reserveMinX, gridConfig.cellSize, originX)
+  const snappedReserveMinZ = snapValueToGrid(reserveMinZ, gridConfig.cellSize, originZ)
+  const targetMinX = snappedReserveMinX + marginX
+  const targetMinZ = snappedReserveMinZ + marginZ
+  const offset = new THREE.Vector3(targetMinX - min.x, 0, targetMinZ - min.z)
+
+  if (offset.x !== 0 || offset.z !== 0) {
+    object.position.add(offset)
+    object.updateMatrixWorld(true)
+  }
+
+  return object.position.clone()
+}
+
 export function getScaleProfileForObject(sceneObjects, objectId) {
   const objectState = sceneObjects.find((object) => object.id === objectId)
 
@@ -265,18 +404,54 @@ export function createScaleInteractionContext(
   }
 }
 
+export function snapObjectToGridByBounds(THREE, object, gridConfig, axisAnchorModeInput) {
+  const modeOrNull = (mode) => {
+    if (mode === 'max') {
+      return 'max'
+    }
+
+    if (mode === 'min') {
+      return 'min'
+    }
+
+    return null
+  }
+
+  const axisAnchorMode = axisAnchorModeInput
+    ? {
+      x: modeOrNull(axisAnchorModeInput.x) ?? 'min',
+      y: modeOrNull(axisAnchorModeInput.y),
+      z: modeOrNull(axisAnchorModeInput.z) ?? 'min'
+    }
+    : {
+      x: 'min',
+      y: 'min',
+      z: 'min'
+    }
+
+  const anchorMin = getSnappedObjectBoundsMin(THREE, object, gridConfig)
+  const anchorMax = getSnappedObjectBoundsMax(THREE, object, gridConfig)
+
+  alignObjectBoundsToAnchorsByAxis(THREE, object, anchorMin, anchorMax, axisAnchorMode)
+
+  if (object.userData?.scaleProfile === 'model') {
+    alignModelFootprintToReservedCells(THREE, object, gridConfig)
+  }
+
+  return object.position.clone()
+}
+
 function axisAnchorModeValueOrDefault(mode) {
   return mode === 'max' ? 'max' : 'min'
 }
 
 export function applyModelScaleBehavior(THREE, object, context, axis, gridConfig, minScaleCells) {
-  const snappedUniformScale = snapUniformScaleForObject(
+  const snappedUniformScale = snapUniformModelScaleForObject(
     THREE,
     object,
     object.scale,
     axis,
-    gridConfig,
-    minScaleCells
+    gridConfig
   )
   const nextScale = new THREE.Vector3(snappedUniformScale, snappedUniformScale, snappedUniformScale)
   object.scale.copy(nextScale)
@@ -287,6 +462,8 @@ export function applyModelScaleBehavior(THREE, object, context, axis, gridConfig
     context.anchorMax,
     context.axisAnchorMode
   )
+
+  alignModelFootprintToReservedCells(THREE, object, gridConfig)
 
   return nextScale
 }

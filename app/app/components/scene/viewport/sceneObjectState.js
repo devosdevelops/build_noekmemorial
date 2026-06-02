@@ -74,16 +74,22 @@ export function getSelectableRoot(object) {
 }
 
 export function registerSelectableRoot(THREE, selectableRoots, meshById, objectId, root) {
-  root.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(root)
-  const size = new THREE.Vector3()
-  box.getSize(size)
-  const baseUniformSize = Math.max(size.x, size.y, size.z, 1)
-  const baseSize = new THREE.Vector3(
-    Math.max(size.x, 1),
-    Math.max(size.y, 1),
-    Math.max(size.z, 1)
-  )
+  let baseUniformSize = root.userData?.baseUniformSize
+  let baseSize = root.userData?.baseSize
+
+  if (!(typeof baseUniformSize === 'number' && Number.isFinite(baseUniformSize) && baseUniformSize > 0)
+    || !(baseSize && typeof baseSize.x === 'number' && typeof baseSize.y === 'number' && typeof baseSize.z === 'number')) {
+    root.updateMatrixWorld(true)
+    const box = new THREE.Box3().setFromObject(root)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    baseUniformSize = Math.max(size.x, size.y, size.z, 1)
+    baseSize = new THREE.Vector3(
+      Math.max(size.x, 1),
+      Math.max(size.y, 1),
+      Math.max(size.z, 1)
+    )
+  }
 
   root.userData.objectId = objectId
   root.userData.selectableRootId = objectId

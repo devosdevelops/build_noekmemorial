@@ -4,7 +4,7 @@
 export const POLY_PIZZA_LIST_IDS = [
   // 'YOUR_LIST_ID_HERE'
   'PG7JoV77qh',
-  't1qOmzWvB',
+  'lt1qOmzWvB',
   'JNxwMPvx48',
   'RggYIdGBDn'
 ]

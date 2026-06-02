@@ -13,7 +13,7 @@ export function createTransformRuntime({
   applyFloorScaleBehavior,
   applyShapeScaleBehavior,
   applyModelScaleBehavior,
-  snapVectorToGrid,
+  snapObjectToGridByBounds,
   updateSceneObjectPosition,
   updateSceneObjectScale,
   updateSceneObjectRotation
@@ -157,15 +157,24 @@ export function createTransformRuntime({
     }
 
     if (transformControls.getMode() === 'translate') {
-      const snapped = snapVectorToGrid(THREE, gridConfig, transformControls.object.position)
-
       const objectState = sceneObjects.find((object) => object.id === objectId)
+
+      const snapped = snapObjectToGridByBounds(
+        THREE,
+        transformControls.object,
+        gridConfig,
+        {
+          x: 'min',
+          y: objectState?.scaleProfile === 'floor' ? null : 'min',
+          z: 'min'
+        }
+      )
 
       if (objectState?.scaleProfile === 'floor') {
         snapped.y = objectState.position[1]
+        transformControls.object.position.y = snapped.y
       }
 
-      transformControls.object.position.copy(snapped)
       updateSceneObjectPosition(sceneObjects, objectId, snapped)
       return
     }

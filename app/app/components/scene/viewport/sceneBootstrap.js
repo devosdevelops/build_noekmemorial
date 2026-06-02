@@ -92,20 +92,7 @@ export function createSceneBootstrap({
   )
   scene.add(plinth)
   registerSelectableRoot(THREE, selectableRoots, meshById, 'floor', plinth)
-
-  const placeholder = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(2, 2, 2)),
-    poolMaterial(
-      new THREE.MeshStandardMaterial({
-        color: getObjectColor('placeholder', '#f5b8ca'),
-        roughness: 0.53,
-        metalness: 0.02
-      })
-    )
-  )
-  registerSelectableRoot(THREE, selectableRoots, meshById, 'placeholder', placeholder)
   resnapAllObjects(THREE, sceneObjects, gridConfig, meshById)
-  scene.add(placeholder)
 
   const composer = new EffectComposer(renderer)
   composer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
