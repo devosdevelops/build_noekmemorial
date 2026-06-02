@@ -6,8 +6,8 @@
 [] load screen and load holder for when models are loading
 [] search bar for models
 [] if possible have search bar work in both dutch and englihs
-[] add textures
-[] add textures to floors
+[x] add textures
+[x] add textures to floors
 [] add textures to blocks
 [] add favicon
 [] deploy room
