@@ -22,10 +22,10 @@ export function createSelectionHighlightManager(
     emissiveTransitions.clear()
   }
 
-  function runEmissiveTransition(materials, toHighlight) {
+  function runEmissiveTransition(transitionsByMaterial) {
     stopAnimation()
 
-    materials.forEach((material) => {
+    transitionsByMaterial.forEach((target, material) => {
       if (!('emissive' in material)) {
         return
       }
@@ -37,9 +37,9 @@ export function createSelectionHighlightManager(
       }
 
       const fromColor = material.emissive.clone()
-      const toColor = toHighlight ? highlightColor.clone() : cached.color.clone()
+      const toColor = target.toHighlight ? highlightColor.clone() : cached.color.clone()
       const fromIntensity = 'emissiveIntensity' in material ? material.emissiveIntensity : cached.intensity
-      const toIntensity = toHighlight ? targetIntensity : cached.intensity
+      const toIntensity = target.toHighlight ? targetIntensity : cached.intensity
 
       emissiveTransitions.set(material, { fromColor, toColor, fromIntensity, toIntensity })
     })
@@ -88,49 +88,62 @@ export function createSelectionHighlightManager(
       return
     }
 
-    runEmissiveTransition(activeEmissiveMaterials, false)
+    const transitionsByMaterial = new Map()
+    activeEmissiveMaterials.forEach((material) => {
+      transitionsByMaterial.set(material, { toHighlight: false })
+    })
+
+    runEmissiveTransition(transitionsByMaterial)
     activeEmissiveMaterials.clear()
   }
 
   function applyEmissiveHighlight(target) {
-    clearEmissiveHighlight()
-
-    if (!target) {
-      return
-    }
-
+    const previousMaterials = new Set(activeEmissiveMaterials)
     const nextMaterials = new Set()
 
-    target.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) {
-        return
-      }
-
-      const materials = Array.isArray(child.material) ? child.material : [child.material]
-
-      materials.forEach((material) => {
-        if (!('emissive' in material)) {
+    if (target) {
+      target.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) {
           return
         }
 
-        if (!emissiveCache.has(material)) {
-          emissiveCache.set(material, {
-            color: material.emissive.clone(),
-            intensity: 'emissiveIntensity' in material ? material.emissiveIntensity : 1
-          })
-        }
+        const materials = Array.isArray(child.material) ? child.material : [child.material]
 
-        nextMaterials.add(material)
+        materials.forEach((material) => {
+          if (!('emissive' in material)) {
+            return
+          }
+
+          if (!emissiveCache.has(material)) {
+            emissiveCache.set(material, {
+              color: material.emissive.clone(),
+              intensity: 'emissiveIntensity' in material ? material.emissiveIntensity : 1
+            })
+          }
+
+          nextMaterials.add(material)
+        })
       })
+    }
+
+    const transitionsByMaterial = new Map()
+
+    previousMaterials.forEach((material) => {
+      transitionsByMaterial.set(material, { toHighlight: false })
     })
 
-    if (!nextMaterials.size) {
-      return
-    }
+    nextMaterials.forEach((material) => {
+      transitionsByMaterial.set(material, { toHighlight: true })
+    })
 
     activeEmissiveMaterials.clear()
     nextMaterials.forEach((material) => activeEmissiveMaterials.add(material))
-    runEmissiveTransition(nextMaterials, true)
+
+    if (!transitionsByMaterial.size) {
+      return
+    }
+
+    runEmissiveTransition(transitionsByMaterial)
   }
 
   function dispose() {
