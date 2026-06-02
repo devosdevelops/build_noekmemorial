@@ -87,6 +87,17 @@ const props = defineProps({
       sequence: 0
     })
   },
+  floorAppearanceAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      objectId: null,
+      color: null,
+      textureId: null,
+      textureScale: null,
+      sequence: 0
+    })
+  },
   modelAction: {
     type: Object,
     default: () => ({
@@ -470,6 +481,163 @@ function addBlockToScene(shapeType) {
   setSelectedObjectId(blockId)
   historyRuntime?.clearHistory()
   historyRuntime?.captureInitialObjectState()
+}
+
+let createdFloorCount = 0
+
+function createFloorToScene(textureId) {
+  if (!scene || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  const floorId = `floor-${Date.now()}-${createdFloorCount}`
+  createdFloorCount += 1
+
+  const textureConfig = FLOOR_TEXTURE_BY_ID[textureId]
+  const defaultColor = textureConfig ? '#ffffff' : '#7a8fa0'
+
+  // Create floor mesh (box with standard floor size)
+  const geometry = new THREE.BoxGeometry(1, 0.1, 1)
+  const material = poolMaterial(
+    new THREE.MeshStandardMaterial({
+      color: defaultColor,
+      roughness: textureConfig ? 1 : 0.86,
+      metalness: 0.03
+    })
+  )
+  const mesh = new THREE.Mesh(geometry, material)
+
+  const spawnPosition = snapVectorToGrid(THREE, gridConfig, new THREE.Vector3(0, -0.07, 0))
+  mesh.position.copy(spawnPosition)
+  mesh.rotation.set(0, 0, 0)
+  mesh.scale.set(1, 1, 1)
+
+  scene.add(mesh)
+  registerSelectableRoot(THREE, selectableRoots, meshById, floorId, mesh)
+
+  const appearance = {
+    ...getDefaultAppearance(SCENE_KIND.FLOOR),
+    color: defaultColor
+  }
+
+  if (textureConfig) {
+    appearance.texture = {
+      textureId,
+      uvScale: textureConfig.defaultTexture?.uvScale || [2, 2],
+      rotation: textureConfig.defaultTexture?.rotation || 0,
+      intensity: textureConfig.defaultTexture?.intensity || 1
+    }
+  }
+
+  applyFloorAppearance(mesh, appearance)
+
+  sceneObjects.push({
+    id: floorId,
+    kind: SCENE_KIND.FLOOR,
+    assetRef: 'floor-tile',
+    scaleProfile: 'floor',
+    position: [spawnPosition.x, spawnPosition.y, spawnPosition.z],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+    appearance
+  })
+
+  setSelectedObjectId(floorId)
+  historyRuntime?.clearHistory()
+  historyRuntime?.captureInitialObjectState()
+}
+
+function applyFloorColor(objectId, color) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.FLOOR)
+
+  if (!objectState) {
+    return
+  }
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    color
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyFloorAppearance(mesh, objectState.appearance)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
+function updateFloorTextureById(objectId, textureId) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.FLOOR)
+
+  if (!objectState) {
+    return
+  }
+
+  const textureConfig = FLOOR_TEXTURE_BY_ID[textureId]
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    color: textureConfig ? '#ffffff' : '#7a8fa0',
+    texture: textureConfig
+      ? {
+          textureId,
+          uvScale: textureConfig.defaultTexture?.uvScale || [2, 2],
+          rotation: textureConfig.defaultTexture?.rotation || 0,
+          intensity: textureConfig.defaultTexture?.intensity || 1
+        }
+      : null
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyFloorAppearance(mesh, objectState.appearance)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
+function applyFloorTextureScale(objectId, textureScale) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof textureScale !== 'number' || !Number.isFinite(textureScale)) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.FLOOR)
+
+  if (!objectState || !objectState.appearance?.texture) {
+    return
+  }
+
+  const clampedScale = Math.min(4, Math.max(0.5, textureScale))
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    texture: {
+      ...objectState.appearance.texture,
+      uvScale: [clampedScale, clampedScale]
+    }
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyFloorAppearance(mesh, objectState.appearance)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
 }
 
 const gltfLoader = new GLTFLoader()
@@ -1086,7 +1254,7 @@ watch(
 watch(
   () => props.floorAction.sequence,
   () => {
-    if (props.floorAction?.type !== 'apply-floor-texture') {
+    if (props.floorAction?.type !== 'add-floor') {
       return
     }
 
@@ -1094,7 +1262,26 @@ watch(
       return
     }
 
-    applyFloorTextureById(props.floorAction.textureId)
+    createFloorToScene(props.floorAction.textureId)
+  }
+)
+
+watch(
+  () => props.floorAppearanceAction.sequence,
+  () => {
+    if (props.floorAppearanceAction?.type === 'update-floor-color') {
+      applyFloorColor(props.floorAppearanceAction.objectId, props.floorAppearanceAction.color)
+      return
+    }
+
+    if (props.floorAppearanceAction?.type === 'update-floor-texture') {
+      updateFloorTextureById(props.floorAppearanceAction.objectId, props.floorAppearanceAction.textureId)
+      return
+    }
+
+    if (props.floorAppearanceAction?.type === 'update-floor-texture-scale') {
+      applyFloorTextureScale(props.floorAppearanceAction.objectId, props.floorAppearanceAction.textureScale)
+    }
   }
 )
 

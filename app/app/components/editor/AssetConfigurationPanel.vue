@@ -9,6 +9,10 @@ const props = defineProps({
   selectedAsset: {
     type: Object,
     default: null
+  },
+  defaultTab: {
+    type: String,
+    default: 'color'
   }
 })
 
@@ -45,13 +49,17 @@ const panelTitle = computed(() => {
   return 'Asset configureren'
 })
 
-const isBlockAsset = computed(() => props.selectedAsset?.assetType === 'block')
+const isAssetWithMaterials = computed(() => {
+  const type = props.selectedAsset?.assetType
+  return type === 'block' || type === 'floor'
+})
 const hasActiveTexture = computed(() => selectedTexturePreviewId.value !== 'no-texture')
 
 watch(
   () => props.selectedAsset?.color,
   (nextColor) => {
-    currentColor.value = typeof nextColor === 'string' && nextColor.length ? nextColor : '#b4c9a6'
+    const defaultColor = props.selectedAsset?.assetType === 'floor' ? '#7a8fa0' : '#b4c9a6'
+    currentColor.value = typeof nextColor === 'string' && nextColor.length ? nextColor : defaultColor
   },
   { immediate: true }
 )
@@ -59,7 +67,7 @@ watch(
 watch(
   () => props.selectedAsset?.objectId,
   () => {
-    activeMaterialTab.value = 'color'
+    activeMaterialTab.value = props.defaultTab || (props.selectedAsset?.assetType === 'floor' ? 'texture' : 'color')
     selectedTexturePreviewId.value = props.selectedAsset?.textureId || 'no-texture'
   },
   { immediate: true }
@@ -90,7 +98,7 @@ function handleClose() {
 }
 
 function handleColorChange(nextColor) {
-  if (!isBlockAsset.value || typeof nextColor !== 'string' || !nextColor.length) {
+  if (!isAssetWithMaterials.value || typeof nextColor !== 'string' || !nextColor.length) {
     return
   }
 
@@ -103,7 +111,7 @@ function setMaterialTab(tabId) {
 }
 
 function selectTexturePreview(textureId) {
-  if (!isBlockAsset.value || typeof textureId !== 'string' || !textureId.length) {
+  if (!isAssetWithMaterials.value || typeof textureId !== 'string' || !textureId.length) {
     return
   }
 
@@ -134,7 +142,7 @@ function handleTextureScaleInput(event) {
       <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
     </header>
 
-    <section v-if="isBlockAsset" class="material-controls" aria-label="Materiaalconfiguratie">
+    <section v-if="isAssetWithMaterials" class="material-controls" aria-label="Materiaalconfiguratie">
       <div class="material-tabs" role="tablist" aria-label="Materiaal tabs">
         <button
           type="button"
@@ -180,7 +188,7 @@ function handleTextureScaleInput(event) {
 
       <div v-else class="material-panel" role="tabpanel" aria-label="Materiaal tab">
         <h3 class="section-title">Materiaalstijl</h3>
-        <p class="section-copy">Scroll door materialen en kies er een voor het geselecteerde blok.</p>
+        <p class="section-copy">Scroll door materialen en kies er een.</p>
 
         <div class="texture-grid">
           <button
@@ -220,7 +228,7 @@ function handleTextureScaleInput(event) {
     </section>
 
     <p v-else class="section-copy section-copy--compact">
-      Dit paneel ondersteunt nu alleen kleurinstellingen voor geselecteerde blokken.
+      Dit paneel ondersteunt materiaalconfiguratie voor geselecteerde assets.
     </p>
   </OverlayCard>
 </template>

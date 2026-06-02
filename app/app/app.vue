@@ -8,6 +8,7 @@
       :history-action="historyAction"
       :block-action="blockAction"
       :block-appearance-action="blockAppearanceAction"
+      :floor-appearance-action="floorAppearanceAction"
       :floor-action="floorAction"
       :model-action="modelAction"
       :persistence-action="persistenceAction"
@@ -40,6 +41,15 @@
       @update-color="handleBlockColorChange"
       @update-texture="handleBlockTextureChange"
       @update-texture-scale="handleBlockTextureScaleChange"
+    />
+    <AssetConfigurationPanel
+      v-if="selectedAsset?.assetType === 'floor'"
+      :selected-asset="selectedAsset"
+      @close="handleAssetConfigurationClose"
+      @update-color="handleFloorColorChange"
+      @update-texture="handleFloorTextureChange"
+      @update-texture-scale="handleFloorTextureScaleChange"
+      :default-tab="'texture'"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -85,6 +95,14 @@ const blockAction = ref({
   sequence: 0
 })
 const blockAppearanceAction = ref({
+  type: null,
+  objectId: null,
+  color: null,
+  textureId: null,
+  textureScale: null,
+  sequence: 0
+})
+const floorAppearanceAction = ref({
   type: null,
   objectId: null,
   color: null,
@@ -234,7 +252,7 @@ function handleSelectFloor(textureId) {
   }
 
   floorAction.value = {
-    type: 'apply-floor-texture',
+    type: 'add-floor',
     textureId,
     sequence: floorAction.value.sequence + 1
   }
@@ -243,29 +261,53 @@ function handleSelectFloor(textureId) {
 }
 
 function handleSelectionChanged(selection) {
-  if (!selection || selection.kind !== 'shape') {
+  if (!selection) {
     selectedAsset.value = null
     return
   }
 
-  const assetId = typeof selection.assetRef === 'string' ? selection.assetRef : 'square'
+  if (selection.kind === 'shape') {
+    const assetId = typeof selection.assetRef === 'string' ? selection.assetRef : 'square'
 
-  selectedAsset.value = {
-    assetType: 'block',
-    objectId: selection.objectId,
-    assetId,
-    label: blockLabelByType[assetId] ?? 'Blok',
-    textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
-      ? selection.appearance.texture.textureId
-      : 'no-texture',
-    textureScale: Array.isArray(selection.appearance?.texture?.uvScale)
-      && typeof selection.appearance.texture.uvScale[0] === 'number'
-      ? selection.appearance.texture.uvScale[0]
-      : 1,
-    color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
-      ? selection.appearance.color
-      : '#b4c9a6'
+    selectedAsset.value = {
+      assetType: 'block',
+      objectId: selection.objectId,
+      assetId,
+      label: blockLabelByType[assetId] ?? 'Blok',
+      textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
+        ? selection.appearance.texture.textureId
+        : 'no-texture',
+      textureScale: Array.isArray(selection.appearance?.texture?.uvScale)
+        && typeof selection.appearance.texture.uvScale[0] === 'number'
+        ? selection.appearance.texture.uvScale[0]
+        : 1,
+      color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
+        ? selection.appearance.color
+        : '#b4c9a6'
+    }
+    return
   }
+
+  if (selection.kind === 'floor') {
+    selectedAsset.value = {
+      assetType: 'floor',
+      objectId: selection.objectId,
+      label: 'Vloer',
+      textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
+        ? selection.appearance.texture.textureId
+        : 'no-texture',
+      textureScale: Array.isArray(selection.appearance?.texture?.uvScale)
+        && typeof selection.appearance.texture.uvScale[0] === 'number'
+        ? selection.appearance.texture.uvScale[0]
+        : 1,
+      color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
+        ? selection.appearance.color
+        : '#7a8fa0'
+    }
+    return
+  }
+
+  selectedAsset.value = null
 }
 
 function handleBlockColorChange(color) {
@@ -316,6 +358,63 @@ function handleBlockTextureScaleChange(textureScale) {
     objectId: selectedAsset.value.objectId,
     textureScale,
     sequence: blockAppearanceAction.value.sequence + 1
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    textureScale
+  }
+  isSceneDirty.value = true
+}
+
+function handleFloorColorChange(color) {
+  if (!selectedAsset.value?.objectId || typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  floorAppearanceAction.value = {
+    type: 'update-floor-color',
+    objectId: selectedAsset.value.objectId,
+    color,
+    sequence: floorAppearanceAction.value.sequence + 1
+  }
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    color
+  }
+  isSceneDirty.value = true
+}
+
+function handleFloorTextureChange(textureId) {
+  if (!selectedAsset.value?.objectId || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  floorAppearanceAction.value = {
+    type: 'update-floor-texture',
+    objectId: selectedAsset.value.objectId,
+    textureId,
+    sequence: floorAppearanceAction.value.sequence + 1
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    textureId,
+    textureScale: textureId === 'no-texture' ? 1 : selectedAsset.value.textureScale
+  }
+  isSceneDirty.value = true
+}
+
+function handleFloorTextureScaleChange(textureScale) {
+  if (!selectedAsset.value?.objectId || typeof textureScale !== 'number' || !Number.isFinite(textureScale)) {
+    return
+  }
+
+  floorAppearanceAction.value = {
+    type: 'update-floor-texture-scale',
+    objectId: selectedAsset.value.objectId,
+    textureScale,
+    sequence: floorAppearanceAction.value.sequence + 1
   }
 
   selectedAsset.value = {
