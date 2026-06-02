@@ -132,7 +132,12 @@ function selectTexturePreview(textureId) {
         </button>
       </div>
 
-      <div v-if="activeMaterialTab === 'color'" class="material-panel" role="tabpanel" aria-label="Kleur tab">
+      <div
+        v-if="activeMaterialTab === 'color'"
+        class="material-panel material-panel--color"
+        role="tabpanel"
+        aria-label="Kleur tab"
+      >
         <div class="section-heading">
           <h3 class="section-title">Kleur</h3>
           <button
@@ -191,8 +196,12 @@ function selectTexturePreview(textureId) {
   right: 1.5rem;
   z-index: 3;
   width: min(20rem, calc(100vw - 2rem));
-  padding: 0.9rem;
+  padding: 0;
   border-radius: 0.9rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .panel-header {
@@ -200,6 +209,9 @@ function selectTexturePreview(textureId) {
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
+  padding: 0.88rem 0.9rem 0.7rem;
+  background: rgba(244, 247, 240, 0.96);
+  border-radius: 0.9rem;
 }
 
 .panel-title {
@@ -216,13 +228,7 @@ function selectTexturePreview(textureId) {
 }
 
 .material-controls {
-  --surface-color: #c2c6d8;
-  --tab-inactive-color: #f6f6f2;
-  margin-top: 0.64rem;
-  background: var(--surface-color);
-  border: 1px solid rgba(124, 132, 160, 0.35);
-  border-radius: 1rem;
-  overflow: visible;
+  margin-top: 0.5rem;
 }
 
 .material-tabs {
@@ -239,7 +245,7 @@ function selectTexturePreview(textureId) {
   border-radius: 0;
   padding: 0.72rem 0.64rem 0.7rem;
   color: #737399;
-  background: var(--tab-inactive-color);
+  background: #f7f8f3;
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -248,23 +254,29 @@ function selectTexturePreview(textureId) {
 }
 
 .material-tab--active {
-  background: var(--surface-color);
+  background: #c2c6d8;
   color: #1f2132;
 }
 
 .material-tab:first-child {
-  border-top-left-radius: 1rem;
+  border-top-left-radius: 0.9rem;
 }
 
 .material-tab:last-child {
-  border-top-right-radius: 1rem;
+  border-top-right-radius: 0.9rem;
 }
 
 .material-panel {
   display: grid;
   gap: 0.44rem;
-  padding: 0.8rem 0.78rem 0.78rem;
-  background: var(--surface-color);
+  padding: 0.78rem 0.78rem 0.72rem;
+  background: #c2c6d8;
+  border-bottom-left-radius: 0.9rem;
+  border-bottom-right-radius: 0.9rem;
+}
+
+.material-panel--color {
+  place-items: stretch;
 }
 
 .section-title {
@@ -276,16 +288,10 @@ function selectTexturePreview(textureId) {
   text-transform: uppercase;
 }
 
-.section-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.44rem;
-}
-
 .section-info {
   position: relative;
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.14rem;
+  height: 1.14rem;
   border: 1px solid rgba(83, 88, 117, 0.45);
   border-radius: 999px;
   background: rgba(246, 247, 252, 0.86);
@@ -296,6 +302,12 @@ function selectTexturePreview(textureId) {
   font-weight: 800;
   line-height: 1;
   cursor: help;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.44rem;
 }
 
 .section-info::after {
