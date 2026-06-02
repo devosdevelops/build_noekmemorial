@@ -37,7 +37,7 @@ export const FLOOR_TEXTURE_OPTIONS = [
   },
   {
     id: 'wood-floor-014',
-    label: 'Hout Licht',
+    label: 'Hout A',
     previewUrl: woodFloor014Base,
     maps: {
       colorUrl: woodFloor014Base,
@@ -53,7 +53,7 @@ export const FLOOR_TEXTURE_OPTIONS = [
   },
   {
     id: 'wood-floor-016',
-    label: 'Hout Donker',
+    label: 'Hout B',
     previewUrl: woodFloor016Base,
     maps: {
       colorUrl: woodFloor016Base,
@@ -69,7 +69,7 @@ export const FLOOR_TEXTURE_OPTIONS = [
   },
   {
     id: 'marble-white-006',
-    label: 'Marmer Wit',
+    label: 'Marmer',
     previewUrl: marbleWhite006Base,
     maps: {
       colorUrl: marbleWhite006Base,

@@ -30,8 +30,7 @@
 ## Fixes
 
 [x] Auto deselect any other object
-[] change texture names
-[] color textures better
+[x] change texture names
 [x] change selected mode because current glow hides the color
 [x] add new floors not just change the texture of the one existing floor
 [x] make sure models are saved to the supabase 
@@ -41,6 +40,7 @@
     [x] square object
     [x] intermediate sizes
     [x] rect object
+[] color textures better
 
 ## Nice to have
 [] scale smoothly instead of snapping
