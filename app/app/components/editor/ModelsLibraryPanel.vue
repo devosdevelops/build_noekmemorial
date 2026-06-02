@@ -147,7 +147,6 @@ function handleSelectModel(model) {
             class="model-thumbnail"
             loading="lazy"
           />
-          <span class="model-label">{{ model.Title }}</span>
         </button>
       </div>
     </template>
@@ -369,7 +368,6 @@ function handleSelectModel(model) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
   padding: 0.4rem;
   border: 1px solid rgba(124, 138, 110, 0.28);
   border-radius: 0.6rem;
@@ -390,14 +388,6 @@ function handleSelectModel(model) {
   object-fit: cover;
   border-radius: 0.4rem;
   background: rgba(68, 80, 56, 0.06);
-}
-
-.model-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #4e5b41;
-  line-height: 1.2;
-  word-break: break-word;
 }
 
 @media (max-width: 900px) {

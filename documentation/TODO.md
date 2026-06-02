@@ -2,12 +2,14 @@
 
 [x] delete object
 [x] recolor object
-[] refactor ui to stick to sides
-[] reposition config ui to center
+[] refactor ui to match figma design
+    [] refactor ui to stick to sides
+    [x] reposition config ui to center
 [] add other tables to supabase
 [] connect editors to accounts
-[] load screen and load holder for when models are loading
-[] search bar for models
+[] load screen when loading page
+[x] load screen and load holder for when models are loading
+[x] search bar for models
 [x] add textures
 [x] add textures to floors
 [x] add textures to blocks
@@ -50,3 +52,4 @@
 [] add more textures
 [] add more models
 [] translation of models
+[] add shortcuts to editor
