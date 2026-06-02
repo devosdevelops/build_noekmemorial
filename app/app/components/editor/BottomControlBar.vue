@@ -198,7 +198,12 @@ function confirmDelete() {
 }
 
 .delete-toast__button--ghost {
-  background: transparent;
+  background: #111111;
+  border-color: #111111;
+}
+
+.delete-toast__button--ghost:hover {
+  background: #000000;
 }
 
 .delete-toast-enter-active,
