@@ -116,7 +116,7 @@ function handleEditToolChange(nextTool) {
 }
 
 function handleHistoryAction(actionType) {
-  if (actionType !== 'undo' && actionType !== 'redo' && actionType !== 'reset' && actionType !== 'center') {
+  if (actionType !== 'undo' && actionType !== 'redo' && actionType !== 'reset' && actionType !== 'center' && actionType !== 'delete') {
     return
   }
 

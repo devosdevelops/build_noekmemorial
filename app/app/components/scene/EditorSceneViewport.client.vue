@@ -166,7 +166,40 @@ function handleEditorAction(actionType) {
     return
   }
 
+  if (actionType === 'delete') {
+    removeSelectedObject()
+    return
+  }
+
   historyRuntime?.runHistoryAction(actionType)
+}
+
+function removeSelectedObject() {
+  const objectId = selectedObjectId.value
+
+  if (!objectId || objectId === 'floor') {
+    return
+  }
+
+  const objectIndex = sceneObjects.findIndex((objectState) => objectState.id === objectId)
+
+  if (objectIndex < 0) {
+    return
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    scene?.remove(mesh)
+  }
+
+  const rootIndex = selectableRoots.findIndex((root) => root?.userData?.objectId === objectId)
+  if (rootIndex >= 0) {
+    selectableRoots.splice(rootIndex, 1)
+  }
+
+  meshById.delete(objectId)
+  sceneObjects.splice(objectIndex, 1)
+  setSelectedObjectId(null)
 }
 
 function createBlockGeometry(shapeType) {
