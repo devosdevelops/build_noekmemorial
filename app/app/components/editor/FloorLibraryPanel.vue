@@ -16,6 +16,14 @@ function handleSelectFloor(textureId) {
 
   emit('select-floor', textureId)
 }
+
+function getFloorLabel(floor) {
+  if (floor?.id === 'no-texture') {
+    return 'Standaard materiaal'
+  }
+
+  return floor?.label || ''
+}
 </script>
 
 <template>
@@ -33,18 +41,18 @@ function handleSelectFloor(textureId) {
         :key="floor.id"
         type="button"
         class="floor-card"
-        :title="floor.label"
+        :title="getFloorLabel(floor)"
         @click="handleSelectFloor(floor.id)"
       >
         <img
           v-if="floor.previewUrl"
           :src="floor.previewUrl"
-          :alt="floor.label"
+          :alt="getFloorLabel(floor)"
           class="floor-thumbnail"
           loading="lazy"
         />
         <span v-else class="floor-thumbnail floor-thumbnail--fallback" />
-        <span class="floor-label">{{ floor.label }}</span>
+        <span class="floor-label">{{ getFloorLabel(floor) }}</span>
       </button>
     </div>
   </OverlayCard>
@@ -91,7 +99,10 @@ function handleSelectFloor(textureId) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
   max-height: 22rem;
+  overflow-x: hidden;
   overflow-y: auto;
+  padding-right: 0.42rem;
+  scrollbar-gutter: stable;
 }
 
 .floor-card {
