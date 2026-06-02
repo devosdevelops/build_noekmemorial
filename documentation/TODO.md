@@ -10,7 +10,7 @@
 [x] add textures to floors
 [x] add textures to blocks
 [] add texture size to 
-    [] blocks  
+    [x] blocks  
     [] floor
 [] add missing textures
 [] add favicon
