@@ -7,6 +7,7 @@
       :active-edit-tool="activeEditTool"
       :history-action="historyAction"
       :block-action="blockAction"
+      :floor-action="floorAction"
       :model-action="modelAction"
       :persistence-action="persistenceAction"
       @scene-document-prepared="handleSceneDocumentPrepared"
@@ -24,11 +25,10 @@
       @close="handleModelsLibraryClose"
       @select-model="handleSelectModel"
     />
-    <AssetConfigurationPanel
-      v-if="isAssetConfigurationVisible && selectedAsset"
-      :selected-asset="selectedAsset"
-      @close="handleAssetConfigurationClose"
-      @add-to-scene="handleAssetAddToScene"
+    <FloorLibraryPanel
+      v-if="isFloorLibraryVisible"
+      @close="handleFloorLibraryClose"
+      @select-floor="handleSelectFloor"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -48,8 +48,8 @@
 
 <script setup>
 import { ref } from 'vue'
-import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
+import FloorLibraryPanel from './components/editor/FloorLibraryPanel.vue'
 import ModelsLibraryPanel from './components/editor/ModelsLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
@@ -65,10 +65,16 @@ const historyAction = ref({
   sequence: 0
 })
 const isBlocksLibraryVisible = ref(false)
+const isFloorLibraryVisible = ref(false)
 const isModelsLibraryVisible = ref(false)
 const blockAction = ref({
   type: null,
   shapeType: null,
+  sequence: 0
+})
+const floorAction = ref({
+  type: null,
+  textureId: null,
   sequence: 0
 })
 const modelAction = ref({
@@ -89,8 +95,6 @@ const latestSaveDiagnostics = ref({
 const lastSceneName = ref('Editor Scène')
 const isSceneDirty = ref(false)
 const skipNextDirtyEvent = ref(false)
-const selectedAsset = ref(null)
-const isAssetConfigurationVisible = ref(false)
 
 const {
   persistenceStatus,
@@ -130,6 +134,7 @@ function handleHistoryAction(actionType) {
 function handleSideToolClick(toolId) {
   if (toolId === 'blocks') {
     isBlocksLibraryVisible.value = true
+    isFloorLibraryVisible.value = false
     isModelsLibraryVisible.value = false
     return
   }
@@ -137,24 +142,20 @@ function handleSideToolClick(toolId) {
   if (toolId === 'models') {
     isModelsLibraryVisible.value = true
     isBlocksLibraryVisible.value = false
+    isFloorLibraryVisible.value = false
+    return
+  }
+
+  if (toolId === 'floors') {
+    isFloorLibraryVisible.value = true
+    isBlocksLibraryVisible.value = false
+    isModelsLibraryVisible.value = false
     return
   }
 
   isBlocksLibraryVisible.value = false
+  isFloorLibraryVisible.value = false
   isModelsLibraryVisible.value = false
-
-  if (toolId === 'floors') {
-    selectedAsset.value = {
-      assetType: 'floor',
-      assetId: 'floor',
-      label: 'Vloer'
-    }
-    isAssetConfigurationVisible.value = true
-    return
-  }
-
-  isAssetConfigurationVisible.value = false
-  selectedAsset.value = null
 }
 
 function handleBlocksLibraryClose() {
@@ -163,6 +164,10 @@ function handleBlocksLibraryClose() {
 
 function handleModelsLibraryClose() {
   isModelsLibraryVisible.value = false
+}
+
+function handleFloorLibraryClose() {
+  isFloorLibraryVisible.value = false
 }
 
 function handleSelectModel({ downloadUrl, title, attribution, licence }) {
@@ -191,28 +196,18 @@ function handleSelectBlock(shapeType) {
   isBlocksLibraryVisible.value = false
 }
 
-function handleAssetConfigurationClose() {
-  isAssetConfigurationVisible.value = false
-}
-
-function handleAssetAddToScene() {
-  if (!selectedAsset.value || selectedAsset.value.assetType !== 'block') {
+function handleSelectFloor(textureId) {
+  if (typeof textureId !== 'string' || !textureId.length) {
     return
   }
 
-  const shapeType = selectedAsset.value.assetId
-
-  if (typeof shapeType !== 'string' || !shapeType.length) {
-    return
-  }
-
-  blockAction.value = {
-    type: 'add-block',
-    shapeType,
-    sequence: blockAction.value.sequence + 1
+  floorAction.value = {
+    type: 'apply-floor-texture',
+    textureId,
+    sequence: floorAction.value.sequence + 1
   }
   isSceneDirty.value = true
-  isAssetConfigurationVisible.value = false
+  isFloorLibraryVisible.value = false
 }
 
 function handleTopActionClick(actionId) {
