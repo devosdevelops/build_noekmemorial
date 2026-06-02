@@ -28,3 +28,4 @@
 [] scale smoothly instead of snapping
 [] scale object from menu
 [] save colors / recently used colors
+[] swap betwen hex and RGB
