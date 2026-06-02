@@ -14,8 +14,7 @@
     [x] blocks  
     [x] floor
 [] add colors to models
-[] add color picker
-[] add missing textures
+[x] add missing textures
 [] add favicon
 [] deploy room
 [] add ambient noise options
@@ -26,6 +25,7 @@
 ## Fixes
 
 [] Auto deselect any other object
+[] change texture names
 [] load models with loader wheel
 [] change selected mode because current glow hides the color
 [] add new floors not just change the texture of the one existing floor
@@ -42,6 +42,7 @@
 
 ## Nice to have
 [] scale smoothly instead of snapping
+[] add color picker
 [] scale object from menu
 [] save colors / recently used colors
 [] swap betwen hex and RGB

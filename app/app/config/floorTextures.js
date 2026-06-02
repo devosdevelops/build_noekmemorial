@@ -16,6 +16,12 @@ import porcelainMosaic001Roughness from '../assets/textures/Tiles_Matte_Porcelai
 import fabricRug009Base from '../assets/textures/Fabric_Rug_009_SD/Fabric_Rug_009_basecolor.png'
 import fabricRug009Normal from '../assets/textures/Fabric_Rug_009_SD/Fabric_Rug_009_normal.png'
 import fabricRug009Roughness from '../assets/textures/Fabric_Rug_009_SD/Fabric_Rug_009_roughness.png'
+import brickWall028Base from '../assets/textures/Brick_Wall_028_SD/Brick_Wall_028_basecolor.png'
+import brickWall028Normal from '../assets/textures/Brick_Wall_028_SD/Brick_Wall_028_normal.png'
+import brickWall028Roughness from '../assets/textures/Brick_Wall_028_SD/Brick_Wall_028_roughness.png'
+import snow005Base from '../assets/textures/Snow_005_SD/Snow_005_basecolor.png'
+import snow005Normal from '../assets/textures/Snow_005_SD/Snow_005_normal.png'
+import snow005Roughness from '../assets/textures/Snow_005_SD/Snow_005_roughness.png'
 
 export const FLOOR_TEXTURE_OPTIONS = [
   {
@@ -120,6 +126,38 @@ export const FLOOR_TEXTURE_OPTIONS = [
     },
     defaultTexture: {
       textureId: 'fabric-rug-009',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'brick-wall-028',
+    label: 'Baksteen',
+    previewUrl: brickWall028Base,
+    maps: {
+      colorUrl: brickWall028Base,
+      normalUrl: brickWall028Normal,
+      roughnessUrl: brickWall028Roughness
+    },
+    defaultTexture: {
+      textureId: 'brick-wall-028',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'snow-005',
+    label: 'Sneeuw',
+    previewUrl: snow005Base,
+    maps: {
+      colorUrl: snow005Base,
+      normalUrl: snow005Normal,
+      roughnessUrl: snow005Roughness
+    },
+    defaultTexture: {
+      textureId: 'snow-005',
       uvScale: [2, 2],
       rotation: 0,
       intensity: 1
