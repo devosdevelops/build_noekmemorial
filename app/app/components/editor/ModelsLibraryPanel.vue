@@ -97,7 +97,7 @@ function handleSelectModel(model) {
           type="button"
           class="library-info"
           aria-label="Modellen uitleg"
-          data-tooltip="Kies een 3D-model om aan de scene toe te voegen."
+          data-tooltip="Kies een 3D-model om aan de scene toe te voegen. Zoektermen werken momenteel in het Engels."
         >
           i
         </button>
