@@ -1,6 +1,6 @@
 # TODO
 
-[] delete object
+[x] delete object
 [] recolor object
 [] add other tables to supabase
 [] load screen and load holder for when models are loading
