@@ -2,6 +2,8 @@
 
 [x] delete object
 [x] recolor object
+[] refactor ui to stick to sides
+[] reposition config ui to center
 [] add other tables to supabase
 [] connect editors to accounts
 [] load screen and load holder for when models are loading
@@ -15,6 +17,7 @@
     [x] floor
 [] add colors to models
 [x] add missing textures
+[] load models with loader wheel
 [] add favicon
 [] deploy room
 [] add ambient noise options
@@ -26,14 +29,11 @@
 
 ## Fixes
 
-[] Auto deselect any other object
+[x] Auto deselect any other object
 [] change texture names
-[] load models with loader wheel
-[] change selected mode because current glow hides the color
-[] add new floors not just change the texture of the one existing floor
 [] color textures better
-[] refactor ui to stick to sides
-[] reposition config ui to center
+[x] change selected mode because current glow hides the color
+[x] add new floors not just change the texture of the one existing floor
 [x] make sure models are saved to the supabase 
 [x] block preview in 3D instead of flat shapes
 [x] translate to dutch

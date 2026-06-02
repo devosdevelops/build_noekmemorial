@@ -2,8 +2,8 @@ export function createSelectionHighlightManager(
   THREE,
   {
     transitionMs = 300,
-    targetIntensity = 0.35,
-    highlightHex = '#f3e6a2'
+    targetIntensity = 0.08,
+    highlightHex = '#fff9df'
   } = {}
 ) {
   const emissiveCache = new WeakMap()
@@ -37,7 +37,9 @@ export function createSelectionHighlightManager(
       }
 
       const fromColor = material.emissive.clone()
-      const toColor = target.toHighlight ? highlightColor.clone() : cached.color.clone()
+      const toColor = target.toHighlight
+        ? cached.color.clone().lerp(highlightColor, 0.18)
+        : cached.color.clone()
       const fromIntensity = 'emissiveIntensity' in material ? material.emissiveIntensity : cached.intensity
       const toIntensity = target.toHighlight ? targetIntensity : cached.intensity
 
