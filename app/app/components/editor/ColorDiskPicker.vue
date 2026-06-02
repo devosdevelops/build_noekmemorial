@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -22,9 +22,12 @@ const DISK_HANDLE_MAX_RADIUS = DISK_RADIUS - HANDLE_SIZE / 2 - 2
 
 const wheelRef = ref(null)
 const diskRef = ref(null)
+const hexInputRef = ref(null)
 const hue = ref(95)
 const saturation = ref(0.24)
 const value = ref(0.79)
+const isHexEditing = ref(false)
+const draftHex = ref('#b4c9a6')
 let activePointer = null
 
 function clamp(number, min, max) {
@@ -127,13 +130,71 @@ function syncFromHex(nextHex) {
   value.value = hsv.value
 }
 
+function normalizeHexInput(inputValue) {
+  const normalized = typeof inputValue === 'string' ? inputValue.trim().replace('#', '') : ''
+  const expanded = normalized.length === 3
+    ? normalized.split('').map((channel) => `${channel}${channel}`).join('')
+    : normalized
+
+  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) {
+    return null
+  }
+
+  return `#${expanded.toLowerCase()}`
+}
+
 watch(
   () => props.modelValue,
   (nextColor) => {
     syncFromHex(nextColor)
+
+    if (!isHexEditing.value) {
+      draftHex.value = typeof nextColor === 'string' && nextColor.length ? nextColor : '#b4c9a6'
+    }
   },
   { immediate: true }
 )
+
+function beginHexEdit() {
+  isHexEditing.value = true
+  draftHex.value = activeColor.value
+
+  nextTick(() => {
+    hexInputRef.value?.focus()
+    hexInputRef.value?.select()
+  })
+}
+
+function cancelHexEdit() {
+  isHexEditing.value = false
+  draftHex.value = activeColor.value
+}
+
+function applyHexEdit() {
+  const normalizedHex = normalizeHexInput(draftHex.value)
+
+  if (!normalizedHex) {
+    cancelHexEdit()
+    return
+  }
+
+  isHexEditing.value = false
+  draftHex.value = normalizedHex
+  emit('update:modelValue', normalizedHex)
+}
+
+function handleHexInputKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    applyHexEdit()
+    return
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelHexEdit()
+  }
+}
 
 function getWheelPoint(event) {
   const wheel = wheelRef.value
@@ -289,7 +350,30 @@ const diskHandleStyle = computed(() => {
     </div>
     <div class="color-picker__swatch-row">
       <span class="color-picker__swatch" :style="{ backgroundColor: activeColor }" />
-      <span class="color-picker__value">{{ activeColor }}</span>
+      <span
+        v-if="!isHexEditing"
+        class="color-picker__value color-picker__value--editable"
+        role="button"
+        tabindex="0"
+        @click="beginHexEdit"
+        @keydown.enter.prevent="beginHexEdit"
+        @keydown.space.prevent="beginHexEdit"
+      >
+        {{ activeColor }}
+      </span>
+      <input
+        v-else
+        ref="hexInputRef"
+        v-model="draftHex"
+        class="color-picker__value-input"
+        type="text"
+        inputmode="text"
+        autocapitalize="off"
+        autocomplete="off"
+        spellcheck="false"
+        @blur="applyHexEdit"
+        @keydown="handleHexInputKeydown"
+      >
     </div>
   </div>
 </template>
@@ -384,6 +468,28 @@ const diskHandleStyle = computed(() => {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.color-picker__value--editable {
+  cursor: text;
+}
+
+.color-picker__value-input {
+  width: 6.3rem;
+  padding: 0.16rem 0.34rem;
+  border: 1px solid rgba(109, 124, 91, 0.35);
+  border-radius: 0.4rem;
+  background: rgba(245, 249, 238, 0.8);
+  color: rgba(68, 80, 56, 0.92);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.color-picker__value-input:focus {
+  outline: 2px solid rgba(118, 146, 88, 0.4);
+  outline-offset: 1px;
 }
 
 </style>
