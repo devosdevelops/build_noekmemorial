@@ -5,12 +5,12 @@ export default defineEventHandler(async (event) => {
   const apiKey = config.polypizzaApiKey
 
   if (!apiKey) {
-    throw createError({ statusCode: 500, statusMessage: 'Poly Pizza API key is not configured on the server.' })
+    throw createError({ statusCode: 500, statusMessage: 'Poly Pizza API-sleutel is niet geconfigureerd op de server.' })
   }
 
   const listId = getRouterParam(event, 'id')
   if (!listId) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing list ID.' })
+    throw createError({ statusCode: 400, statusMessage: 'Lijst-ID ontbreekt.' })
   }
 
   const upstream = await fetch(`${POLY_PIZZA_BASE}/list/${encodeURIComponent(listId)}`, {
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
   if (!upstream.ok) {
     throw createError({
       statusCode: upstream.status,
-      statusMessage: `Poly Pizza API returned ${upstream.status} for list "${listId}".`
+      statusMessage: `Poly Pizza API gaf ${upstream.status} terug voor lijst "${listId}".`
     })
   }
 

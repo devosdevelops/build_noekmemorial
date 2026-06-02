@@ -21,11 +21,11 @@ const props = defineProps({
 const emit = defineEmits(['action-click'])
 
 const actions = [
-  { id: 'home', label: 'Home' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'load', label: 'Load' },
-  { id: 'save', label: 'Save' },
-  { id: 'preview', label: 'Preview' }
+  { id: 'home', label: 'Start' },
+  { id: 'settings', label: 'Instellingen' },
+  { id: 'load', label: 'Laden' },
+  { id: 'save', label: 'Opslaan' },
+  { id: 'preview', label: 'Voorbeeld' }
 ]
 
 function handleActionClick(actionId) {
@@ -34,22 +34,22 @@ function handleActionClick(actionId) {
 
 const statusLabel = computed(() => {
   if (props.persistenceStatus === 'saving') {
-    return 'Saving...'
+    return 'Opslaan...'
   }
 
   if (props.persistenceStatus === 'loading') {
-    return 'Loading...'
+    return 'Laden...'
   }
 
   if (props.persistenceStatus === 'error') {
-    return props.persistenceError || 'Error'
+    return props.persistenceError || 'Fout'
   }
 
   if (props.persistenceStatus === 'saved') {
-    return props.isSceneDirty ? 'Saved (new changes)' : 'Saved'
+    return props.isSceneDirty ? 'Opgeslagen (nieuwe wijzigingen)' : 'Opgeslagen'
   }
 
-  return props.isSceneDirty ? 'Unsaved changes' : 'Ready'
+  return props.isSceneDirty ? 'Niet-opgeslagen wijzigingen' : 'Klaar'
 })
 
 const statusClass = computed(() => {
@@ -70,7 +70,7 @@ const statusClass = computed(() => {
 </script>
 
 <template>
-  <OverlayCard class="top-actions" aria-label="Top actions">
+  <OverlayCard class="top-actions" aria-label="Bovenste acties">
     <p class="top-actions__status" :class="statusClass">{{ statusLabel }}</p>
     <OverlayButton
       v-for="action in actions"

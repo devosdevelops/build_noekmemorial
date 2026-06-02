@@ -5,10 +5,10 @@ import OverlayCard from '../ui/OverlayCard.vue'
 const emit = defineEmits(['close', 'select-block'])
 
 const availableBlocks = [
-  { id: 'square', label: 'Square' },
-  { id: 'sphere', label: 'Sphere' },
-  { id: 'cylinder', label: 'Cylinder' },
-  { id: 'cone', label: 'Cone' }
+  { id: 'square', label: 'Vierkant' },
+  { id: 'sphere', label: 'Bol' },
+  { id: 'cylinder', label: 'Cilinder' },
+  { id: 'cone', label: 'Kegel' }
 ]
 
 function handleAddBlock(blockType) {
@@ -21,13 +21,13 @@ function handleClose() {
 </script>
 
 <template>
-  <OverlayCard class="blocks-library" aria-label="Blocks library">
+  <OverlayCard class="blocks-library" aria-label="Blokkenbibliotheek">
     <header class="library-header">
-      <h2 class="library-title">Blocks</h2>
-      <OverlayButton class="close-button" label="Close" @click="handleClose" />
+      <h2 class="library-title">Blokken</h2>
+      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
     </header>
 
-    <p class="library-subtitle">Pick a basic block to add to the scene.</p>
+    <p class="library-subtitle">Kies een basisblok om aan de scène toe te voegen.</p>
 
     <div class="blocks-grid">
       <OverlayButton

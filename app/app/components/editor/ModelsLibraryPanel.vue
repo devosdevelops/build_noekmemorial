@@ -9,7 +9,7 @@ const emit = defineEmits(['close', 'select-model'])
 async function fetchList(listId) {
   const res = await fetch(`/api/polypizza/list/${encodeURIComponent(listId)}`)
   if (!res.ok) {
-    throw new Error(`Failed to fetch list "${listId}": ${res.status}`)
+    throw new Error(`Lijst "${listId}" kon niet worden opgehaald: ${res.status}`)
   }
   const data = await res.json()
   return Array.isArray(data?.Models) ? data.Models : []
@@ -41,7 +41,7 @@ async function loadModels() {
     const results = await Promise.all(POLY_PIZZA_LIST_IDS.map(fetchList))
     models.value = mergeAndDeduplicate(results)
   } catch (err) {
-    loadError.value = err.message ?? 'Failed to load models.'
+    loadError.value = err.message ?? 'Modellen konden niet worden geladen.'
   } finally {
     isLoading.value = false
   }
@@ -65,17 +65,17 @@ function handleSelectModel(model) {
 </script>
 
 <template>
-  <OverlayCard class="models-library" aria-label="Models library">
+  <OverlayCard class="models-library" aria-label="Modellenbibliotheek">
     <header class="library-header">
-      <h2 class="library-title">Models</h2>
-      <OverlayButton class="close-button" label="Close" @click="handleClose" />
+      <h2 class="library-title">Modellen</h2>
+      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
     </header>
 
-    <p class="library-subtitle">Pick a 3D model to add to the scene.</p>
+    <p class="library-subtitle">Kies een 3D-model om aan de scène toe te voegen.</p>
 
-    <p v-if="isLoading" class="library-status">Loading models…</p>
+    <p v-if="isLoading" class="library-status">Modellen laden...</p>
     <p v-else-if="loadError" class="library-status library-status--error">{{ loadError }}</p>
-    <p v-else-if="!models.length" class="library-status">No models available.</p>
+    <p v-else-if="!models.length" class="library-status">Geen modellen beschikbaar.</p>
 
     <div v-else class="models-grid">
       <button

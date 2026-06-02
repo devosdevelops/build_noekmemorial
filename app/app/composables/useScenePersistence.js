@@ -30,7 +30,7 @@ export function useScenePersistence() {
       return response
     } catch (error) {
       persistenceStatus.value = 'error'
-      persistenceError.value = error?.data?.statusMessage || error?.message || 'Failed to save scene.'
+      persistenceError.value = error?.data?.statusMessage || error?.message || 'Opslaan van de scène is mislukt.'
       return null
     }
   }
@@ -59,7 +59,7 @@ export function useScenePersistence() {
       return response
     } catch (error) {
       persistenceStatus.value = 'error'
-      persistenceError.value = error?.data?.statusMessage || error?.message || 'Failed to load scene.'
+      persistenceError.value = error?.data?.statusMessage || error?.message || 'Laden van de scène is mislukt.'
       return null
     }
   }

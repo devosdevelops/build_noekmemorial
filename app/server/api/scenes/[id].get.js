@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!sceneId || !sceneId.length) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Scene id is required.'
+      statusMessage: 'Scène-ID is verplicht.'
     })
   }
 
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   if (error) {
     throw createError({
       statusCode: 404,
-      statusMessage: `Scene not found (${sceneId}).`,
+      statusMessage: `Scène niet gevonden (${sceneId}).`,
       data: {
         supabaseError: error.message
       }

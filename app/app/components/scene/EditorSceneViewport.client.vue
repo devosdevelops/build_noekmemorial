@@ -657,7 +657,7 @@ function syncTransformControlsState() {
 
 function prepareSceneDocumentForSave() {
   const result = buildSceneDocumentFromRuntime({
-    sceneName: 'Editor Scene',
+    sceneName: 'Editor Scène',
     sceneObjects,
     gridConfig
   })

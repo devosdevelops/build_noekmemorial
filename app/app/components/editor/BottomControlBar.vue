@@ -17,19 +17,19 @@ const emit = defineEmits(['interaction-mode-change', 'edit-tool-change', 'histor
 
 const groupedControls = [
   [
-    { id: 'select', label: 'Select' },
-    { id: 'pan', label: 'Pan' },
-    { id: 'center', label: 'Center' }
+    { id: 'select', label: 'Selecteren' },
+    { id: 'pan', label: 'Pannen' },
+    { id: 'center', label: 'Centreren' }
   ],
   [
-    { id: 'move', label: 'Move' },
-    { id: 'rotate', label: 'Rotate' },
-    { id: 'scale', label: 'Scale' }
+    { id: 'move', label: 'Verplaatsen' },
+    { id: 'rotate', label: 'Roteren' },
+    { id: 'scale', label: 'Schalen' }
   ],
   [
-    { id: 'reset', label: 'Reset' },
-    { id: 'undo', label: 'Undo' },
-    { id: 'redo', label: 'Redo' }
+    { id: 'reset', label: 'Resetten' },
+    { id: 'undo', label: 'Ongedaan' },
+    { id: 'redo', label: 'Opnieuw' }
   ]
 ]
 
@@ -71,7 +71,7 @@ function handleControlClick(controlId) {
 </script>
 
 <template>
-  <OverlayCard class="bottom-toolbar" aria-label="Editor controls">
+  <OverlayCard class="bottom-toolbar" aria-label="Editorbediening">
     <template v-for="(group, groupIndex) in groupedControls" :key="`group-${groupIndex}`">
       <OverlayButton
         v-for="control in group"

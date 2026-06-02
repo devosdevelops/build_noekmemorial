@@ -3,7 +3,7 @@
     <div class="brand-mark">C</div>
     <div>
       <p class="brand-title">Columba</p>
-      <p class="brand-subtitle">Memorial Studio</p>
+      <p class="brand-subtitle">Herinneringsstudio</p>
     </div>
   </OverlayCard>
 </template>

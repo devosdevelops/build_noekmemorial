@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   if (error) {
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to load latest scene from ${SCENES_TABLE}.`,
+      statusMessage: `Laden van de nieuwste scène uit ${SCENES_TABLE} is mislukt.`,
       data: {
         supabaseError: error.message
       }
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   if (!latest) {
     throw createError({
       statusCode: 404,
-      statusMessage: 'No scenes found in Supabase yet.'
+      statusMessage: 'Er zijn nog geen scènes gevonden in Supabase.'
     })
   }
 

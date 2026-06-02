@@ -86,7 +86,7 @@ const latestSaveDiagnostics = ref({
   errors: [],
   warnings: []
 })
-const lastSceneName = ref('Editor Scene')
+const lastSceneName = ref('Editor Scène')
 const isSceneDirty = ref(false)
 const skipNextDirtyEvent = ref(false)
 const selectedAsset = ref(null)
@@ -101,10 +101,10 @@ const {
 } = useScenePersistence()
 
 const blockLabelByType = {
-  square: 'Square',
-  sphere: 'Sphere',
-  cylinder: 'Cylinder',
-  cone: 'Cone'
+  square: 'Vierkant',
+  sphere: 'Bol',
+  cylinder: 'Cilinder',
+  cone: 'Kegel'
 }
 
 function handleInteractionModeChange(nextMode) {
@@ -146,7 +146,7 @@ function handleSideToolClick(toolId) {
     selectedAsset.value = {
       assetType: 'floor',
       assetId: 'floor',
-      label: 'Floor'
+      label: 'Vloer'
     }
     isAssetConfigurationVisible.value = true
     return
@@ -184,7 +184,7 @@ function handleSelectBlock(shapeType) {
   selectedAsset.value = {
     assetType: 'block',
     assetId: shapeType,
-    label: blockLabelByType[shapeType] ?? 'Block'
+    label: blockLabelByType[shapeType] ?? 'Blok'
   }
   isAssetConfigurationVisible.value = true
   isBlocksLibraryVisible.value = false

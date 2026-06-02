@@ -14,22 +14,22 @@ const emit = defineEmits(['close', 'add-to-scene'])
 
 const panelTitle = computed(() => {
   if (!props.selectedAsset) {
-    return 'Configure Asset'
+    return 'Asset configureren'
   }
 
   if (props.selectedAsset.assetType === 'block') {
-    return 'Configure Block'
+    return 'Blok configureren'
   }
 
   if (props.selectedAsset.assetType === 'floor') {
-    return 'Configure Floor'
+    return 'Vloer configureren'
   }
 
   if (props.selectedAsset.assetType === 'model') {
-    return 'Configure 3D Model'
+    return '3D-model configureren'
   }
 
-  return 'Configure Asset'
+  return 'Asset configureren'
 })
 
 const previewShapeClass = computed(() => {
@@ -68,36 +68,36 @@ function handleAddToScene() {
 </script>
 
 <template>
-  <OverlayCard class="asset-config-panel" aria-label="Asset configuration">
+  <OverlayCard class="asset-config-panel" aria-label="Assetconfiguratie">
     <header class="panel-header">
       <h2 class="panel-title">{{ panelTitle }}</h2>
-      <OverlayButton class="close-button" label="Close" @click="handleClose" />
+      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
     </header>
 
-    <p class="asset-name">{{ selectedAsset?.label ?? 'No selection' }}</p>
+    <p class="asset-name">{{ selectedAsset?.label ?? 'Geen selectie' }}</p>
 
-    <section class="preview-section" aria-label="Object preview">
-      <h3 class="section-title">Preview</h3>
+    <section class="preview-section" aria-label="Objectvoorbeeld">
+      <h3 class="section-title">Voorbeeld</h3>
       <div class="preview-canvas">
         <div class="preview-shape" :class="previewShapeClass" />
       </div>
     </section>
 
-    <section class="future-controls" aria-label="Material controls placeholder">
-      <h3 class="section-title">Material and Color</h3>
+    <section class="future-controls" aria-label="Tijdelijke plaats voor materiaalopties">
+      <h3 class="section-title">Materiaal en kleur</h3>
       <p class="section-copy">
-        Editing controls are coming next. This panel is ready to host material and color options.
+        Bewerkingsopties volgen binnenkort. Dit paneel is klaar voor materiaal- en kleuropties.
       </p>
     </section>
 
     <OverlayButton
       v-if="canAddToScene"
       class="add-button"
-      label="Add to Scene"
+      label="Toevoegen aan scène"
       @click="handleAddToScene"
     />
     <p v-else class="section-copy section-copy--compact">
-      Asset options will appear here when floor and 3D model libraries are added.
+      Assetopties verschijnen hier wanneer vloer- en 3D-modelbibliotheken zijn toegevoegd.
     </p>
   </OverlayCard>
 </template>

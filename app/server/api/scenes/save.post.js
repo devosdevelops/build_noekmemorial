@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!normalized.isValid || !normalized.sceneDocument) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Scene document validation failed.',
+      statusMessage: 'Validatie van het scènedocument is mislukt.',
       data: {
         errors: normalized.errors,
         warnings: normalized.warnings
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   if (error) {
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to save scene in Supabase (${SCENES_TABLE}).`,
+      statusMessage: `Opslaan van de scène in Supabase (${SCENES_TABLE}) is mislukt.`,
       data: {
         supabaseError: error.message
       }

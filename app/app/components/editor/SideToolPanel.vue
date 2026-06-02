@@ -5,10 +5,10 @@ import OverlayCard from '../ui/OverlayCard.vue'
 const emit = defineEmits(['tool-click'])
 
 const tools = [
-  { id: 'models', label: 'Models' },
-  { id: 'floors', label: 'Floors' },
-  { id: 'blocks', label: 'Blocks' },
-  { id: 'light', label: 'Light' },
+  { id: 'models', label: 'Modellen' },
+  { id: 'floors', label: 'Vloeren' },
+  { id: 'blocks', label: 'Blokken' },
+  { id: 'light', label: 'Licht' },
   { id: 'audio', label: 'Audio' },
   { id: 'media', label: 'Media' }
 ]
