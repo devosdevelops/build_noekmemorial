@@ -41,6 +41,7 @@ import { createCameraNavigationRuntime } from './viewport/cameraNavigationRuntim
 import { SCENE_KIND, SHAPE_COLOR_BY_TYPE, getDefaultAppearance } from '../../scene/sceneContract.js'
 import { buildSceneDocumentFromRuntime } from '../../scene/sceneSerialization.js'
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
+import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
 
 const containerRef = ref(null)
 const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed'])
@@ -66,6 +67,14 @@ const props = defineProps({
     default: () => ({
       type: null,
       shapeType: null,
+      sequence: 0
+    })
+  },
+  floorAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      textureId: null,
       sequence: 0
     })
   },
@@ -370,7 +379,7 @@ function applyHydratedSceneDocument(sceneDocument) {
       floorMesh.position.set(...nextFloorState.position)
       floorMesh.rotation.set(...nextFloorState.rotation)
       floorMesh.scale.set(...nextFloorState.scale)
-      setMeshColor(floorMesh, nextFloorState.appearance?.color)
+      applyFloorAppearance(floorMesh, nextFloorState.appearance)
     }
 
     nextShapeObjects.forEach((objectState) => {
@@ -465,6 +474,114 @@ function addBlockToScene(shapeType) {
 }
 
 const gltfLoader = new GLTFLoader()
+const textureLoader = new THREE.TextureLoader()
+const loadedTextureCache = new Map()
+
+function getTextureByUrl(textureUrl, { isColorTexture = false } = {}) {
+  if (typeof textureUrl !== 'string' || !textureUrl.length) {
+    return null
+  }
+
+  let texture = loadedTextureCache.get(textureUrl)
+
+  if (!texture) {
+    texture = poolTexture(textureLoader.load(textureUrl))
+    loadedTextureCache.set(textureUrl, texture)
+  }
+
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+
+  if (isColorTexture) {
+    texture.colorSpace = THREE.SRGBColorSpace
+  }
+
+  return texture
+}
+
+function applyTextureTransform(texture, textureAppearance) {
+  if (!texture) {
+    return
+  }
+
+  const uvScale = Array.isArray(textureAppearance?.uvScale) ? textureAppearance.uvScale : [1, 1]
+
+  texture.repeat.set(uvScale[0] ?? 1, uvScale[1] ?? 1)
+  texture.center.set(0.5, 0.5)
+  texture.rotation = typeof textureAppearance?.rotation === 'number' ? textureAppearance.rotation : 0
+  texture.needsUpdate = true
+}
+
+function applyFloorAppearance(mesh, appearance) {
+  if (!mesh || !mesh.material) {
+    return
+  }
+
+  const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
+  const textureAppearance = appearance?.texture
+  const textureConfig = textureAppearance?.textureId
+    ? FLOOR_TEXTURE_BY_ID[textureAppearance.textureId] ?? null
+    : null
+
+  material.color.set(textureConfig ? '#ffffff' : appearance?.color || '#7a8fa0')
+  material.metalness = appearance?.finish?.metalness ?? 0.03
+
+  if (!textureConfig) {
+    material.map = null
+    material.normalMap = null
+    material.roughnessMap = null
+    material.roughness = appearance?.finish?.roughness ?? 0.86
+    material.needsUpdate = true
+    return
+  }
+
+  const colorTexture = getTextureByUrl(textureConfig.maps.colorUrl, { isColorTexture: true })
+  const normalTexture = getTextureByUrl(textureConfig.maps.normalUrl)
+  const roughnessTexture = getTextureByUrl(textureConfig.maps.roughnessUrl)
+  const textureIntensity = typeof textureAppearance?.intensity === 'number' ? textureAppearance.intensity : 1
+
+  applyTextureTransform(colorTexture, textureAppearance)
+  applyTextureTransform(normalTexture, textureAppearance)
+  applyTextureTransform(roughnessTexture, textureAppearance)
+
+  material.map = colorTexture
+  material.normalMap = normalTexture
+  material.roughnessMap = roughnessTexture
+  material.roughness = 1
+  material.normalScale.set(textureIntensity, textureIntensity)
+  material.needsUpdate = true
+}
+
+function applyFloorTextureById(textureId) {
+  if (typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  const textureConfig = FLOOR_TEXTURE_BY_ID[textureId]
+
+  if (!textureConfig) {
+    return
+  }
+
+  const floorState = sceneObjects.find((item) => item.id === 'floor')
+
+  if (!floorState) {
+    return
+  }
+
+  floorState.appearance = {
+    ...floorState.appearance,
+    color: '#ffffff',
+    texture: {
+      ...textureConfig.defaultTexture
+    }
+  }
+
+  const floorMesh = meshById.get('floor')
+  if (floorMesh) {
+    applyFloorAppearance(floorMesh, floorState.appearance)
+  }
+}
 
 function createModelLayoutFromBounds(box) {
   const size = new THREE.Vector3()
@@ -779,6 +896,21 @@ watch(
 )
 
 watch(
+  () => props.floorAction.sequence,
+  () => {
+    if (props.floorAction?.type !== 'apply-floor-texture') {
+      return
+    }
+
+    if (typeof props.floorAction.textureId !== 'string' || !props.floorAction.textureId.length) {
+      return
+    }
+
+    applyFloorTextureById(props.floorAction.textureId)
+  }
+)
+
+watch(
   () => props.modelAction.sequence,
   () => {
     if (props.modelAction?.type !== 'add-model') {
@@ -973,6 +1105,12 @@ onMounted(() => {
   outputPass = sceneBootstrap.outputPass
   gridTexture = sceneBootstrap.gridTexture
   gridPlane = sceneBootstrap.gridPlane
+
+  const floorMesh = meshById.get('floor')
+  const floorState = sceneObjects.find((item) => item.id === 'floor')
+  if (floorMesh && floorState) {
+    applyFloorAppearance(floorMesh, floorState.appearance)
+  }
 
   cameraNavigationRuntime = createCameraNavigationRuntime({
     THREE,
