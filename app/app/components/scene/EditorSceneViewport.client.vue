@@ -155,8 +155,6 @@ const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
 const MODEL_SQUARE_RATIO_TOLERANCE = 0.12
 const MODEL_GRID_SEARCH_PADDING_CELLS = 2
 const MODEL_GRID_MAX_SEARCH_CELLS = 24
-const MODEL_DEBUG_BOX_COLOR = '#8fdfff'
-const MODEL_DEBUG_BOX_OPACITY = 0.2
 
 let createdShapeCount = 0
 let isApplyingHydration = false
@@ -485,17 +483,6 @@ function buildModelWrapper(modelId, gltfScene) {
   const box = new THREE.Box3().setFromObject(gltfScene)
   const layout = createModelLayoutFromBounds(box)
   const wrapper = new THREE.Group()
-  const debugBox = new THREE.Mesh(
-    poolGeometry(new THREE.BoxGeometry(layout.groupSize.x, layout.groupSize.y, layout.groupSize.z)),
-    poolMaterial(
-      new THREE.MeshBasicMaterial({
-        color: MODEL_DEBUG_BOX_COLOR,
-        transparent: true,
-        opacity: MODEL_DEBUG_BOX_OPACITY,
-        depthWrite: false
-      })
-    )
-  )
 
   wrapper.name = `${modelId}-wrapper`
   wrapper.userData.baseUniformSize = Math.max(layout.groupSize.x, layout.groupSize.y, layout.groupSize.z)
@@ -506,11 +493,6 @@ function buildModelWrapper(modelId, gltfScene) {
     max: [layout.groupSize.x / 2, layout.groupSize.y, layout.groupSize.z / 2]
   }
   wrapper.userData.modelFootprintCells = [...layout.footprintCells]
-
-  debugBox.name = `${modelId}-debug-footprint`
-  debugBox.position.set(0, layout.groupSize.y / 2, 0)
-  debugBox.renderOrder = 4
-  wrapper.add(debugBox)
 
   gltfScene.scale.setScalar(layout.fitScale)
   gltfScene.position.set(
