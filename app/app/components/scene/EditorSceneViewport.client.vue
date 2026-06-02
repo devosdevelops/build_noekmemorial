@@ -215,6 +215,37 @@ function createBlockGeometry(shapeType) {
     return poolGeometry(new THREE.ConeGeometry(1, 2, 28))
   }
 
+  if (shapeType === 'triangle') {
+    const geometry = new THREE.BufferGeometry()
+    const vertices = new Float32Array([
+      -1, -1, 1,    // 0: front-left
+      1, -1, 1,     // 1: front-right
+      -1, -1, -1,   // 2: back-left-bottom
+      1, -1, -1,    // 3: back-right-bottom
+      -1, 1, -1,    // 4: back-left-top
+      1, 1, -1      // 5: back-right-top
+    ])
+    const indices = new Uint32Array([
+      // Top sloped surface
+      0, 1, 5,
+      0, 5, 4,
+      // Bottom face
+      2, 3, 1,
+      2, 1, 0,
+      // Left side (diagonal)
+      0, 4, 2,
+      // Right side (diagonal)
+      1, 3, 5,
+      // Back face
+      4, 5, 3,
+      4, 3, 2
+    ])
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+    geometry.computeVertexNormals()
+    return poolGeometry(geometry)
+  }
+
   return poolGeometry(new THREE.BoxGeometry(2, 2, 2))
 }
 

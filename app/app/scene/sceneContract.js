@@ -10,13 +10,14 @@ export const SCENE_KIND = {
 
 export const SCENE_KIND_VALUES = Object.values(SCENE_KIND)
 
-export const SHAPE_ASSET_VALUES = ['square', 'sphere', 'cylinder', 'cone']
+export const SHAPE_ASSET_VALUES = ['square', 'sphere', 'cylinder', 'cone', 'triangle']
 
 export const SHAPE_COLOR_BY_TYPE = {
   square: '#b4c9a6',
   sphere: '#dfc08f',
   cylinder: '#9eb8c8',
-  cone: '#d8a59f'
+  cone: '#d8a59f',
+  triangle: '#c9a8b4'
 }
 
 const DEFAULT_COLOR_BY_KIND = {

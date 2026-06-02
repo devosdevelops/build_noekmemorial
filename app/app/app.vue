@@ -104,7 +104,8 @@ const blockLabelByType = {
   square: 'Vierkant',
   sphere: 'Bol',
   cylinder: 'Cilinder',
-  cone: 'Kegel'
+  cone: 'Kegel',
+  triangle: 'Helling'
 }
 
 function handleInteractionModeChange(nextMode) {
