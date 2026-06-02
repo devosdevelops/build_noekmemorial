@@ -190,20 +190,29 @@ function confirmDelete() {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background-color 150ms ease, transform 120ms ease;
 }
 
 .delete-toast__button:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
+.delete-toast__button:active {
+  background: rgba(255, 255, 255, 0.34);
+  transform: translateY(1px);
+}
+
 .delete-toast__button--ghost {
-  background: #111111;
-  border-color: #111111;
+  background: #191919;
+  border-color: #232323;
 }
 
 .delete-toast__button--ghost:hover {
-  background: #000000;
+  background: #242424;
+}
+
+.delete-toast__button--ghost:active {
+  background: #101010;
 }
 
 .delete-toast-enter-active,
