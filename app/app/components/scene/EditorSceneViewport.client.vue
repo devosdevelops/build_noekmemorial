@@ -571,10 +571,12 @@ function applyFloorTextureById(textureId) {
 
   floorState.appearance = {
     ...floorState.appearance,
-    color: '#ffffff',
-    texture: {
-      ...textureConfig.defaultTexture
-    }
+    color: textureConfig.defaultTexture ? '#ffffff' : '#7a8fa0',
+    texture: textureConfig.defaultTexture
+      ? {
+          ...textureConfig.defaultTexture
+        }
+      : null
   }
 
   const floorMesh = meshById.get('floor')

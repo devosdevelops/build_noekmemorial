@@ -19,6 +19,17 @@ import fabricRug009Roughness from '../assets/textures/Fabric_Rug_009_SD/Fabric_R
 
 export const FLOOR_TEXTURE_OPTIONS = [
   {
+    id: 'no-texture',
+    label: 'Geen Textuur',
+    previewUrl: null,
+    maps: {
+      colorUrl: null,
+      normalUrl: null,
+      roughnessUrl: null
+    },
+    defaultTexture: null
+  },
+  {
     id: 'wood-floor-014',
     label: 'Hout Licht',
     previewUrl: woodFloor014Base,
