@@ -274,24 +274,6 @@ function createBlockGeometry(shapeType) {
   return poolGeometry(new THREE.BoxGeometry(2, 2, 2))
 }
 
-function setMeshColor(mesh, colorValue) {
-  if (!mesh) {
-    return
-  }
-
-  const materials = Array.isArray(mesh.material)
-    ? mesh.material
-    : mesh.material
-      ? [mesh.material]
-      : []
-
-  materials.forEach((material) => {
-    if (material?.color?.set && typeof colorValue === 'string') {
-      material.color.set(colorValue)
-    }
-  })
-}
-
 function removeSelectableRootById(objectId) {
   const index = selectableRoots.findIndex((root) => root?.userData?.objectId === objectId)
 
@@ -331,6 +313,7 @@ function createShapeMeshFromRuntimeObject(objectState) {
   mesh.position.set(...objectState.position)
   mesh.rotation.set(...objectState.rotation)
   mesh.scale.set(...objectState.scale)
+  applyShapeAppearance(mesh, objectState.appearance)
   return mesh
 }
 
@@ -568,6 +551,57 @@ function applyFloorAppearance(mesh, appearance) {
   material.needsUpdate = true
 }
 
+function applyShapeAppearance(mesh, appearance) {
+  if (!mesh || !mesh.material) {
+    return
+  }
+
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  const textureAppearance = appearance?.texture
+  const textureConfig = textureAppearance?.textureId
+    ? FLOOR_TEXTURE_BY_ID[textureAppearance.textureId] ?? null
+    : null
+
+  materials.forEach((material) => {
+    if (!material) {
+      return
+    }
+
+    if (material.color?.set) {
+      material.color.set(appearance?.color || '#b4c9a6')
+    }
+
+    material.metalness = appearance?.finish?.metalness ?? 0.03
+
+    if (!textureConfig) {
+      material.map = null
+      material.normalMap = null
+      material.roughnessMap = null
+      material.roughness = appearance?.finish?.roughness ?? 0.56
+      material.needsUpdate = true
+      return
+    }
+
+    const colorTexture = getTextureByUrl(textureConfig.maps.colorUrl, { isColorTexture: true })
+    const normalTexture = getTextureByUrl(textureConfig.maps.normalUrl)
+    const roughnessTexture = getTextureByUrl(textureConfig.maps.roughnessUrl)
+    const textureIntensity = typeof textureAppearance?.intensity === 'number' ? textureAppearance.intensity : 1
+
+    applyTextureTransform(colorTexture, textureAppearance)
+    applyTextureTransform(normalTexture, textureAppearance)
+    applyTextureTransform(roughnessTexture, textureAppearance)
+
+    material.map = colorTexture
+    material.normalMap = normalTexture
+    material.roughnessMap = roughnessTexture
+    material.roughness = 1
+    if (material.normalScale?.set) {
+      material.normalScale.set(textureIntensity, textureIntensity)
+    }
+    material.needsUpdate = true
+  })
+}
+
 function applyFloorTextureById(textureId) {
   if (typeof textureId !== 'string' || !textureId.length) {
     return
@@ -642,7 +676,43 @@ function applyBlockColor(objectId, color) {
 
   const mesh = meshById.get(objectId)
   if (mesh) {
-    setMeshColor(mesh, color)
+    applyShapeAppearance(mesh, objectState.appearance)
+  }
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
+function applyBlockTextureById(objectId, textureId) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.SHAPE)
+
+  if (!objectState) {
+    return
+  }
+
+  const textureConfig = FLOOR_TEXTURE_BY_ID[textureId]
+
+  if (!textureConfig) {
+    return
+  }
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    texture: textureConfig.defaultTexture
+      ? {
+          ...textureConfig.defaultTexture
+        }
+      : null
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyShapeAppearance(mesh, objectState.appearance)
   }
 
   if (selectedObjectId.value === objectId) {
@@ -966,11 +1036,14 @@ watch(
 watch(
   () => props.blockAppearanceAction.sequence,
   () => {
-    if (props.blockAppearanceAction?.type !== 'update-block-color') {
+    if (props.blockAppearanceAction?.type === 'update-block-color') {
+      applyBlockColor(props.blockAppearanceAction.objectId, props.blockAppearanceAction.color)
       return
     }
 
-    applyBlockColor(props.blockAppearanceAction.objectId, props.blockAppearanceAction.color)
+    if (props.blockAppearanceAction?.type === 'update-block-texture') {
+      applyBlockTextureById(props.blockAppearanceAction.objectId, props.blockAppearanceAction.textureId)
+    }
   }
 )
 

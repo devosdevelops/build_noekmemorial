@@ -38,6 +38,7 @@
       :selected-asset="selectedAsset"
       @close="handleAssetConfigurationClose"
       @update-color="handleBlockColorChange"
+      @update-texture="handleBlockTextureChange"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -86,6 +87,7 @@ const blockAppearanceAction = ref({
   type: null,
   objectId: null,
   color: null,
+  textureId: null,
   sequence: 0
 })
 const floorAction = ref({
@@ -251,6 +253,9 @@ function handleSelectionChanged(selection) {
     objectId: selection.objectId,
     assetId,
     label: blockLabelByType[assetId] ?? 'Blok',
+    textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
+      ? selection.appearance.texture.textureId
+      : 'no-texture',
     color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
       ? selection.appearance.color
       : '#b4c9a6'
@@ -271,6 +276,25 @@ function handleBlockColorChange(color) {
   selectedAsset.value = {
     ...selectedAsset.value,
     color
+  }
+  isSceneDirty.value = true
+}
+
+function handleBlockTextureChange(textureId) {
+  if (!selectedAsset.value?.objectId || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  blockAppearanceAction.value = {
+    type: 'update-block-texture',
+    objectId: selectedAsset.value.objectId,
+    textureId,
+    sequence: blockAppearanceAction.value.sequence + 1
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    textureId
   }
   isSceneDirty.value = true
 }

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { FLOOR_TEXTURE_OPTIONS } from '../../config/floorTextures.js'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import ColorDiskPicker from './ColorDiskPicker.vue'
@@ -11,34 +12,17 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'update-color'])
+const emit = defineEmits(['close', 'update-color', 'update-texture'])
 
 const currentColor = ref('#b4c9a6')
 const activeMaterialTab = ref('color')
-const selectedTexturePreviewId = ref('sandstone')
+const selectedTexturePreviewId = ref('no-texture')
 
-const texturePreviewOptions = [
-  {
-    id: 'sandstone',
-    name: 'Zandsteen',
-    detail: 'Warm en zacht'
-  },
-  {
-    id: 'marble',
-    name: 'Marmer',
-    detail: 'Helder contrast'
-  },
-  {
-    id: 'basalt',
-    name: 'Basalt',
-    detail: 'Diepe structuur'
-  },
-  {
-    id: 'linen',
-    name: 'Linnen',
-    detail: 'Subtiel geweven'
-  }
-]
+const texturePreviewOptions = FLOOR_TEXTURE_OPTIONS.map((option) => ({
+  id: option.id,
+  name: option.label,
+  previewUrl: option.previewUrl
+}))
 
 const panelTitle = computed(() => {
   if (!props.selectedAsset) {
@@ -74,7 +58,17 @@ watch(
   () => props.selectedAsset?.objectId,
   () => {
     activeMaterialTab.value = 'color'
-    selectedTexturePreviewId.value = 'sandstone'
+    selectedTexturePreviewId.value = props.selectedAsset?.textureId || 'no-texture'
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.selectedAsset?.textureId,
+  (nextTextureId) => {
+    selectedTexturePreviewId.value = typeof nextTextureId === 'string' && nextTextureId.length
+      ? nextTextureId
+      : 'no-texture'
   },
   { immediate: true }
 )
@@ -97,7 +91,12 @@ function setMaterialTab(tabId) {
 }
 
 function selectTexturePreview(textureId) {
+  if (!isBlockAsset.value || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
   selectedTexturePreviewId.value = textureId
+  emit('update-texture', textureId)
 }
 </script>
 
@@ -154,7 +153,7 @@ function selectTexturePreview(textureId) {
 
       <div v-else class="material-panel" role="tabpanel" aria-label="Textuur tab">
         <h3 class="section-title">Textuurstijl</h3>
-        <p class="section-copy">Voorbeeld van textuurinstellingen. Koppeling volgt in de volgende stap.</p>
+        <p class="section-copy">Kies een textuur voor het geselecteerde blok.</p>
 
         <div class="texture-grid">
           <button
@@ -165,21 +164,13 @@ function selectTexturePreview(textureId) {
             :class="{ 'texture-tile--active': selectedTexturePreviewId === texture.id }"
             @click="selectTexturePreview(texture.id)"
           >
-            <span class="texture-tile__swatch" :class="`texture-tile__swatch--${texture.id}`" />
+            <span
+              class="texture-tile__swatch"
+              :class="{ 'texture-tile__swatch--empty': !texture.previewUrl }"
+              :style="texture.previewUrl ? { backgroundImage: `url(${texture.previewUrl})` } : null"
+            />
             <span class="texture-tile__name">{{ texture.name }}</span>
-            <span class="texture-tile__detail">{{ texture.detail }}</span>
           </button>
-        </div>
-
-        <div class="texture-meta">
-          <div class="texture-meta__row">
-            <span class="texture-meta__label">Schaal</span>
-            <span class="texture-meta__value">100%</span>
-          </div>
-          <div class="texture-meta__row">
-            <span class="texture-meta__label">Ruwheid</span>
-            <span class="texture-meta__value">Medium</span>
-          </div>
         </div>
       </div>
     </section>
@@ -405,22 +396,8 @@ function selectTexturePreview(textureId) {
   height: 2rem;
   border-radius: 0.45rem;
   border: 1px solid rgba(80, 95, 65, 0.14);
-}
-
-.texture-tile__swatch--sandstone {
-  background: linear-gradient(140deg, #d8c4a0, #b98f69);
-}
-
-.texture-tile__swatch--marble {
-  background: linear-gradient(140deg, #f2f2f2, #ced4dc);
-}
-
-.texture-tile__swatch--basalt {
-  background: linear-gradient(140deg, #777f86, #4d545c);
-}
-
-.texture-tile__swatch--linen {
-  background: linear-gradient(140deg, #d8ceb8, #c2b299);
+  background-size: cover;
+  background-position: center;
 }
 
 .texture-tile__name {
@@ -429,39 +406,15 @@ function selectTexturePreview(textureId) {
   font-weight: 700;
 }
 
-.texture-tile__detail {
-  color: rgba(85, 98, 71, 0.78);
-  font-size: 0.73rem;
-}
-
-.texture-meta {
-  margin-top: 0.26rem;
-  border: 1px solid rgba(123, 138, 108, 0.28);
-  border-radius: 0.65rem;
-  background: rgba(246, 250, 241, 0.66);
-  padding: 0.52rem 0.6rem;
-  display: grid;
-  gap: 0.38rem;
-}
-
-.texture-meta__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.texture-meta__label {
-  color: rgba(79, 91, 66, 0.86);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.texture-meta__value {
-  color: rgba(52, 63, 40, 0.9);
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+.texture-tile__swatch--empty {
+  background-image:
+    linear-gradient(45deg, rgba(188, 198, 213, 0.52) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(188, 198, 213, 0.52) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(188, 198, 213, 0.52) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(188, 198, 213, 0.52) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+  background-color: rgba(241, 244, 248, 0.92);
 }
 
 @media (max-width: 900px) {

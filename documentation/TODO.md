@@ -16,6 +16,7 @@
 
 [] Auto deselect any other object
 [] load models with loader
+[] change selected mode because current glow hides the color
 [x] make sure models are saved to the supabase 
 [x] block preview in 3D instead of flat shapes
 [x] translate to dutch
