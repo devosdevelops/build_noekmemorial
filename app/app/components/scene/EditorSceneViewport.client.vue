@@ -485,6 +485,46 @@ function addBlockToScene(shapeType) {
 
 let createdFloorCount = 0
 
+function findNextAvailableFloorGridCell() {
+  // Get all occupied floor grid positions
+  const occupiedCells = new Set()
+  sceneObjects.forEach((obj) => {
+    if (obj.kind === SCENE_KIND.FLOOR && Array.isArray(obj.position)) {
+      const gridX = Math.round(obj.position[0] / gridConfig.cellSize)
+      const gridZ = Math.round(obj.position[2] / gridConfig.cellSize)
+      occupiedCells.add(`${gridX},${gridZ}`)
+    }
+  })
+
+  console.log('[Floor Grid] Occupied cells:', Array.from(occupiedCells), 'Total floors:', sceneObjects.filter(o => o.kind === SCENE_KIND.FLOOR).length)
+
+  // Search in expanding rings from origin
+  const maxRadius = 10
+  for (let radius = 0; radius <= maxRadius; radius++) {
+    for (let x = -radius; x <= radius; x++) {
+      for (let z = -radius; z <= radius; z++) {
+        // Only check cells at this radius boundary: at least one coord must be at ±radius
+        const isOnRing = Math.abs(x) === radius || Math.abs(z) === radius
+        if (!isOnRing) {
+          continue
+        }
+
+        const key = `${x},${z}`
+        if (!occupiedCells.has(key)) {
+          // Found empty cell
+          const result = [x * gridConfig.cellSize, z * gridConfig.cellSize]
+          console.log('[Floor Grid] Found empty cell at grid', `(${x},${z})`, '→ world', result)
+          return result
+        }
+      }
+    }
+  }
+
+  // Fallback to origin if grid is full (shouldn't happen in practice)
+  console.log('[Floor Grid] Grid full, using fallback [0, 0]')
+  return [0, 0]
+}
+
 function createFloorToScene(textureId) {
   if (!scene || typeof textureId !== 'string' || !textureId.length) {
     return
@@ -507,7 +547,9 @@ function createFloorToScene(textureId) {
   )
   const mesh = new THREE.Mesh(geometry, material)
 
-  const spawnPosition = snapVectorToGrid(THREE, gridConfig, new THREE.Vector3(0, -0.07, 0))
+  // Find next available grid cell on floor plane, keep Y at floor level
+  const [gridX, gridZ] = findNextAvailableFloorGridCell()
+  const spawnPosition = new THREE.Vector3(gridX, -0.07, gridZ)
   mesh.position.copy(spawnPosition)
   mesh.rotation.set(0, 0, 0)
   mesh.scale.set(1, 1, 1)
