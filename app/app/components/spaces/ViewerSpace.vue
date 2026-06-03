@@ -649,7 +649,17 @@ function handleSceneElementSelection(element) {
     description: element.description || '',
     interaction: element.interaction ?? null
   })
-    setPointerWorldPosition(Array.isArray(element.worldPosition) ? element.worldPosition : null)
+  setPointerWorldPosition(Array.isArray(element.worldPosition) ? element.worldPosition : null)
+
+  // Auto-open media carousel if element has media interaction
+  if (
+    element?.interaction?.type === 'media-carousel'
+    && typeof element?.interaction?.mediaKind === 'string'
+    && element.interaction.mediaKind.length
+  ) {
+    openMediaCarousel(element.interaction.mediaKind)
+    return
+  }
 
   closeMediaCarousel()
   openPanel('element')
