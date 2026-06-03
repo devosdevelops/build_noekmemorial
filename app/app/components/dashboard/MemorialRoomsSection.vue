@@ -25,11 +25,11 @@
 
         <div class="room-actions">
           <button class="btn-secondary">
-            <span class="btn-icon">👁️</span>
+            <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
             Bekijk Details
           </button>
           <button class="btn-primary">
-            <span class="btn-icon">✏️</span>
+            <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
             Open in Editor
           </button>
         </div>
@@ -266,6 +266,12 @@ function formatDate(date) {
 .btn-icon {
   font-size: 0.92em;
   line-height: 1;
+}
+
+.action-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
