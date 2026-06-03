@@ -6,9 +6,9 @@
     [x] refactor ui to stick to sides
     [x] reposition config ui to center
     [x] add logo
-    [] add icons
-    [] add hinting for toolbar
-    [] replace close buttons with x's
+    [x] add icons
+    [x] add hinting for toolbar
+    [x] replace close buttons with x's and info icons 
 [] add other tables to supabase
 [] connect editors to accounts
 [] load screen when loading page
@@ -49,7 +49,8 @@
     [x] square object
     [x] intermediate sizes
     [x] rect object
-[] click a selected object to deselect it
+[x] click a selected object to deselect it
+[] standardize height of pannel left toolbar
 [] configure underfloor in settings instead
 [] color textures better
 [] round the scroll bar containers

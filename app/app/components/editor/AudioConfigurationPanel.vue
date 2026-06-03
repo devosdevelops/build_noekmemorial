@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
 const props = defineProps({
@@ -124,7 +124,7 @@ watch(
   <OverlayCard class="audio-config-panel" aria-label="Audioconfiguratie">
     <header class="panel-header">
       <h2 class="panel-title">Audio geselecteerd</h2>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <div class="panel-body">

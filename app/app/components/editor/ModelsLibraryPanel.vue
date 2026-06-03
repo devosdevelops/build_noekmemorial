@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { POLY_PIZZA_LIST_IDS } from '../../config/polypizza.js'
 
@@ -102,7 +102,7 @@ function handleSelectModel(model) {
           i
         </button>
       </div>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <div v-if="isLoading" class="library-status library-status--loading" role="status" aria-live="polite">

@@ -1,5 +1,5 @@
 <script setup>
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { FLOOR_TEXTURE_OPTIONS } from '../../config/floorTextures.js'
 
@@ -30,7 +30,7 @@ function getFloorLabel(floor) {
   <OverlayCard class="floors-library" aria-label="Vloerenbibliotheek">
     <header class="library-header">
       <h2 class="library-title">Vloeren</h2>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <p class="library-subtitle">Kies een vloerafwerking om direct op de vloer toe te passen.</p>

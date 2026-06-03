@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { FLOOR_TEXTURE_OPTIONS } from '../../config/floorTextures.js'
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import ColorDiskPicker from './ColorDiskPicker.vue'
 
@@ -143,7 +143,7 @@ function handleTextureScaleInput(event) {
   <OverlayCard class="asset-config-panel" aria-label="Assetconfiguratie">
     <header class="panel-header">
       <h2 class="panel-title">{{ panelTitle }}</h2>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <section v-if="isAssetWithMaterials" class="material-controls" aria-label="Materiaalconfiguratie">

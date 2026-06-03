@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import * as THREE from 'three'
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
 const emit = defineEmits(['close', 'select-block'])
@@ -129,7 +129,7 @@ onMounted(() => {
   <OverlayCard class="blocks-library" aria-label="Blokkenbibliotheek">
     <header class="library-header">
       <h2 class="library-title">Blokken</h2>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <p class="library-subtitle">Kies een basisblok om aan de scène toe te voegen.</p>

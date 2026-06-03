@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { AUDIO_CATEGORIES, AUDIO_TRACKS } from '../../config/audioLibrary.js'
 
@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
           i
         </button>
       </div>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <div class="category-filters" role="group" aria-label="Categorieën filteren">

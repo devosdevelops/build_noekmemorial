@@ -1,5 +1,5 @@
 <script setup>
-import OverlayButton from '../ui/OverlayButton.vue'
+import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { LIGHTING_PRESETS } from '../../config/lightingPresets.js'
 
@@ -35,7 +35,7 @@ function handleSelectPreset(presetId) {
           i
         </button>
       </div>
-      <OverlayButton class="close-button" label="Sluiten" @click="handleClose" />
+      <CloseIconButton @click="handleClose" />
     </header>
 
     <p class="library-copy">Pas de sfeer van de scene aan met een van deze lichtpresets.</p>
