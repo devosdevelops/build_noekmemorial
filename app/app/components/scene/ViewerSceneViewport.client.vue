@@ -45,6 +45,10 @@ const visitorCandleGlowLights = new Set()
 let activeSelectionMesh = null
 const CANDLE_LIGHT_USERDATA_KEY = '__viewerCandleGlowLight'
 const VIEWER_CANDLE_TARGET_DIAGONAL = 0.34
+const CANDLE_TITLE_PATTERN = /\b(candle|candles|kaars|kaarsen|flame|wick)\b/i
+
+const defaultCameraPosition = new THREE.Vector3()
+const defaultCameraTarget = new THREE.Vector3()
 
 const gltfLoader = new GLTFLoader()
 const textureLoader = new THREE.TextureLoader()
@@ -115,6 +119,9 @@ function captureDefaultCameraView() {
 
   defaultCameraPosition.copy(camera.position)
   defaultCameraTarget.copy(controls.target)
+  
+  controls.target.set(0, 0.8, 0)
+  controls.update()
 }
 
 function cancelCameraTransition() {
@@ -552,7 +559,31 @@ function loadModelWrapper(downloadUrl, modelId) {
   })
 }
 
-function applyCandleGlowToMaterials(modelRoot) {
+function isCandleModel(objectState) {
+  const metadata = objectState?.metadata && typeof objectState.metadata === 'object'
+    ? objectState.metadata
+    : null
+
+  if (metadata?.isCandle === true) {
+    return true
+  }
+
+  const sourceCategory = typeof metadata?.sourceCategory === 'string'
+    ? metadata.sourceCategory
+    : ''
+  if (sourceCategory === 'candle') {
+    return true
+  }
+
+  const title = typeof metadata?.title === 'string' ? metadata.title : ''
+  if (CANDLE_TITLE_PATTERN.test(title)) {
+    return true
+  }
+
+  return false
+}
+
+function applyCandleGlowToMaterials(modelRoot, shouldApply) {
   if (!modelRoot) {
     return
   }
@@ -580,13 +611,43 @@ function applyCandleGlowToMaterials(modelRoot) {
         material.userData.baseEmissiveIntensity = typeof material.emissiveIntensity === 'number' ? material.emissiveIntensity : 1
       }
 
-      material.emissive.set('#ff8c2f')
-      if (typeof material.emissiveIntensity === 'number') {
-        material.emissiveIntensity = Math.max(material.userData.baseEmissiveIntensity, 0.3)
+      if (shouldApply) {
+        material.emissive.set('#ff8c2f')
+        if (typeof material.emissiveIntensity === 'number') {
+          material.emissiveIntensity = Math.max(material.userData.baseEmissiveIntensity, 0.3)
+        }
+        material.userData.candleGlowApplied = true
+        material.needsUpdate = true
+        return
       }
-      material.userData.candleGlowApplied = true
-      material.needsUpdate = true
+
+      if (material.userData.candleGlowApplied) {
+        material.emissive.setHex(material.userData.baseEmissiveHex)
+        if (typeof material.emissiveIntensity === 'number') {
+          material.emissiveIntensity = material.userData.baseEmissiveIntensity
+        }
+        material.userData.candleGlowApplied = false
+        material.needsUpdate = true
+      }
     })
+  })
+}
+
+function removeCandlePointLight(modelRoot) {
+  if (!modelRoot) {
+    return
+  }
+
+  const removableLights = []
+  modelRoot.traverse((child) => {
+    if (child?.isPointLight && child.userData?.[CANDLE_LIGHT_USERDATA_KEY] === true) {
+      removableLights.push(child)
+    }
+  })
+
+  removableLights.forEach((light) => {
+    visitorCandleGlowLights.delete(light)
+    light.parent?.remove(light)
   })
 }
 
@@ -604,9 +665,9 @@ function attachCandlePointLight(modelRoot) {
 
   const light = new THREE.PointLight(
     '#ffb057',
-    0.16,
-    THREE.MathUtils.clamp(size.length() * 0.22, 0.45, 1.1),
-    2.4
+    0.08,
+    Math.max(1.2, size.length() * 0.4),
+    2.0
   )
   light.userData[CANDLE_LIGHT_USERDATA_KEY] = true
   light.userData.baseIntensity = light.intensity
@@ -653,9 +714,15 @@ function updateCandleFlickerAnimation(timeMs) {
   })
 }
 
-function applyCandleLightingEffects(modelRoot) {
-  applyCandleGlowToMaterials(modelRoot)
-  attachCandlePointLight(modelRoot)
+function applyCandleLightingEffects(modelRoot, objectState) {
+  const shouldApplyCandleGlow = isCandleModel(objectState)
+  applyCandleGlowToMaterials(modelRoot, shouldApplyCandleGlow)
+  
+  if (shouldApplyCandleGlow) {
+    attachCandlePointLight(modelRoot)
+  } else {
+    removeCandlePointLight(modelRoot)
+  }
 }
 
 function geometryForObjectState(objectState) {
@@ -886,7 +953,7 @@ function createObjectsFromSceneDocument() {
       try {
         rootObject = await loadModelWrapper(objectState.assetRef, selectableId)
         applyModelAppearance(rootObject, objectState.appearance)
-        applyCandleLightingEffects(rootObject)
+        applyCandleLightingEffects(rootObject, objectState)
         rootObject.traverse((child) => {
           if (child?.isMesh) {
             child.userData.sourceKind = objectState.kind
