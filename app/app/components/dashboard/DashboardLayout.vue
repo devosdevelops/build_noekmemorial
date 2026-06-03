@@ -45,6 +45,9 @@ defineProps({
   background: var(--Brand-CTA, linear-gradient(180deg, #A3B18A 0%, #7A8568 100%));
   padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-content {
