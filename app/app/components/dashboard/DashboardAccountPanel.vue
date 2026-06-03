@@ -163,7 +163,7 @@ const subscriptionPrice = computed(() => {
 })
 
 const roomsLimit = computed(() => appUser.value?.rooms_limit ?? 1)
-const roomsUsed = computed(() => workspaces.value.length)
+const roomsUsed = computed(() => workspaces.value.filter((workspace) => workspace.isOwned).length)
 
 const isAccountSettingsOpen = ref(false)
 const accountFirstName = ref('')

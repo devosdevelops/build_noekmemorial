@@ -74,25 +74,119 @@
 
     <!-- Action Button -->
     <div class="button-wrapper">
-      <NuxtLink class="btn-primary btn-large btn-ok-gradient create-room-link" to="/dashboard/new-room">
+      <NuxtLink
+        v-if="hasFreeSlot"
+        class="btn-primary btn-large btn-ok-gradient create-room-link"
+        to="/dashboard/new-room"
+      >
         <span class="btn-icon">+</span>
-        {{ rooms.length === 0 ? 'Nieuwe Ruimte' : 'Nieuwe Ruimte Aankopen' }}
+        {{ ownedRooms.length === 0 ? 'Nieuwe Ruimte' : 'Ruimte Aanmaken' }}
       </NuxtLink>
+
+      <button
+        v-else
+        type="button"
+        class="btn-primary btn-large btn-ok-gradient create-room-link"
+        @click="openBuySlotsModal"
+      >
+        <span class="btn-icon">+</span>
+        Nieuwe Ruimte Aankopen
+      </button>
+    </div>
+
+    <div
+      v-if="isBuySlotsModalOpen"
+      class="buy-slots-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="buy-slots-modal-title"
+      @click.self="closeBuySlotsModal"
+    >
+      <Card class="buy-slots-modal-card">
+        <div class="buy-slots-modal-header">
+          <h3 id="buy-slots-modal-title">Extra Ruimte Aankopen</h3>
+          <button
+            type="button"
+            class="buy-slots-modal-close"
+            aria-label="Sluiten"
+            :disabled="isPurchasingSlot"
+            @click="closeBuySlotsModal"
+          >
+            ×
+          </button>
+        </div>
+
+        <p class="buy-slots-modal-description">
+          Je huidige limiet is bereikt. Voeg 1 extra ruimteslot toe om een nieuwe herdenkingsruimte te kunnen maken.
+        </p>
+
+        <div class="buy-slots-summary">
+          <div class="buy-slots-row">
+            <span>Eenmalige kost</span>
+            <strong>{{ formatPrice(upfrontPriceCents) }}</strong>
+          </div>
+          <div class="buy-slots-row">
+            <span>Extra onderhoud per jaar</span>
+            <strong>{{ formatPrice(yearlyMaintenancePerSlotCents) }}</strong>
+          </div>
+          <div class="buy-slots-row">
+            <span>Nieuw onderhoud totaal per jaar</span>
+            <strong>{{ formatPrice(nextYearlyMaintenanceCents) }}</strong>
+          </div>
+          <div class="buy-slots-row">
+            <span>Ruimtes na aankoop</span>
+            <strong>{{ roomsLimit + 1 }}</strong>
+          </div>
+        </div>
+
+        <p v-if="purchaseError" class="buy-slots-error">{{ purchaseError }}</p>
+
+        <div class="buy-slots-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            :disabled="isPurchasingSlot"
+            @click="closeBuySlotsModal"
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            class="btn-primary btn-ok-gradient"
+            :disabled="isPurchasingSlot"
+            @click="confirmBuySlot"
+          >
+            {{ isPurchasingSlot ? 'Aankoop verwerken...' : 'Bevestig Aankoop' }}
+          </button>
+        </div>
+      </Card>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Card from '../ui/Card.vue'
 import AppLoadingScreen from '../ui/AppLoadingScreen.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
-const { init } = useAuth()
+const { appUser, init, addRoomSlots } = useAuth()
 const { workspaces: rooms, isLoading, loadError, loadWorkspaces } = useDashboardWorkspaces()
 const ownedRooms = computed(() => rooms.value.filter((room) => room.isOwned))
 const collaboratorRooms = computed(() => rooms.value.filter((room) => !room.isOwned))
+const roomsLimit = computed(() => Number(appUser.value?.rooms_limit ?? 1))
+const yearlyMaintenanceCents = computed(() => Number(appUser.value?.maintenance_yearly_price_cents ?? 0))
+const hasFreeSlot = computed(() => ownedRooms.value.length < roomsLimit.value)
+
+const upfrontPriceCents = 9900
+const yearlyMaintenancePerSlotCents = 1800
+
+const isBuySlotsModalOpen = ref(false)
+const isPurchasingSlot = ref(false)
+const purchaseError = ref('')
+
+const nextYearlyMaintenanceCents = computed(() => yearlyMaintenanceCents.value + yearlyMaintenancePerSlotCents)
 
 onMounted(async () => {
   await init()
@@ -105,6 +199,45 @@ function formatDate(date) {
     month: 'long',
     year: 'numeric'
   }).format(date)
+}
+
+function formatPrice(cents) {
+  const amount = Number(cents || 0) / 100
+  return new Intl.NumberFormat('nl-BE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2
+  }).format(amount)
+}
+
+function openBuySlotsModal() {
+  purchaseError.value = ''
+  isBuySlotsModalOpen.value = true
+}
+
+function closeBuySlotsModal() {
+  if (isPurchasingSlot.value) return
+  isBuySlotsModalOpen.value = false
+  purchaseError.value = ''
+}
+
+async function confirmBuySlot() {
+  if (isPurchasingSlot.value) return
+
+  isPurchasingSlot.value = true
+  purchaseError.value = ''
+
+  try {
+    await addRoomSlots({
+      slots: 1,
+      yearlyMaintenanceIncreaseCents: yearlyMaintenancePerSlotCents
+    })
+    isBuySlotsModalOpen.value = false
+  } catch (error) {
+    purchaseError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Aankoop van extra ruimteslot is mislukt.'
+  } finally {
+    isPurchasingSlot.value = false
+  }
 }
 
 </script>
@@ -320,6 +453,105 @@ function formatDate(date) {
   width: 100%;
 }
 
+.buy-slots-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(19, 24, 34, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 1rem;
+}
+
+.buy-slots-modal-card {
+  width: min(100%, 30rem);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.buy-slots-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.buy-slots-modal-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2534;
+}
+
+.buy-slots-modal-close {
+  border: 0;
+  background: transparent;
+  color: #687089;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.buy-slots-modal-description {
+  margin: 0;
+  color: #4f576d;
+  font-size: 0.92rem;
+}
+
+.buy-slots-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border: 1px solid #d8dde9;
+  border-radius: 10px;
+  padding: 0.85rem;
+  background: #f9fbff;
+}
+
+.buy-slots-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #3d4457;
+}
+
+.buy-slots-row strong {
+  font-weight: 700;
+  color: #1f2534;
+}
+
+.buy-slots-error {
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid #f2b6b6;
+  background: #fff2f2;
+  color: #a23636;
+  font-size: 0.88rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.buy-slots-actions {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.buy-slots-actions .btn-primary,
+.buy-slots-actions .btn-secondary {
+  flex: 1;
+}
+
+.buy-slots-actions button:disabled,
+.buy-slots-modal-close:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 .btn-icon {
   font-size: 0.92em;
   line-height: 1;
@@ -345,6 +577,10 @@ function formatDate(date) {
   .btn-secondary {
     width: 100%;
     justify-content: center;
+  }
+
+  .buy-slots-actions {
+    flex-direction: column;
   }
 }
 </style>

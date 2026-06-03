@@ -144,6 +144,44 @@ export function useAuth() {
     }
   }
 
+  async function addRoomSlots({
+    slots = 1,
+    yearlyMaintenanceIncreaseCents = 0
+  } = {}) {
+    if (!session.value?.user?.id) {
+      throw new Error('Je moet aangemeld zijn om extra ruimtes toe te voegen.')
+    }
+
+    const slotCount = Number.isFinite(Number(slots)) ? Math.max(1, Math.floor(Number(slots))) : 1
+    const yearlyIncrease = Number.isFinite(Number(yearlyMaintenanceIncreaseCents))
+      ? Math.max(0, Math.floor(Number(yearlyMaintenanceIncreaseCents)))
+      : 0
+
+    const userId = session.value.user.id
+    const currentLimit = Number(appUser.value?.rooms_limit ?? 1)
+    const currentYearly = Number(appUser.value?.maintenance_yearly_price_cents ?? 0)
+    const nextLimit = currentLimit + slotCount
+    const nextYearly = currentYearly + yearlyIncrease
+
+    const { data, error } = await supabase
+      .from('app_users')
+      .update({
+        rooms_limit: nextLimit,
+        maintenance_yearly_price_cents: nextYearly
+      })
+      .eq('id', userId)
+      .select('id, email, first_name, last_name, billing_card_last4, maintenance_yearly_price_cents, rooms_limit')
+      .single()
+
+    if (error) throw error
+
+    if (data) {
+      appUser.value = data
+    }
+
+    return data
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     session.value = null
@@ -160,6 +198,7 @@ export function useAuth() {
     resendSignupVerification,
     updateProfile,
     updateEmail,
+    addRoomSlots,
     signOut
   }
 }
