@@ -44,6 +44,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (workspace.visibility === 'offline') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Deze herdenkingsruimte is nog offline en nog niet gepubliceerd.'
+    })
+  }
+
   const requestedPin = normalizePin(getQuery(event)?.accessPin)
   const expectedPin = normalizePin(workspace.access_pin)
 

@@ -135,9 +135,13 @@
             <Card class="details-card">
               <h2 class="card-title">Delen & Zichtbaarheid</h2>
               <div class="visibility-row">
-                <label><input v-model="visibility" type="radio" value="public" /> Publiek</label>
-                <label><input v-model="visibility" type="radio" value="private" /> Afgeschermd</label>
+                <label><input v-model="visibility" type="radio" value="offline" disabled /> Offline</label>
+                <label><input v-model="visibility" type="radio" value="public" disabled /> Publiek</label>
+                <label><input v-model="visibility" type="radio" value="private" disabled /> Afgeschermd</label>
               </div>
+              <p v-if="isOfflineRoom" class="helper-text visibility-note">
+                Deze ruimte staat nog offline. Publiceer eerst vanuit de editor om publiek of afgeschermd te activeren.
+              </p>
               <p class="helper-text">
                 Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft.
                 Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
@@ -278,13 +282,35 @@
               <label class="room-settings-section-title">Zichtbaarheids Instellingen</label>
               <div class="room-settings-radio-row">
                 <label class="room-settings-radio-item">
-                  <input v-model="roomSettingsVisibility" type="radio" value="public" />
+                  <input v-model="roomSettingsVisibility" type="radio" value="offline" disabled />
+                  <span>Offline</span>
+                </label>
+                <label class="room-settings-radio-item">
+                  <input v-model="roomSettingsVisibility" type="radio" value="public" :disabled="isOfflineRoomDraft" />
                   <span>Publiek</span>
                 </label>
                 <label class="room-settings-radio-item">
-                  <input v-model="roomSettingsVisibility" type="radio" value="private" />
+                  <input v-model="roomSettingsVisibility" type="radio" value="private" :disabled="isOfflineRoomDraft" />
                   <span>Afgeschermd</span>
                 </label>
+              </div>
+              <p v-if="isOfflineRoomDraft" class="room-settings-help-text">
+                Deze ruimte is nog offline. Gebruik in de editor eerst de knop Publiceer om publiek of afgeschermd te kiezen.
+              </p>
+            </div>
+
+            <div v-if="roomSettingsVisibility === 'private'" class="room-settings-field">
+              <label class="room-settings-section-title">Pincode (6 cijfers)</label>
+              <div class="room-settings-pin-row">
+                <input
+                  v-model="roomSettingsAccessPin"
+                  type="text"
+                  class="room-settings-input"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="Bijv. 123456"
+                />
+                <button type="button" class="pin-generate" @click="generateRoomSettingsPin">Genereer PIN</button>
               </div>
             </div>
 
@@ -443,6 +469,12 @@ const room = computed(() => {
     workspace.value.name
   )
 
+  const visibilityLabel = workspace.value.visibility === 'private'
+    ? 'Afgeschermd'
+    : workspace.value.visibility === 'offline'
+      ? 'Offline'
+      : 'Publiek'
+
   return {
     id: workspace.value.id,
     title: workspace.value.name || `In liefdevolle herinnering aan ${deceasedName}`,
@@ -450,7 +482,7 @@ const room = computed(() => {
     owner: formatDisplayName(owner.value?.first_name, owner.value?.last_name, owner.value?.email),
     slug: workspace.value.slug,
     visibility: workspace.value.visibility,
-    visibilityLabel: workspace.value.visibility === 'private' ? 'Afgeschermd' : 'Publiek',
+    visibilityLabel,
     approvalMode: workspace.value.approval_mode,
     accessPin: workspace.value.access_pin,
     updatedAtLabel: formatDateTime(workspace.value.updated_at)
@@ -487,14 +519,15 @@ const ownerPerson = computed(() => {
   }
 })
 
-const visibility = ref('public')
+const visibility = ref('offline')
 const approvalMode = ref('manual')
 const isRoomSettingsOpen = ref(false)
 const roomSettingsName = ref('')
 const roomSettingsFirstName = ref('')
 const roomSettingsLastName = ref('')
-const roomSettingsVisibility = ref('public')
+const roomSettingsVisibility = ref('offline')
 const roomSettingsApprovalMode = ref('manual')
+const roomSettingsAccessPin = ref('')
 const roomPinCode = ref('')
 const isPinHidden = ref(true)
 const isCollaboratorModalOpen = ref(false)
@@ -522,6 +555,9 @@ const canManageRoom = computed(() => {
   return currentUserId === ownerId
 })
 
+const isOfflineRoom = computed(() => room.value?.visibility === 'offline')
+const isOfflineRoomDraft = computed(() => room.value?.visibility === 'offline')
+
 let copyToastTimer = null
 let saveToastTimer = null
 let inviteToastTimer = null
@@ -539,6 +575,7 @@ watch(
     roomSettingsVisibility.value = nextRoom.visibility
     roomSettingsApprovalMode.value = nextRoom.approvalMode
     roomPinCode.value = nextRoom.accessPin || ''
+    roomSettingsAccessPin.value = nextRoom.accessPin || ''
   },
   { immediate: true }
 )
@@ -551,8 +588,18 @@ function openRoomSettings() {
   roomSettingsLastName.value = workspace.value?.deceased_last_name || ''
   roomSettingsVisibility.value = visibility.value
   roomSettingsApprovalMode.value = approvalMode.value
+  roomSettingsAccessPin.value = roomPinCode.value || ''
   saveError.value = ''
   isRoomSettingsOpen.value = true
+}
+
+function normalizePinInput(value) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
+function generateRoomSettingsPin() {
+  roomSettingsAccessPin.value = String(Math.floor(100000 + Math.random() * 900000))
 }
 
 function copyRoomUrl() {
@@ -731,6 +778,13 @@ async function saveRoomSettings() {
   }
 
   saveError.value = ''
+
+  roomSettingsAccessPin.value = normalizePinInput(roomSettingsAccessPin.value)
+  if (roomSettingsVisibility.value === 'private' && !/^\d{6}$/.test(roomSettingsAccessPin.value)) {
+    saveError.value = 'PIN moet exact 6 cijfers bevatten.'
+    return
+  }
+
   isSavingRoomSettings.value = true
 
   try {
@@ -744,7 +798,8 @@ async function saveRoomSettings() {
         deceasedFirstName: roomSettingsFirstName.value.trim(),
         deceasedLastName: roomSettingsLastName.value.trim(),
         visibility: roomSettingsVisibility.value,
-        approvalMode: roomSettingsApprovalMode.value
+        approvalMode: roomSettingsApprovalMode.value,
+        accessPin: roomSettingsVisibility.value === 'private' ? roomSettingsAccessPin.value : null
       }
     })
 
@@ -1202,6 +1257,10 @@ onUnmounted(() => {
   display: flex;
   gap: 1rem;
   margin-bottom: 0.45rem;
+}
+
+.visibility-note {
+  color: #7a5a1f;
 }
 
 .helper-text {
@@ -1722,6 +1781,32 @@ onUnmounted(() => {
   accent-color: #8b86c9;
 }
 
+.room-settings-radio-item input:disabled {
+  opacity: 0.55;
+}
+
+.room-settings-pin-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.pin-generate {
+  border: 1px solid #d1d7cf;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: #f7faf4;
+  color: #2f3a4d;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pin-generate:hover {
+  filter: brightness(0.98);
+}
+
 .room-settings-help-text {
   margin: 0.65rem 0 0;
   font-size: 0.82rem;
@@ -1789,6 +1874,10 @@ onUnmounted(() => {
   }
 
   .room-settings-name-row {
+    grid-template-columns: 1fr;
+  }
+
+  .room-settings-pin-row {
     grid-template-columns: 1fr;
   }
 

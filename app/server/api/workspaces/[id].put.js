@@ -5,6 +5,21 @@ function formatName(firstName, lastName, fallback) {
   return [firstName, lastName].filter(Boolean).join(' ').trim() || fallback || 'Onbekend'
 }
 
+function parseVisibility(value) {
+  if (value === 'private') return 'private'
+  if (value === 'public') return 'public'
+  return 'offline'
+}
+
+function generateAccessPin() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+function normalizeAccessPin(value) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
 function mapWorkspaceResponse(workspace, owner, collaborators = []) {
   const deceasedName = formatName(workspace.deceased_first_name, workspace.deceased_last_name, workspace.name)
   const ownerName = formatName(owner?.first_name, owner?.last_name, owner?.email)
@@ -42,8 +57,9 @@ export default defineEventHandler(async (event) => {
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const deceasedFirstName = typeof body?.deceasedFirstName === 'string' ? body.deceasedFirstName.trim() : ''
   const deceasedLastName = typeof body?.deceasedLastName === 'string' ? body.deceasedLastName.trim() : ''
-  const visibility = body?.visibility === 'private' ? 'private' : 'public'
+  const visibility = parseVisibility(body?.visibility)
   const approvalMode = body?.approvalMode === 'automatic' ? 'automatic' : 'manual'
+  const requestedAccessPin = normalizeAccessPin(body?.accessPin)
 
   if (!name) {
     throw createError({
@@ -69,6 +85,25 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (targetWorkspace.visibility === 'offline' && visibility !== 'offline') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Publiceer de ruimte eerst vanuit de editor om zichtbaarheid te wijzigen.'
+    })
+  }
+
+  let nextAccessPin = null
+  if (visibility === 'private') {
+    if (requestedAccessPin.length && !/^\d{6}$/.test(requestedAccessPin)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'PIN moet exact 6 cijfers bevatten.'
+      })
+    }
+
+    nextAccessPin = requestedAccessPin || targetWorkspace.access_pin || generateAccessPin()
+  }
+
   const { data: updatedWorkspace, error: updateError } = await supabase
     .from('app_workspaces')
     .update({
@@ -76,7 +111,8 @@ export default defineEventHandler(async (event) => {
       deceased_first_name: deceasedFirstName || null,
       deceased_last_name: deceasedLastName || null,
       visibility,
-      approval_mode: approvalMode
+      approval_mode: approvalMode,
+      access_pin: nextAccessPin
     })
     .eq('id', workspaceId)
     .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, created_at, updated_at')
