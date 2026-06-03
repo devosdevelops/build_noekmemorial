@@ -1,8 +1,18 @@
 import { createSupabaseServerClient } from '../../../utils/supabaseServerClient.js'
 import { requireAuthenticatedAppUser, requireWorkspaceAccess } from '../../../utils/workspaceAccess.js'
 
+function parsePublishVisibility(value) {
+  return value === 'private' ? 'private' : value === 'public' ? 'public' : null
+}
+
+function generateAccessPin() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
 export default defineEventHandler(async (event) => {
   const workspaceId = getRouterParam(event, 'id')
+  const body = await readBody(event)
+  const requestedVisibility = parsePublishVisibility(body?.visibility)
 
   if (!workspaceId || !workspaceId.length) {
     throw createError({
@@ -36,14 +46,26 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  if (!requestedVisibility) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Kies bij de eerste publicatie Publiek of Afgeschermd.'
+    })
+  }
+
+  const nextAccessPin = requestedVisibility === 'private'
+    ? targetWorkspace.access_pin || generateAccessPin()
+    : null
+
   const { data: publishedWorkspace, error: publishError } = await supabase
     .from('app_workspaces')
     .update({
-      visibility: 'public',
-      access_pin: null
+      visibility: requestedVisibility,
+      access_pin: nextAccessPin,
+      published_at: new Date().toISOString()
     })
     .eq('id', workspaceId)
-    .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, created_at, updated_at')
+    .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, published_at, created_at, updated_at')
     .single()
 
   if (publishError || !publishedWorkspace) {
