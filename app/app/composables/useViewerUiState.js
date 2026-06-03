@@ -22,7 +22,7 @@ export function useViewerUiState() {
   }
 
   function setMode(mode) {
-    if (!['look-around', 'flythrough', 'vr'].includes(mode)) {
+    if (!['look-around', 'flythrough'].includes(mode)) {
       return
     }
 

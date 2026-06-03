@@ -361,6 +361,7 @@ const isInitialBootLoadFinished = ref(false)
 const hasSceneViewportMounted = ref(false)
 const hasEditorReadyBeenEmitted = ref(false)
 let editorWarningTimer = null
+const pendingPrepareSaveResolvers = []
 
 const {
   persistenceStatus,
@@ -407,6 +408,46 @@ function emitEditorReadyOnce() {
 
   hasEditorReadyBeenEmitted.value = true
   emit('editor-ready')
+}
+
+function resolvePendingPrepareSaveRequests(result) {
+  if (!pendingPrepareSaveResolvers.length) {
+    return
+  }
+
+  const resolvers = pendingPrepareSaveResolvers.splice(0, pendingPrepareSaveResolvers.length)
+  resolvers.forEach((resolve) => {
+    resolve(result)
+  })
+}
+
+async function ensureLatestScenePersistedBeforePublish() {
+  if (!hasSceneViewportMounted.value) {
+    return true
+  }
+
+  return await new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      const index = pendingPrepareSaveResolvers.indexOf(onPrepared)
+      if (index >= 0) {
+        pendingPrepareSaveResolvers.splice(index, 1)
+      }
+
+      resolve(false)
+    }, 12000)
+
+    const onPrepared = (result) => {
+      clearTimeout(timeoutId)
+      resolve(result)
+    }
+
+    pendingPrepareSaveResolvers.push(onPrepared)
+
+    persistenceAction.value = {
+      type: 'prepare-save',
+      sequence: persistenceAction.value.sequence + 1
+    }
+  })
 }
 
 function triggerEditorWarning(message) {
@@ -1229,6 +1270,12 @@ async function startWorkspacePublishFlow() {
   }
 
   try {
+    const didPersistLatestScene = await ensureLatestScenePersistedBeforePublish()
+    if (!didPersistLatestScene) {
+      triggerEditorWarning('Opslaan van de laatste scène is mislukt. Publiceren is afgebroken.')
+      return
+    }
+
     const workspace = await fetchWorkspaceContext(accessToken)
     const isFirstPublish = workspace?.visibility === 'offline'
 
@@ -1420,6 +1467,7 @@ async function saveWorkspaceSettings() {
 
 async function handleSceneDocumentPrepared(payload) {
   if (!payload || typeof payload !== 'object') {
+    resolvePendingPrepareSaveRequests(false)
     return
   }
 
@@ -1432,6 +1480,7 @@ async function handleSceneDocumentPrepared(payload) {
 
   if (!latestSaveDiagnostics.value.isValid || !latestPreparedScene.value) {
     console.warn('Scene document is invalid and was not saved.', latestSaveDiagnostics.value)
+    resolvePendingPrepareSaveRequests(false)
     return
   }
 
@@ -1445,6 +1494,7 @@ async function handleSceneDocumentPrepared(payload) {
       persistenceStatus: persistenceStatus.value,
       persistenceError: persistenceError.value
     })
+    resolvePendingPrepareSaveRequests(false)
     return
   }
 
@@ -1459,6 +1509,8 @@ async function handleSceneDocumentPrepared(payload) {
     diagnostics: latestSaveDiagnostics.value,
     savedSceneId: lastSavedSceneId.value
   })
+
+  resolvePendingPrepareSaveRequests(true)
 }
 
 async function loadSceneIntoEditor() {

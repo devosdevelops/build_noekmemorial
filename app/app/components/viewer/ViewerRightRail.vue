@@ -43,8 +43,7 @@ defineEmits(['toggle-ui', 'set-mode', 'toggle-music'])
 
 const modes = [
   { value: 'look-around', label: 'Kijken' },
-  { value: 'flythrough', label: 'Fly' },
-  { value: 'vr', label: 'VR' }
+  { value: 'flythrough', label: 'Fly' }
 ]
 </script>
 

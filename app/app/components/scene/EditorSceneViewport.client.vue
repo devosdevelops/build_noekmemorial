@@ -417,6 +417,7 @@ function applyHydratedSceneDocument(sceneDocument) {
     currentLightingPresetId.value = typeof nextLightingPresetId === 'string' && nextLightingPresetId.length
       ? nextLightingPresetId
       : DEFAULT_LIGHTING_PRESET_ID
+    sceneBootstrap?.applyLightingPreset(getLightingPresetById(currentLightingPresetId.value))
 
     const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
       id: 'floor',
@@ -438,7 +439,6 @@ function applyHydratedSceneDocument(sceneDocument) {
           }
         }
 
-          sceneBootstrap?.applyLightingPreset(getLightingPresetById(currentLightingPresetId.value))
         return item
       })
     const nextModelObjects = runtimeObjects.filter((item) => item.kind === SCENE_KIND.MODEL)

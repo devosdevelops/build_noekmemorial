@@ -7,6 +7,9 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
+import { SCENE_KIND } from '../../scene/sceneContract.js'
+import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
 
 const props = defineProps({
   activeMode: {
@@ -34,7 +37,7 @@ const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 const selectableMeshes = []
 const meshMetaById = new Map()
-const runtimeMeshes = []
+const runtimeSceneObjects = []
 const visitorCandleMeshes = []
 const visitorCandleGlowLights = new Set()
 let activeSelectionMesh = null
@@ -42,6 +45,10 @@ const CANDLE_LIGHT_USERDATA_KEY = '__viewerCandleGlowLight'
 const VIEWER_CANDLE_TARGET_DIAGONAL = 0.34
 
 const gltfLoader = new GLTFLoader()
+
+let hemiLight = null
+let sunLight = null
+let sceneUpdateToken = 0
 
 const cameraFocusState = {
   active: false,
@@ -90,7 +97,7 @@ function applyModeSettings() {
     return
   }
 
-  const isLookAround = props.activeMode === 'look-around' || props.activeMode === 'vr'
+  const isLookAround = props.activeMode === 'look-around'
 
   controls.enabled = isLookAround
   controls.enablePan = false
@@ -155,16 +162,96 @@ function disposeGroupResources(group) {
 function clearRuntimeSceneObjects() {
   clearSelectionHighlight()
 
-  runtimeMeshes.forEach((mesh) => {
+  runtimeSceneObjects.forEach((sceneObject) => {
     if (scene) {
-      scene.remove(mesh)
+      scene.remove(sceneObject)
     }
-    disposeMeshResources(mesh)
+    if (sceneObject?.isMesh) {
+      disposeMeshResources(sceneObject)
+      return
+    }
+
+    if (sceneObject?.isObject3D) {
+      disposeGroupResources(sceneObject)
+    }
   })
 
-  runtimeMeshes.length = 0
+  runtimeSceneObjects.length = 0
   selectableMeshes.length = 0
   meshMetaById.clear()
+}
+
+function applyLightingPresetFromSceneDocument() {
+  if (!scene || !hemiLight || !sunLight || !renderer) {
+    return
+  }
+
+  const presetId = props.sceneDocument?.editorSettings?.lighting?.presetId
+  const lightingPreset = getLightingPresetById(
+    typeof presetId === 'string' && presetId.length ? presetId : DEFAULT_LIGHTING_PRESET_ID
+  )
+
+  scene.background = new THREE.Color(lightingPreset.background)
+  scene.fog = new THREE.Fog(lightingPreset.fog, 70, 180)
+  hemiLight.color.set(lightingPreset.hemiSkyColor)
+  hemiLight.groundColor.set(lightingPreset.hemiGroundColor)
+  hemiLight.intensity = lightingPreset.hemiIntensity
+  sunLight.color.set(lightingPreset.sunColor)
+  sunLight.intensity = lightingPreset.sunIntensity
+  sunLight.position.set(...lightingPreset.sunPosition)
+  renderer.toneMappingExposure = lightingPreset.exposure
+}
+
+function applyModelAppearance(modelRoot, appearance) {
+  if (!modelRoot) {
+    return
+  }
+
+  const overrides = Array.isArray(appearance?.materialOverrides)
+    ? appearance.materialOverrides.filter((entry) => {
+        return entry
+          && typeof entry.materialName === 'string'
+          && entry.materialName.length
+          && typeof entry.color === 'string'
+          && entry.color.length
+      })
+    : []
+
+  const overrideColorByMaterial = new Map(overrides.map((entry) => [entry.materialName, entry.color]))
+  const globalOverrideColor = overrideColorByMaterial.get('all-materials') ?? null
+
+  modelRoot.traverse((child) => {
+    if (!child?.isMesh) {
+      return
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+    materials.forEach((material, materialIndex) => {
+      if (!material || !material.color?.set || !material.color?.getHexString) {
+        return
+      }
+
+      if (!material.userData) {
+        material.userData = {}
+      }
+
+      if (typeof material.userData.baseColor !== 'string' || !material.userData.baseColor.length) {
+        material.userData.baseColor = `#${material.color.getHexString()}`
+      }
+
+      const materialName = typeof material.name === 'string' && material.name.length
+        ? `material:${material.name}`
+        : `slot:${child.name || 'mesh'}:${materialIndex}`
+      const targetOverrideColor = overrideColorByMaterial.get(materialName) ?? null
+      const nextColor = targetOverrideColor || globalOverrideColor || material.userData.baseColor
+
+      material.color.set(nextColor)
+      material.roughness = appearance?.finish?.roughness ?? material.roughness
+      material.metalness = appearance?.finish?.metalness ?? material.metalness
+      material.needsUpdate = true
+    })
+  })
 }
 
 function clearVisitorCandles() {
@@ -504,43 +591,70 @@ function createMemorialObjects() {
       description: entry.description,
       interaction: entry.interaction ?? null
     })
-    runtimeMeshes.push(mesh)
+    runtimeSceneObjects.push(mesh)
     scene.add(mesh)
   })
 }
 
 function createObjectsFromSceneDocument() {
-  const sceneObjects = Array.isArray(props.sceneDocument?.objects)
-    ? props.sceneDocument.objects
-    : []
+  const sceneObjects = Array.isArray(props.sceneDocument?.objects) ? props.sceneDocument.objects : []
 
   if (!sceneObjects.length) {
+    createFloor()
     createMemorialObjects()
-    return
+    return Promise.resolve()
   }
 
-  sceneObjects.forEach((objectState, index) => {
+  const hydrationResult = hydrateRuntimeSceneState(props.sceneDocument)
+  const runtimeObjects = hydrationResult.isValid ? hydrationResult.runtimeObjects : []
+  const activeToken = ++sceneUpdateToken
+
+  const objectTasks = runtimeObjects.map(async (objectState, index) => {
+    if (activeToken !== sceneUpdateToken) {
+      return
+    }
+
     const selectableId = typeof objectState?.id === 'string' && objectState.id.length
       ? objectState.id
       : `scene-object-${index}`
-    const fallbackPosition = objectState?.kind === 'floor' ? [0, -0.07, 0] : [0, 1, 0]
-    const position = asVector3(objectState?.transform?.position, fallbackPosition)
-    const rotation = asVector3(objectState?.transform?.rotation, [0, 0, 0])
-    const scale = asVector3(objectState?.transform?.scale, [1, 1, 1])
+    const position = asVector3(objectState?.position, objectState?.kind === SCENE_KIND.FLOOR ? [0, -0.07, 0] : [0, 1, 0])
+    const rotation = asVector3(objectState?.rotation, [0, 0, 0])
+    const scale = asVector3(objectState?.scale, [1, 1, 1])
 
-    const mesh = new THREE.Mesh(
-      geometryForObjectState(objectState),
-      materialForObjectState(objectState)
-    )
+    let rootObject = null
 
-    mesh.position.set(position[0], position[1], position[2])
-    mesh.rotation.set(rotation[0], rotation[1], rotation[2])
-    mesh.scale.set(scale[0], scale[1], scale[2])
-    mesh.userData.sourceKind = objectState?.kind || 'shape'
-    mesh.userData.selectableId = selectableId
+    if (objectState.kind === SCENE_KIND.MODEL && typeof objectState.assetRef === 'string' && objectState.assetRef.length) {
+      try {
+        rootObject = await loadModelWrapper(objectState.assetRef, selectableId)
+        applyModelAppearance(rootObject, objectState.appearance)
+        applyCandleLightingEffects(rootObject)
+        rootObject.traverse((child) => {
+          if (child?.isMesh) {
+            child.userData.sourceKind = objectState.kind
+            child.userData.selectableId = selectableId
+            selectableMeshes.push(child)
+          }
+        })
+      } catch (error) {
+        console.error('[ViewerSceneViewport] Failed to load model from scene document, using primitive fallback.', error)
+      }
+    }
 
-    selectableMeshes.push(mesh)
-    runtimeMeshes.push(mesh)
+    if (!rootObject) {
+      rootObject = new THREE.Mesh(
+        geometryForObjectState(objectState),
+        materialForObjectState(objectState)
+      )
+      rootObject.userData.sourceKind = objectState?.kind || 'shape'
+      rootObject.userData.selectableId = selectableId
+      selectableMeshes.push(rootObject)
+    }
+
+    rootObject.position.set(position[0], position[1], position[2])
+    rootObject.rotation.set(rotation[0], rotation[1], rotation[2])
+    rootObject.scale.set(scale[0], scale[1], scale[2])
+
+    runtimeSceneObjects.push(rootObject)
 
     const metadataTitle = objectState?.metadata?.title
     const defaultTitle = objectState?.kind === 'floor' ? 'Vloer' : 'Scene element'
@@ -554,17 +668,22 @@ function createObjectsFromSceneDocument() {
       interaction: objectState?.interaction ?? null
     })
 
-    scene.add(mesh)
+    if (activeToken === sceneUpdateToken) {
+      scene.add(rootObject)
+    }
   })
+
+  return Promise.all(objectTasks)
 }
 
 function rebuildRuntimeSceneObjects() {
   if (!scene) {
-    return
+    return Promise.resolve()
   }
 
+  applyLightingPresetFromSceneDocument()
   clearRuntimeSceneObjects()
-  createObjectsFromSceneDocument()
+  return createObjectsFromSceneDocument()
 }
 
 function randomFrom(min, max) {
@@ -572,8 +691,8 @@ function randomFrom(min, max) {
 }
 
 function getSupportMeshes() {
-  return runtimeMeshes.filter((mesh) => {
-    if (!mesh || !mesh.isMesh) {
+  return runtimeSceneObjects.filter((mesh) => {
+    if (!mesh || (!mesh.isMesh && !mesh.isGroup)) {
       return false
     }
 
@@ -601,8 +720,8 @@ function findNearestBlockingDistance(candidatePosition, minDistance) {
   const candidate = new THREE.Vector3(candidatePosition[0], candidatePosition[1], candidatePosition[2])
 
   let shortest = Infinity
-  const runtimeCenters = runtimeMeshes
-    .filter((mesh) => mesh?.isMesh)
+  const runtimeCenters = runtimeSceneObjects
+    .filter((mesh) => mesh?.isMesh || mesh?.isGroup)
     .map((mesh) => getMeshBounds(mesh).center)
   const candleCenters = visitorCandleMeshes.map((mesh) => mesh.position.clone())
 
@@ -833,8 +952,8 @@ function setupRendererAndScene() {
   }
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color('#0a1018')
-  scene.fog = new THREE.Fog('#0a1018', 28, 120)
+  scene.background = new THREE.Color('#e9ede5')
+  scene.fog = new THREE.Fog('#e9ede5', 70, 180)
 
   camera = new THREE.PerspectiveCamera(58, 1, 0.1, 220)
   camera.position.set(0, 9, 18)
@@ -849,16 +968,13 @@ function setupRendererAndScene() {
   controls.dampingFactor = 0.07
   controls.target.set(0, 1.8, 0)
 
-  const ambient = new THREE.AmbientLight('#fffaf0', 0.5)
-  const hemi = new THREE.HemisphereLight('#cbe4ff', '#456078', 0.6)
-  const sun = new THREE.DirectionalLight('#fff7de', 0.75)
-  sun.position.set(12, 18, 8)
+  hemiLight = new THREE.HemisphereLight('#f7faef', '#b9c7b2', 0.82)
+  sunLight = new THREE.DirectionalLight('#ffffff', 0.84)
+  sunLight.position.set(20, 38, 14)
 
-  scene.add(ambient)
-  scene.add(hemi)
-  scene.add(sun)
+  scene.add(hemiLight)
+  scene.add(sunLight)
 
-  createFloor()
   rebuildRuntimeSceneObjects()
 
   resizeObserver = new ResizeObserver(() => {
@@ -1072,20 +1188,20 @@ function onKeyDown(event) {
     return
   }
 
-  if (event.code === 'KeyW') keyState.forward = true
-  if (event.code === 'KeyS') keyState.backward = true
-  if (event.code === 'KeyA') keyState.left = true
-  if (event.code === 'KeyD') keyState.right = true
+  if (event.code === 'KeyW' || event.code === 'ArrowUp') keyState.forward = true
+  if (event.code === 'KeyS' || event.code === 'ArrowDown') keyState.backward = true
+  if (event.code === 'KeyA' || event.code === 'ArrowLeft') keyState.left = true
+  if (event.code === 'KeyD' || event.code === 'ArrowRight') keyState.right = true
   if (event.code === 'Space') keyState.up = true
   if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') keyState.down = true
   if (event.code === 'AltLeft' || event.code === 'AltRight') keyState.fast = true
 }
 
 function onKeyUp(event) {
-  if (event.code === 'KeyW') keyState.forward = false
-  if (event.code === 'KeyS') keyState.backward = false
-  if (event.code === 'KeyA') keyState.left = false
-  if (event.code === 'KeyD') keyState.right = false
+  if (event.code === 'KeyW' || event.code === 'ArrowUp') keyState.forward = false
+  if (event.code === 'KeyS' || event.code === 'ArrowDown') keyState.backward = false
+  if (event.code === 'KeyA' || event.code === 'ArrowLeft') keyState.left = false
+  if (event.code === 'KeyD' || event.code === 'ArrowRight') keyState.right = false
   if (event.code === 'Space') keyState.up = false
   if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') keyState.down = false
   if (event.code === 'AltLeft' || event.code === 'AltRight') keyState.fast = false
@@ -1143,7 +1259,7 @@ function animate(time) {
   updateCandleFlickerAnimation(safeTime)
   updateCameraFocusTransition(safeTime)
 
-  if (props.activeMode === 'look-around' || props.activeMode === 'vr') {
+  if (props.activeMode === 'look-around') {
     controls?.update()
   } else {
     updateFlythrough(deltaSeconds)

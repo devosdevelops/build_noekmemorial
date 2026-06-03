@@ -1,8 +1,14 @@
 <template>
   <nav class="viewer-dock" aria-label="Viewer acties">
-    <button type="button" class="viewer-dock__button" @click="$emit('open-add')">+</button>
-    <button type="button" class="viewer-dock__button" @click="$emit('open-message')">Bericht</button>
-    <button type="button" class="viewer-dock__button" @click="$emit('open-candle')">Kaars</button>
+    <button type="button" class="viewer-dock__icon-button" aria-label="Toevoegen" title="Toevoegen" @click="$emit('open-add')">
+      <img src="/icons/plus.svg" alt="" aria-hidden="true" class="viewer-dock__icon" />
+    </button>
+    <button type="button" class="viewer-dock__icon-button" aria-label="Bericht" title="Bericht" @click="$emit('open-message')">
+      <img src="/icons/chat.svg" alt="" aria-hidden="true" class="viewer-dock__icon" />
+    </button>
+    <button type="button" class="viewer-dock__icon-button" aria-label="Kaars" title="Kaars" @click="$emit('open-candle')">
+      <img src="/icons/candle.svg" alt="" aria-hidden="true" class="viewer-dock__icon" />
+    </button>
   </nav>
 </template>
 
@@ -26,17 +32,28 @@ defineEmits(['open-add', 'open-message', 'open-candle'])
   backdrop-filter: blur(6px);
 }
 
-.viewer-dock__button {
+.viewer-dock__icon-button {
   border: 0;
   border-radius: 999px;
   min-height: 2.4rem;
   min-width: 2.4rem;
-  padding: 0 0.95rem;
+  padding: 0;
   background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
   color: #ffffff;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-dock__icon-button:hover {
+  filter: brightness(1.06);
+}
+
+.viewer-dock__icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  object-fit: contain;
 }
 
 @media (max-width: 700px) {
@@ -46,7 +63,7 @@ defineEmits(['open-add', 'open-message', 'open-candle'])
     justify-content: space-between;
   }
 
-  .viewer-dock__button {
+  .viewer-dock__icon-button {
     flex: 1;
   }
 }
