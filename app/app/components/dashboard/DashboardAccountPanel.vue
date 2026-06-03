@@ -78,7 +78,8 @@
 
         <div class="account-modal-field">
           <label for="account-email">E-mail</label>
-          <input id="account-email" v-model="accountEmail" type="email" class="account-modal-input" />
+          <input id="account-email" v-model="accountEmail" type="email" class="account-modal-input" readonly />
+          <p class="account-modal-help-text">Het inlogadres wordt beheerd via Supabase Auth en is hier alleen ter referentie zichtbaar.</p>
         </div>
 
         <div class="account-modal-field">
@@ -87,7 +88,7 @@
         </div>
 
         <button type="button" class="account-modal-save" @click="saveAccountSettings">
-          Veranderingen Opslaan
+          {{ isSavingAccount ? 'Bezig...' : 'Veranderingen Opslaan' }}
         </button>
       </div>
     </div>
@@ -136,7 +137,7 @@ import IconAccount from '../icons/IconAccount.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
-const { appUser, init, signOut } = useAuth()
+const { appUser, init, signOut, updateProfile } = useAuth()
 const { workspaces, loadWorkspaces } = useDashboardWorkspaces()
 const router = useRouter()
 
@@ -168,6 +169,7 @@ const accountLastName = ref('')
 const accountEmail = ref('')
 const accountCard = ref('')
 const isSaveToastVisible = ref(false)
+const isSavingAccount = ref(false)
 const isSupportPopupOpen = ref(false)
 
 // Pre-fill settings modal from live data
@@ -181,21 +183,31 @@ function openAccountSettings() {
 
 let saveToastTimer = null
 
-function saveAccountSettings() {
-  // Persistence will be wired to a server API in a later step.
-  isAccountSettingsOpen.value = false
-
-  if (saveToastTimer) clearTimeout(saveToastTimer)
-  isSaveToastVisible.value = true
-  saveToastTimer = setTimeout(() => {
-    isSaveToastVisible.value = false
-    saveToastTimer = null
-  }, 2600)
-}
-
 async function handleSignOut() {
   await signOut()
   router.push('/auth/login')
+}
+
+async function saveAccountSettings() {
+  isSavingAccount.value = true
+
+  try {
+    await updateProfile({
+      firstName: accountFirstName.value.trim(),
+      lastName: accountLastName.value.trim(),
+      billingCardLast4: accountCard.value.trim() || null
+    })
+    isAccountSettingsOpen.value = false
+
+    if (saveToastTimer) clearTimeout(saveToastTimer)
+    isSaveToastVisible.value = true
+    saveToastTimer = setTimeout(() => {
+      isSaveToastVisible.value = false
+      saveToastTimer = null
+    }, 2600)
+  } finally {
+    isSavingAccount.value = false
+  }
 }
 
 onUnmounted(() => {
@@ -390,6 +402,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.55rem;
   margin-bottom: 1.2rem;
+
+.account-modal-help-text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #6a7282;
+}
 }
 
 .account-modal-field label {

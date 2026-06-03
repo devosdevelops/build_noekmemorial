@@ -65,6 +65,33 @@ export function useAuth() {
     return data
   }
 
+  async function updateProfile({ firstName, lastName, billingCardLast4 }) {
+    if (!session.value?.user?.id) {
+      throw new Error('Je moet aangemeld zijn om je profiel bij te werken.')
+    }
+
+    const userId = session.value.user.id
+    const { data, error } = await supabase
+      .from('app_users')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        billing_card_last4: billingCardLast4,
+        display_name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || null
+      })
+      .eq('id', userId)
+      .select('id, email, first_name, last_name, billing_card_last4, maintenance_yearly_price_cents, rooms_limit')
+      .single()
+
+    if (error) throw error
+
+    if (data) {
+      appUser.value = data
+    }
+
+    return data
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     session.value = null
@@ -78,6 +105,7 @@ export function useAuth() {
     init,
     signUp,
     signIn,
+    updateProfile,
     signOut
   }
 }
