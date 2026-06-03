@@ -12,6 +12,7 @@
       :floor-appearance-action="floorAppearanceAction"
       :floor-action="floorAction"
       :model-action="modelAction"
+      :lighting-action="lightingAction"
       :persistence-action="persistenceAction"
       :selection-action="selectionAction"
       @scene-document-prepared="handleSceneDocumentPrepared"
@@ -29,6 +30,12 @@
       v-if="isModelsLibraryVisible"
       @close="handleModelsLibraryClose"
       @select-model="handleSelectModel"
+    />
+    <LightLibraryPanel
+      v-if="isLightLibraryVisible"
+      :current-preset-id="currentLightingPresetId"
+      @close="handleLightLibraryClose"
+      @select-lighting-preset="handleSelectLightingPreset"
     />
     <FloorLibraryPanel
       v-if="isFloorLibraryVisible"
@@ -74,6 +81,7 @@ import { ref } from 'vue'
 import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from './components/editor/FloorLibraryPanel.vue'
+import LightLibraryPanel from './components/editor/LightLibraryPanel.vue'
 import ModelsLibraryPanel from './components/editor/ModelsLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
@@ -81,6 +89,7 @@ import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 import { useScenePersistence } from './composables/useScenePersistence.js'
+import { DEFAULT_LIGHTING_PRESET_ID } from './config/lightingPresets.js'
 
 const activeInteractionMode = ref('select')
 const activeEditTool = ref('move')
@@ -91,6 +100,7 @@ const historyAction = ref({
 const isBlocksLibraryVisible = ref(false)
 const isFloorLibraryVisible = ref(false)
 const isModelsLibraryVisible = ref(false)
+const isLightLibraryVisible = ref(false)
 const blockAction = ref({
   type: null,
   shapeType: null,
@@ -122,6 +132,11 @@ const modelAction = ref({
   downloadUrl: null,
   sequence: 0
 })
+const lightingAction = ref({
+  type: null,
+  presetId: null,
+  sequence: 0
+})
 const persistenceAction = ref({
   type: null,
   sequence: 0
@@ -141,6 +156,7 @@ const isSceneDirty = ref(false)
 const isGridVisible = ref(true)
 const skipNextDirtyEvent = ref(false)
 const selectedAsset = ref(null)
+const currentLightingPresetId = ref(DEFAULT_LIGHTING_PRESET_ID)
 
 const {
   persistenceStatus,
@@ -182,6 +198,7 @@ function handleSideToolClick(toolId) {
     isBlocksLibraryVisible.value = true
     isFloorLibraryVisible.value = false
     isModelsLibraryVisible.value = false
+    isLightLibraryVisible.value = false
     return
   }
 
@@ -189,6 +206,7 @@ function handleSideToolClick(toolId) {
     isModelsLibraryVisible.value = true
     isBlocksLibraryVisible.value = false
     isFloorLibraryVisible.value = false
+    isLightLibraryVisible.value = false
     return
   }
 
@@ -196,12 +214,22 @@ function handleSideToolClick(toolId) {
     isFloorLibraryVisible.value = true
     isBlocksLibraryVisible.value = false
     isModelsLibraryVisible.value = false
+    isLightLibraryVisible.value = false
+    return
+  }
+
+  if (toolId === 'light') {
+    isLightLibraryVisible.value = true
+    isBlocksLibraryVisible.value = false
+    isFloorLibraryVisible.value = false
+    isModelsLibraryVisible.value = false
     return
   }
 
   isBlocksLibraryVisible.value = false
   isFloorLibraryVisible.value = false
   isModelsLibraryVisible.value = false
+  isLightLibraryVisible.value = false
 }
 
 function handleBlocksLibraryClose() {
@@ -214,6 +242,10 @@ function handleModelsLibraryClose() {
 
 function handleFloorLibraryClose() {
   isFloorLibraryVisible.value = false
+}
+
+function handleLightLibraryClose() {
+  isLightLibraryVisible.value = false
 }
 
 function handleAssetConfigurationClose() {
@@ -261,6 +293,21 @@ function handleSelectFloor(textureId) {
   }
   isSceneDirty.value = true
   isFloorLibraryVisible.value = false
+}
+
+function handleSelectLightingPreset(presetId) {
+  if (typeof presetId !== 'string' || !presetId.length) {
+    return
+  }
+
+  currentLightingPresetId.value = presetId
+  lightingAction.value = {
+    type: 'set-lighting',
+    presetId,
+    sequence: lightingAction.value.sequence + 1
+  }
+
+  isLightLibraryVisible.value = false
 }
 
 function handleSelectionChanged(selection) {
@@ -503,6 +550,11 @@ async function loadSceneIntoEditor() {
   lastSceneName.value = typeof loadedSceneDocument.name === 'string' && loadedSceneDocument.name.length
     ? loadedSceneDocument.name
     : lastSceneName.value
+
+  const loadedLightingPresetId = loadedSceneDocument?.editorSettings?.lighting?.presetId
+  currentLightingPresetId.value = typeof loadedLightingPresetId === 'string' && loadedLightingPresetId.length
+    ? loadedLightingPresetId
+    : DEFAULT_LIGHTING_PRESET_ID
 
   skipNextDirtyEvent.value = true
 

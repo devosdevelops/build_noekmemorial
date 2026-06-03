@@ -16,7 +16,8 @@ export function createSceneBootstrap({
   resnapAllObjects,
   selectableRoots,
   meshById,
-  sceneObjects
+  sceneObjects,
+  initialLightingPreset = null
 }) {
   function getObjectColor(objectId, fallbackColor) {
     const objectState = sceneObjects.find((item) => item.id === objectId)
@@ -57,6 +58,54 @@ export function createSceneBootstrap({
   sunLight.position.set(20, 38, 14)
   sunLight.castShadow = false
   scene.add(sunLight)
+
+  function applyLightingPreset(preset) {
+    if (!preset || typeof preset !== 'object') {
+      return
+    }
+
+    if (typeof preset.background === 'string' && preset.background.length) {
+      scene.background = new THREE.Color(preset.background)
+    }
+
+    if (typeof preset.fog === 'string' && preset.fog.length) {
+      scene.fog = new THREE.Fog(preset.fog, 70, 180)
+    }
+
+    if (typeof preset.hemiSkyColor === 'string' && preset.hemiSkyColor.length) {
+      hemiLight.color.set(preset.hemiSkyColor)
+    }
+
+    if (typeof preset.hemiGroundColor === 'string' && preset.hemiGroundColor.length) {
+      hemiLight.groundColor.set(preset.hemiGroundColor)
+    }
+
+    if (typeof preset.hemiIntensity === 'number' && Number.isFinite(preset.hemiIntensity)) {
+      hemiLight.intensity = preset.hemiIntensity
+    }
+
+    if (typeof preset.sunColor === 'string' && preset.sunColor.length) {
+      sunLight.color.set(preset.sunColor)
+    }
+
+    if (typeof preset.sunIntensity === 'number' && Number.isFinite(preset.sunIntensity)) {
+      sunLight.intensity = preset.sunIntensity
+    }
+
+    if (Array.isArray(preset.sunPosition) && preset.sunPosition.length === 3) {
+      sunLight.position.set(
+        Number.isFinite(preset.sunPosition[0]) ? preset.sunPosition[0] : 20,
+        Number.isFinite(preset.sunPosition[1]) ? preset.sunPosition[1] : 38,
+        Number.isFinite(preset.sunPosition[2]) ? preset.sunPosition[2] : 14
+      )
+    }
+
+    if (typeof preset.exposure === 'number' && Number.isFinite(preset.exposure)) {
+      renderer.toneMappingExposure = preset.exposure
+    }
+  }
+
+  applyLightingPreset(initialLightingPreset)
 
   const gridTexture = poolTexture(createRoundedGridTexture(THREE, gridConfig.groundSize, gridConfig.cellSize))
 
@@ -126,6 +175,9 @@ export function createSceneBootstrap({
     gizmoRenderPass,
     outputPass,
     gridTexture,
-    gridPlane
+    gridPlane,
+    applyLightingPreset,
+    hemiLight,
+    sunLight
   }
 }

@@ -22,7 +22,7 @@
 [] add favicon
 [] deploy room
 [] add ambient noise options
-[] add lighting options
+[x] add lighting options
 [x] hide grid 
 [] add special pinboard and candle objects
 [] add all tool icons 
@@ -44,6 +44,8 @@
 [] color textures better
 
 ## Nice to have
+[] add clicky noises to editor
+[] add sound effects to viewer
 [] scale smoothly instead of snapping
 [] add color picker
 [] scale object from menu

@@ -42,6 +42,7 @@ import { SCENE_KIND, SHAPE_COLOR_BY_TYPE, getDefaultAppearance } from '../../sce
 import { buildSceneDocumentFromRuntime } from '../../scene/sceneSerialization.js'
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
+import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
 
 const containerRef = ref(null)
 const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed', 'selection-changed'])
@@ -88,6 +89,14 @@ const props = defineProps({
     default: () => ({
       type: null,
       textureId: null,
+      sequence: 0
+    })
+  },
+  lightingAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      presetId: null,
       sequence: 0
     })
   },
@@ -154,6 +163,7 @@ const GRID_BASE_OPACITY = 0.9
 const GRID_FADE_LERP = 0.12
 
 const selectedObjectId = ref(null)
+const currentLightingPresetId = ref(DEFAULT_LIGHTING_PRESET_ID)
 
 let renderer = null
 let scene = null
@@ -168,6 +178,7 @@ let gizmoRenderPass = null
 let outputPass = null
 let resizeObserver = null
 let frameId = 0
+let sceneBootstrap = null
 let gridTexture = null
 let gridPlane = null
 let historyRuntime = null
@@ -366,6 +377,11 @@ function applyHydratedSceneDocument(sceneDocument) {
       }
     }
 
+    const nextLightingPresetId = sceneDocument?.editorSettings?.lighting?.presetId
+    currentLightingPresetId.value = typeof nextLightingPresetId === 'string' && nextLightingPresetId.length
+      ? nextLightingPresetId
+      : DEFAULT_LIGHTING_PRESET_ID
+
     const nextFloorState = runtimeObjects.find((item) => item.kind === SCENE_KIND.FLOOR) || {
       id: 'floor',
       kind: SCENE_KIND.FLOOR,
@@ -386,6 +402,7 @@ function applyHydratedSceneDocument(sceneDocument) {
           }
         }
 
+          sceneBootstrap?.applyLightingPreset(getLightingPresetById(currentLightingPresetId.value))
         return item
       })
     const nextModelObjects = runtimeObjects.filter((item) => item.kind === SCENE_KIND.MODEL)
@@ -1223,9 +1240,27 @@ function syncTransformControlsState() {
   }
 }
 
+function emitSceneRuntimeChanged() {
+  if (!isSceneReady || isApplyingHydration) {
+    return
+  }
+
+  emit('scene-runtime-changed')
+}
+
+function applyLightingPresetById(presetId) {
+  const nextPresetId = typeof presetId === 'string' && presetId.length ? presetId : DEFAULT_LIGHTING_PRESET_ID
+  const lightingPreset = getLightingPresetById(nextPresetId)
+
+  currentLightingPresetId.value = lightingPreset.id
+  sceneBootstrap?.applyLightingPreset(lightingPreset)
+  emitSceneRuntimeChanged()
+}
+
 function prepareSceneDocumentForSave() {
   const result = buildSceneDocumentFromRuntime({
     sceneName: 'Editor Scène',
+    lightingPresetId: currentLightingPresetId.value,
     sceneObjects,
     gridConfig
   })
@@ -1245,6 +1280,11 @@ function handlePersistenceAction(action) {
 
   if (action.type === 'hydrate-scene') {
     applyHydratedSceneDocument(action.sceneDocument)
+    return
+  }
+
+  if (action.type === 'set-lighting') {
+    applyLightingPresetById(action.presetId)
   }
 }
 
@@ -1380,6 +1420,17 @@ watch(
     }
 
     addModelToScene(props.modelAction.downloadUrl)
+  }
+)
+
+watch(
+  () => props.lightingAction.sequence,
+  () => {
+    if (props.lightingAction?.type !== 'set-lighting') {
+      return
+    }
+
+    applyLightingPresetById(props.lightingAction.presetId)
   }
 )
 
@@ -1551,7 +1602,7 @@ onMounted(() => {
     return
   }
 
-  const sceneBootstrap = createSceneBootstrap({
+  const bootstrap = createSceneBootstrap({
     THREE,
     OrbitControls,
     EffectComposer,
@@ -1569,20 +1620,23 @@ onMounted(() => {
     resnapAllObjects,
     selectableRoots,
     meshById,
-    sceneObjects
+    sceneObjects,
+    initialLightingPreset: getLightingPresetById(currentLightingPresetId.value)
   })
 
-  scene = sceneBootstrap.scene
-  camera = sceneBootstrap.camera
-  renderer = sceneBootstrap.renderer
-  controls = sceneBootstrap.controls
-  composer = sceneBootstrap.composer
-  outlinePass = sceneBootstrap.outlinePass
-  gizmoScene = sceneBootstrap.gizmoScene
-  gizmoRenderPass = sceneBootstrap.gizmoRenderPass
-  outputPass = sceneBootstrap.outputPass
-  gridTexture = sceneBootstrap.gridTexture
-  gridPlane = sceneBootstrap.gridPlane
+  sceneBootstrap = bootstrap
+
+  scene = bootstrap.scene
+  camera = bootstrap.camera
+  renderer = bootstrap.renderer
+  controls = bootstrap.controls
+  composer = bootstrap.composer
+  outlinePass = bootstrap.outlinePass
+  gizmoScene = bootstrap.gizmoScene
+  gizmoRenderPass = bootstrap.gizmoRenderPass
+  outputPass = bootstrap.outputPass
+  gridTexture = bootstrap.gridTexture
+  gridPlane = bootstrap.gridPlane
   gridOpacity = props.showGrid ? GRID_BASE_OPACITY : 0
   gridOpacityTarget = gridOpacity
   if (gridPlane?.material) {

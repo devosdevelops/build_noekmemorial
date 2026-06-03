@@ -98,6 +98,7 @@ function toSceneObjectDocument(objectState) {
 export function buildSceneDocumentFromRuntime({
   sceneId = null,
   sceneName = 'Untitled Scene',
+  lightingPresetId = null,
   sceneObjects,
   gridConfig
 }) {
@@ -114,6 +115,9 @@ export function buildSceneDocumentFromRuntime({
         cellSize: gridConfig.cellSize,
         groundSize: gridConfig.groundSize,
         origin: Array.isArray(gridConfig.origin) ? [...gridConfig.origin] : [0, 0, 0]
+      },
+      lighting: {
+        presetId: typeof lightingPresetId === 'string' && lightingPresetId.length ? lightingPresetId : null
       }
     },
     objects: sceneObjects.map((objectState) => toSceneObjectDocument(objectState))
