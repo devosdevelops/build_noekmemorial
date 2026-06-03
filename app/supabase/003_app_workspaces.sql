@@ -13,6 +13,7 @@ create table if not exists public.app_workspaces (
   visibility text not null default 'offline' check (visibility in ('offline', 'public', 'private')),
   approval_mode text not null default 'manual' check (approval_mode in ('manual', 'automatic')),
   access_pin text null,
+  published_at timestamptz null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
