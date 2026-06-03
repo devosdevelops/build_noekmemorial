@@ -34,6 +34,7 @@ const actions = computed(() => [
     isActive: !props.isGridVisible
   },
   { id: 'home', label: 'Dashboard', icon: 'Home.svg', hasTwoStates: false },
+  { id: 'publish', label: 'Publiceer', icon: 'Launch.svg', hasTwoStates: false },
   { id: 'settings', label: 'Instellingen', icon: 'Settings.svg', hasTwoStates: false }
 ])
 
