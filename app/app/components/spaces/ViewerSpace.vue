@@ -34,8 +34,14 @@
         :active-panel="activePanel"
         :can-post-media="canPostMedia"
         :selected-element="selectedElement"
+        :is-submitting="submitStatus === 'submitting'"
+        :submit-error="submitError"
+        :submit-success-message="submitSuccessMessage"
         @close="closePanel"
         @quick-action="handlePanelQuickAction"
+        @submit-message="handleMessageSubmit"
+        @submit-candle="handleCandleSubmit"
+        @submit-media="handleMediaSubmit"
       />
 
       <ViewerBottomDock
@@ -79,6 +85,7 @@ import { useViewerSession } from '../../composables/useViewerSession'
 import { useViewerUiState } from '../../composables/useViewerUiState'
 import { useViewerAuthGate } from '../../composables/useViewerAuthGate'
 import { useViewerInteraction } from '../../composables/useViewerInteraction'
+import { useViewerContributions } from '../../composables/useViewerContributions'
 
 const props = defineProps({
   slug: {
@@ -88,6 +95,7 @@ const props = defineProps({
 })
 
 const {
+  session,
   isAuthenticated,
   canPostMedia,
   guestName,
@@ -109,9 +117,29 @@ const {
 } = useViewerUiState()
 
 const { hasEnteredViewer, enterViewer } = useViewerAuthGate()
-const { selectedElement, setSelectedElement, setPointerWorldPosition, clearSelection } = useViewerInteraction()
+const {
+  selectedElement,
+  pointerWorldPosition,
+  setSelectedElement,
+  setPointerWorldPosition,
+  clearSelection
+} = useViewerInteraction()
+
+const {
+  room,
+  submitStatus,
+  submitError,
+  loadRoomBySlug,
+  submitMessage,
+  submitCandle,
+  submitMedia
+} = useViewerContributions()
 
 const roomName = computed(() => {
+  if (room.value?.name) {
+    return room.value.name
+  }
+
   if (!props.slug || !props.slug.length) {
     return 'Herdenkingsruimte'
   }
@@ -119,18 +147,14 @@ const roomName = computed(() => {
   return props.slug.replace(/-/g, ' ')
 })
 
-const modeLabel = computed(() => {
-  if (activeMode.value === 'flythrough') return 'Modus: Flythrough'
-  if (activeMode.value === 'vr') return 'Modus: VR'
-  return 'Modus: Look Around'
-})
-
 const isGuestNamePromptOpen = ref(false)
 const pendingGuestName = ref('')
 const guestNameError = ref('')
+const submitSuccessMessage = ref('')
 
 onMounted(async () => {
   await initializeAuth()
+  await loadRoomBySlug(props.slug)
 })
 
 function goToLogin() {
@@ -142,6 +166,7 @@ function goToSignup() {
 }
 
 function continueAsAuthenticated() {
+  submitSuccessMessage.value = ''
   clearSelection()
   enterViewer()
 }
@@ -149,6 +174,7 @@ function continueAsAuthenticated() {
 function continueAsGuest(name) {
   setGuestName(name)
   pendingGuestName.value = name
+  submitSuccessMessage.value = ''
   clearSelection()
   enterViewer()
 }
@@ -168,6 +194,7 @@ async function handleSignOut() {
   hasEnteredViewer.value = false
   closePanel()
   isGuestNamePromptOpen.value = false
+  submitSuccessMessage.value = ''
   clearSelection()
 }
 
@@ -216,6 +243,73 @@ function handlePanelQuickAction(action) {
   if (action === 'add') {
     openPanel('add')
   }
+}
+
+async function handleMessageSubmit(payload) {
+  submitSuccessMessage.value = ''
+
+  const response = await submitMessage({
+    slug: props.slug,
+    message: payload?.message || '',
+    voiceUrl: payload?.voiceUrl || '',
+    guestName: isAuthenticated.value ? '' : guestName.value,
+    selectedElementId: selectedElement.value?.id || null,
+    worldPosition: pointerWorldPosition.value,
+    accessToken: session.value?.access_token || ''
+  })
+
+  if (!response?.ok) {
+    return
+  }
+
+  submitSuccessMessage.value = response?.contribution?.status === 'published'
+    ? 'Je bericht is geplaatst.'
+    : 'Je bericht is ontvangen en wacht op goedkeuring.'
+}
+
+async function handleCandleSubmit(payload) {
+  submitSuccessMessage.value = ''
+
+  const response = await submitCandle({
+    slug: props.slug,
+    dedication: payload?.dedication || '',
+    candleStyle: payload?.candleStyle || 'Klassiek',
+    guestName: isAuthenticated.value ? '' : guestName.value,
+    selectedElementId: selectedElement.value?.id || null,
+    worldPosition: pointerWorldPosition.value,
+    accessToken: session.value?.access_token || ''
+  })
+
+  if (!response?.ok) {
+    return
+  }
+
+  submitSuccessMessage.value = response?.contribution?.status === 'published'
+    ? 'Je kaars is aangestoken.'
+    : 'Je kaars is ontvangen en wacht op goedkeuring.'
+}
+
+async function handleMediaSubmit(payload) {
+  submitSuccessMessage.value = ''
+
+  const response = await submitMedia({
+    slug: props.slug,
+    mediaType: payload?.mediaType || 'image',
+    mediaUrl: payload?.mediaUrl || '',
+    title: payload?.title || '',
+    caption: payload?.caption || '',
+    selectedElementId: selectedElement.value?.id || null,
+    worldPosition: pointerWorldPosition.value,
+    accessToken: session.value?.access_token || ''
+  })
+
+  if (!response?.ok) {
+    return
+  }
+
+  submitSuccessMessage.value = response?.contribution?.status === 'published'
+    ? 'Je media is geplaatst.'
+    : 'Je media is ontvangen en wacht op goedkeuring.'
 }
 </script>
 
