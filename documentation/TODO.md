@@ -58,13 +58,15 @@
     [] Add to model library with minimal geometry (mostly UI overlay)
     [x] Media objects are type triggers only (message / image-video / audio), no object-to-specific-media link
     [x] Ensure editor stores only media object type, not any per-object media mapping
-[] 4. Candle glow effect
-    [] Review current candle models (likely in public/models/ or textures/)
-    [] Add emissive material layer to wick mesh
-    [] Implement point light that follows wick position
-    [] Add flickering animation via THREE.js Light.intensity oscillation
-    [] Consider bloom post-processing for glow visibility
+[x] 4. Candle glow effect
+    [x] Review current candle models (likely in public/models/ or textures/)
+    [x] Add emissive material layer to wick mesh
+    [x] Implement point light that follows wick position
+    [x] Add flickering animation via THREE.js Light.intensity oscillation
+    [x] Consider bloom post-processing for glow visibility
 [] 5. Template save/load system
+    [x] Create dedicated `app_scene_templates` table
+    [x] Seed base templates in Supabase (`id: 0` empty, `id: 1` serenity)
     [] Create template versioning (v1 save in localStorage + supabase)
     [] Add "Save as Template" button in editor (exports sceneState)
     [] Add "Load Template" modal with thumbnail preview
