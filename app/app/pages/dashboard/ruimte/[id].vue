@@ -143,11 +143,15 @@
 
           <Card class="details-card">
             <h2 class="card-title">Recente Activiteit</h2>
-            <ul class="activity-list">
-              <li>Anna liet een bericht achter</li>
-              <li>12 mensen branden een kaarsje</li>
-              <li>45 mensen reageerden</li>
-            </ul>
+            <div class="activity-list">
+              <article v-for="item in recentActivityItems" :key="item.id" class="activity-item">
+                <span class="activity-icon" :class="`activity-icon--${item.variant}`" aria-hidden="true"></span>
+                <div class="activity-copy">
+                  <p class="activity-title">{{ item.title }}</p>
+                  <p class="activity-time">{{ item.time }}</p>
+                </div>
+              </article>
+            </div>
           </Card>
         </aside>
       </div>
@@ -250,6 +254,12 @@ const moderationItems = ref([
   { id: 2, name: 'Pieter de Vries', content: 'Foto toegevoegd', time: '5 uur geleden', type: 'photo', icon: '🖼' },
   { id: 3, name: 'Lotte Veenstra', content: 'Geluidspost toegevoegd', time: '1 dag geleden', type: 'audio', icon: '♪' },
   { id: 4, name: 'Daan Meijer', content: 'Video herinnering', time: '2 dagen geleden', type: 'video', icon: '▶' }
+])
+
+const recentActivityItems = ref([
+  { id: 1, title: 'Anna liet een bericht achter', time: '2 uur geleden', variant: 'message' },
+  { id: 2, title: '12 mensen brandden een kaarsje', time: 'Afgelopen maand', variant: 'candle' },
+  { id: 3, title: '45 mensen reageerden', time: 'Afgelopen maand', variant: 'heart' }
 ])
 
 function copyRoomUrl() {
@@ -698,11 +708,102 @@ onUnmounted(() => {
 }
 
 .activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.1rem;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.activity-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  position: relative;
+}
+
+.activity-icon--message {
+  background: #e4f2df;
+  color: #7d9663;
+}
+
+.activity-icon--candle {
+  background: #ffe7bf;
+}
+
+.activity-icon--heart {
+  background: #edf0e8;
+}
+
+.activity-icon--message::before {
+  content: '';
+  width: 0.58rem;
+  height: 0.42rem;
+  border: 1.5px solid currentColor;
+  border-radius: 0.16rem;
+  position: absolute;
+  top: 0.36rem;
+  left: 0.32rem;
+  background: transparent;
+}
+
+.activity-icon--message::after {
+  content: '';
+  width: 0.22rem;
+  height: 0.22rem;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  position: absolute;
+  bottom: 0.18rem;
+  left: 0.28rem;
+  transform: rotate(45deg);
+  background: #e4f2df;
+}
+
+.activity-icon--candle::before {
+  content: '';
+  width: 0.3rem;
+  height: 0.82rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff8a00 0%, #f26e00 100%);
+}
+
+.activity-icon--heart::before {
+  content: '♡';
+  color: #8b9b77;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.activity-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.activity-title {
   margin: 0;
-  padding-left: 1rem;
-  color: #3c465b;
-  font-size: 0.78rem;
-  line-height: 1.55;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #2c3850;
+  line-height: 1.25;
+}
+
+.activity-time {
+  margin: 0;
+  font-size: 0.77rem;
+  color: #9aa9c6;
+  line-height: 1.2;
 }
 
 .collaborator-modal-overlay {
