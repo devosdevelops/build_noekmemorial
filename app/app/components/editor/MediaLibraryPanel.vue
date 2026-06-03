@@ -176,46 +176,48 @@ function handleSelectModel(model) {
     <p v-else-if="!models.length" class="library-status">Geen media objecten beschikbaar.</p>
 
     <template v-else>
-      <label class="library-search" for="media-search-input">
-        <span class="search-icon-wrap" aria-hidden="true">
-          <span class="search-icon"></span>
-        </span>
-        <input
-          id="media-search-input"
-          v-model="searchQuery"
-          class="library-search-input"
-          type="search"
-          placeholder="Zoeken..."
-          autocomplete="off"
-        />
-      </label>
+      <div class="media-library-content">
+        <label class="library-search" for="media-search-input">
+          <span class="search-icon-wrap" aria-hidden="true">
+            <span class="search-icon"></span>
+          </span>
+          <input
+            id="media-search-input"
+            v-model="searchQuery"
+            class="library-search-input"
+            type="search"
+            placeholder="Zoeken..."
+            autocomplete="off"
+          />
+        </label>
 
-      <p v-if="hasSearchQuery && !groupedModels.length" class="library-status">
-        Geen media objecten gevonden voor "{{ searchQuery.trim() }}".
-      </p>
+        <p v-if="hasSearchQuery && !groupedModels.length" class="library-status">
+          Geen media objecten gevonden voor "{{ searchQuery.trim() }}".
+        </p>
 
-      <div v-else class="media-groups">
-        <section v-for="group in groupedModels" :key="group.category" class="media-group">
-          <h3 class="media-group-title">{{ group.label }}</h3>
-          <div class="models-grid">
-            <button
-              v-for="model in group.items"
-              :key="model.ID"
-              type="button"
-              class="model-card"
-              :title="model.Title"
-              @click="handleSelectModel(model)"
-            >
-              <img
-                v-if="model.Thumbnail"
-                :src="model.Thumbnail"
-                :alt="model.Title"
-                class="model-thumbnail"
-                loading="lazy"
-              />
-            </button>
-          </div>
-        </section>
+        <div v-else class="media-groups">
+          <section v-for="group in groupedModels" :key="group.category" class="media-group">
+            <h3 class="media-group-title">{{ group.label }}</h3>
+            <div class="models-grid">
+              <button
+                v-for="model in group.items"
+                :key="model.ID"
+                type="button"
+                class="model-card"
+                :title="model.Title"
+                @click="handleSelectModel(model)"
+              >
+                <img
+                  v-if="model.Thumbnail"
+                  :src="model.Thumbnail"
+                  :alt="model.Title"
+                  class="model-thumbnail"
+                  loading="lazy"
+                />
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
     </template>
   </OverlayCard>
@@ -223,10 +225,13 @@ function handleSelectModel(model) {
 
 <style scoped>
 .media-library {
+  display: flex;
+  flex-direction: column;
   top: 28%;
   left: calc(14.2rem + 0.8rem);
   z-index: 3;
   width: min(22rem, calc(100vw - 2rem));
+  max-height: min(42rem, calc(100vh - 4rem));
   padding: 0.9rem;
   border-radius: 0.9rem;
 }
@@ -252,12 +257,19 @@ function handleSelectModel(model) {
   letter-spacing: 0.02em;
 }
 
+.media-library-content {
+  display: grid;
+  gap: 0.72rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.12rem;
+}
+
 .library-search {
   display: flex;
   align-items: stretch;
   width: 100%;
   margin-top: 0.62rem;
-  margin-bottom: 0.72rem;
   border: 2px solid rgba(124, 138, 110, 0.68);
   border-radius: 0.95rem;
   background: rgba(249, 251, 245, 0.94);
@@ -348,6 +360,7 @@ function handleSelectModel(model) {
 .media-groups {
   display: grid;
   gap: 0.9rem;
+  padding-bottom: 0.12rem;
 }
 
 .media-group {
@@ -365,33 +378,34 @@ function handleSelectModel(model) {
 .models-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-  max-height: 10.8rem;
-  overflow-y: auto;
-  padding-right: 0.1rem;
+  gap: 0.5rem;
 }
 
 .model-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(124, 138, 110, 0.35);
-  border-radius: 0.62rem;
-  background: linear-gradient(180deg, #ffffff, #f4f8ef);
-  display: grid;
-  place-items: center;
-  padding: 0;
+  padding: 0.4rem;
+  border: 1px solid rgba(124, 138, 110, 0.28);
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
   cursor: pointer;
-  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+  text-align: center;
 }
 
 .model-card:hover {
-  border-color: rgba(93, 117, 77, 0.78);
+  border-color: rgba(114, 131, 98, 0.55);
+  box-shadow: 0 2px 8px rgba(73, 88, 60, 0.12);
 }
 
 .model-thumbnail {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1;
   object-fit: cover;
+  border-radius: 0.4rem;
+  background: rgba(68, 80, 56, 0.06);
 }
 
 @media (max-width: 900px) {
