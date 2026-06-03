@@ -5,6 +5,7 @@ import OverlayCard from '../ui/OverlayCard.vue'
 import { POLY_PIZZA_LIST_IDS } from '../../config/polypizza.js'
 
 const emit = defineEmits(['close', 'select-model'])
+const MIN_LOADING_SPINNER_MS = 1000
 
 async function fetchList(listId) {
   const res = await fetch(`/api/polypizza/list/${encodeURIComponent(listId)}`)
@@ -59,6 +60,7 @@ const filteredModels = computed(() => {
 
 async function loadModels() {
   if (!POLY_PIZZA_LIST_IDS.length) return
+  const loadStartTime = Date.now()
   isLoading.value = true
   loadError.value = null
   try {
@@ -67,6 +69,11 @@ async function loadModels() {
   } catch (err) {
     loadError.value = err.message ?? 'Modellen konden niet worden geladen.'
   } finally {
+    const elapsedMs = Date.now() - loadStartTime
+    const remainingMs = Math.max(0, MIN_LOADING_SPINNER_MS - elapsedMs)
+    if (remainingMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remainingMs))
+    }
     isLoading.value = false
   }
 }
