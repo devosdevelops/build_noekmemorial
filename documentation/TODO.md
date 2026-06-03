@@ -58,15 +58,13 @@
     [] Add to model library with minimal geometry (mostly UI overlay)
     [x] Media objects are type triggers only (message / image-video / audio), no object-to-specific-media link
     [x] Ensure editor stores only media object type, not any per-object media mapping
-[x] 4. Candle glow effect
-    [x] Review current candle models (likely in public/models/ or textures/)
-    [x] Add emissive material layer to wick mesh
-    [x] Implement point light that follows wick position
-    [x] Add flickering animation via THREE.js Light.intensity oscillation
-    [x] Consider bloom post-processing for glow visibility
+[] 4. Candle glow effect
+    [] Review current candle models (likely in public/models/ or textures/)
+    [] Add emissive material layer to wick mesh
+    [] Implement point light that follows wick position
+    [] Add flickering animation via THREE.js Light.intensity oscillation
+    [] Consider bloom post-processing for glow visibility
 [] 5. Template save/load system
-    [x] Create dedicated `app_scene_templates` table
-    [x] Seed base templates in Supabase (`id: 0` empty, `id: 1` serenity)
     [] Create template versioning (v1 save in localStorage + supabase)
     [] Add "Save as Template" button in editor (exports sceneState)
     [] Add "Load Template" modal with thumbnail preview
@@ -87,19 +85,19 @@
     [x] candle emits glow light + flicker (burning logic)
     [] final visual/model polish pass with expected candle art direction
 [x] leave message
-[x] toggle music
+[] toggle music
 [x] leave voice message
 [x] hide ui
 [x] pin protection
-[x] media object activation flow
-    [x] On click/tap media object, center camera on object (focus transition)
-    [x] Open shared media carousel by object type (all messages OR all images+videos OR all audio)
-    [x] Image/video cards always show poster name
-    [x] Message cards render white paper panel with sender at bottom
-    [x] Audio cards show poster + play button
-    [x] Carousel navigation: swipe, drag, arrows, keyboard arrow keys
-    [x] Close carousel with top-right X and click-outside
-    [x] Fade scene background behind overlay
+[] media object activation flow
+    [] On click/tap media object, center camera on object (focus transition)
+    [] Open shared media carousel by object type (all messages OR all images+videos OR all audio)
+    [] Image/video cards always show poster name
+    [] Message cards render white paper panel with sender at bottom
+    [] Audio cards show poster + play button
+    [] Carousel navigation: swipe, drag, arrows, keyboard arrow keys
+    [] Close carousel with top-right X and click-outside
+    [] Fade scene background behind overlay
     [x] MVP interim: show filtered recent contributions in element detail panel
 
 ## Dashboard
@@ -135,8 +133,8 @@
     [x] see overview of price 
     [x] confirm purchase
     [x] number of room slots goes up
-[x] manage rooms
-[x] manage collaborators
+[] manage rooms
+[] manage collaborators
 [x] memorial settings
 [x] split up your owned spaces and spaces you are a collaborator on.
 [] remove delete powers

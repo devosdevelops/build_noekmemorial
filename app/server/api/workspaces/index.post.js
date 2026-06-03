@@ -1,5 +1,9 @@
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
 import { requireAuthenticatedAppUser } from '../../utils/workspaceAccess.js'
+import { normalizeAndValidateSceneDocument } from '~/scene/sceneValidation.js'
+
+const TEMPLATES_TABLE = 'app_scene_templates'
+const SCENES_TABLE = 'app_scenes'
 
 function slugifyName(value) {
   return String(value || '')
@@ -50,6 +54,9 @@ export default defineEventHandler(async (event) => {
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const deceasedFirstName = typeof body?.deceasedFirstName === 'string' ? body.deceasedFirstName.trim() : ''
   const deceasedLastName = typeof body?.deceasedLastName === 'string' ? body.deceasedLastName.trim() : ''
+  const templateId = Number.isInteger(body?.templateId)
+    ? body.templateId
+    : Number.parseInt(body?.templateId || '', 10)
   const visibility = 'offline'
   const approvalMode = body?.approvalMode === 'automatic' ? 'automatic' : 'manual'
 
@@ -60,8 +67,65 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (!Number.isInteger(templateId) || templateId < 0) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Selecteer een geldige template voor de nieuwe ruimte.'
+    })
+  }
+
   const supabase = createSupabaseServerClient()
   const { actorId } = await requireAuthenticatedAppUser(event, supabase)
+
+  const { data: template, error: templateError } = await supabase
+    .from(TEMPLATES_TABLE)
+    .select('id, template_key, name, schema_version, scene_data, is_active')
+    .eq('id', templateId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (templateError) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Template ophalen is mislukt.',
+      data: {
+        supabaseError: templateError.message
+      }
+    })
+  }
+
+  if (!template) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Gekozen template is niet gevonden of niet actief.'
+    })
+  }
+
+  const sceneSeedSource = template.scene_data && typeof template.scene_data === 'object'
+    ? JSON.parse(JSON.stringify(template.scene_data))
+    : null
+
+  const sceneSeedDraft = {
+    ...(sceneSeedSource || {}),
+    id: null,
+    name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  const normalizedTemplateScene = normalizeAndValidateSceneDocument(sceneSeedDraft)
+
+  if (!normalizedTemplateScene.isValid || !normalizedTemplateScene.sceneDocument) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'De gekozen template bevat ongeldige scènegegevens.',
+      data: {
+        errors: normalizedTemplateScene.errors,
+        warnings: normalizedTemplateScene.warnings
+      }
+    })
+  }
+
   const slug = await createUniqueWorkspaceSlug(supabase, name)
 
   const { data: workspace, error } = await supabase
@@ -89,8 +153,38 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const { error: sceneInsertError } = await supabase
+    .from(SCENES_TABLE)
+    .insert({
+      workspace_id: workspace.id,
+      owner_id: actorId,
+      name,
+      schema_version: normalizedTemplateScene.sceneDocument.schemaVersion,
+      scene_data: normalizedTemplateScene.sceneDocument
+    })
+
+  if (sceneInsertError) {
+    await supabase
+      .from('app_workspaces')
+      .delete()
+      .eq('id', workspace.id)
+
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Werkruimte aangemaakt, maar template-scène kon niet worden gestart.',
+      data: {
+        supabaseError: sceneInsertError.message
+      }
+    })
+  }
+
   return {
     ok: true,
-    workspace
+    workspace,
+    template: {
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name
+    }
   }
 })

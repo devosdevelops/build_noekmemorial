@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "local:template:import": "node local-only/import-workspace-template.mjs",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

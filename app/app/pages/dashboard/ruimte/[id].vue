@@ -175,7 +175,7 @@
                   title="Kopieer pincode"
                   @click="copyRoomPinCode"
                 >
-                  <img src="/icons/Copy Black.svg" alt="" aria-hidden="true" />
+                  <img src="/icons/copy-black.svg" alt="" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -340,7 +340,7 @@
                   title="Kopieer pincode"
                   @click="copyRoomSettingsPin"
                 >
-                  <img src="/icons/Copy Black.svg" alt="" aria-hidden="true" />
+                  <img src="/icons/copy-black.svg" alt="" aria-hidden="true" />
                 </button>
               </div>
             </div>

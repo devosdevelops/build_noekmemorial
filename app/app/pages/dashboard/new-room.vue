@@ -11,30 +11,28 @@
           <h3>Templates</h3>
         </Card>
 
-        <button
-          class="template-card"
-          :class="{ selected: selectedTemplate === 'empty' }"
-          type="button"
-          @click="selectedTemplate = 'empty'"
-        >
-          <div class="template-content">
-            <h4>Lege Ruimte</h4>
-            <p>Een lege template die je de volledige vrijheid geeft om alles zelf in te richten</p>
-          </div>
-          <div class="template-visual wireframe-room" aria-hidden="true"></div>
-        </button>
+        <p v-if="templatesError" class="templates-error">{{ templatesError }}</p>
+
+        <p v-if="isLoadingTemplates" class="templates-loading">Templates laden...</p>
 
         <button
+          v-for="template in templates"
+          :key="template.id"
           class="template-card"
-          :class="{ selected: selectedTemplate === 'hobby' }"
+          :class="{ selected: selectedTemplateId === template.id }"
           type="button"
-          @click="selectedTemplate = 'hobby'"
+          @click="selectedTemplateId = template.id"
         >
           <div class="template-content">
-            <h4>Slaap / Hobby kamer</h4>
-            <p>Een kamer die al praktisch volledig is ingericht met allerlei objecten. Beschikt al over alle basis elementen die je nodig hebt.</p>
+            <h4>{{ template.name }}</h4>
+            <p>{{ template.description || 'Template zonder omschrijving.' }}</p>
           </div>
-          <div class="template-visual colorful-room" aria-hidden="true"></div>
+          <div
+            class="template-visual"
+            :class="templateVisualClass(template.template_key)"
+            :style="templateVisualStyle(template)"
+            aria-hidden="true"
+          ></div>
         </button>
       </section>
 
@@ -127,7 +125,27 @@ definePageMeta({
 
 const { init, session } = useAuth()
 
-const selectedTemplate = ref('empty')
+const FALLBACK_TEMPLATES = [
+  {
+    id: 0,
+    template_key: 'empty-v1',
+    name: 'Template - Empty',
+    description: 'Lege startopzet met alleen een basisvloer.',
+    thumbnail_url: null
+  },
+  {
+    id: 1,
+    template_key: 'serenity-garden-v1',
+    name: 'Template - Serenity Garden',
+    description: 'Rustige basisopzet met een centraal herdenkingsvlak.',
+    thumbnail_url: null
+  }
+]
+
+const templates = ref([...FALLBACK_TEMPLATES])
+const selectedTemplateId = ref(0)
+const isLoadingTemplates = ref(false)
+const templatesError = ref('')
 const roomName = ref('')
 const firstName = ref('')
 const lastName = ref('')
@@ -137,6 +155,72 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 
 await init()
+await loadTemplates()
+
+async function loadTemplates() {
+  templatesError.value = ''
+  isLoadingTemplates.value = true
+
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    templatesError.value = 'Templates konden niet worden geladen: sessie verlopen.'
+    isLoadingTemplates.value = false
+    return
+  }
+
+  try {
+    const response = await $fetch('/api/templates', {
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    })
+
+    const apiTemplates = Array.isArray(response?.templates) ? response.templates : []
+
+    if (!apiTemplates.length) {
+      templates.value = [...FALLBACK_TEMPLATES]
+      selectedTemplateId.value = FALLBACK_TEMPLATES[0].id
+      templatesError.value = 'Geen actieve templates gevonden. Fallback templates gebruikt.'
+      return
+    }
+
+    templates.value = apiTemplates
+
+    if (!templates.value.some((item) => item.id === selectedTemplateId.value)) {
+      selectedTemplateId.value = templates.value[0].id
+    }
+  } catch (error) {
+    templates.value = [...FALLBACK_TEMPLATES]
+    selectedTemplateId.value = FALLBACK_TEMPLATES[0].id
+    templatesError.value = error?.data?.statusMessage || error?.statusMessage || 'Templates laden is mislukt. Fallback templates gebruikt.'
+  } finally {
+    isLoadingTemplates.value = false
+  }
+}
+
+function templateVisualClass(templateKey) {
+  if (templateKey === 'empty-v1') {
+    return 'wireframe-room'
+  }
+
+  if (templateKey === 'serenity-garden-v1') {
+    return 'colorful-room'
+  }
+
+  return 'generic-room'
+}
+
+function templateVisualStyle(template) {
+  if (!template?.thumbnail_url) {
+    return null
+  }
+
+  return {
+    backgroundImage: `url(${template.thumbnail_url})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  }
+}
 
 async function createRoom() {
   submitError.value = ''
@@ -150,6 +234,11 @@ async function createRoom() {
   const accessToken = session.value?.access_token
   if (!accessToken) {
     submitError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
+  if (!Number.isInteger(selectedTemplateId.value)) {
+    submitError.value = 'Selecteer een geldige template.'
     return
   }
 
@@ -167,7 +256,7 @@ async function createRoom() {
         deceasedLastName: lastName.value.trim(),
         visibility: visibility.value,
         approvalMode: approvalMode.value,
-        template: selectedTemplate.value
+        templateId: selectedTemplateId.value
       }
     })
 
@@ -248,6 +337,21 @@ async function createRoom() {
   cursor: pointer;
 }
 
+.templates-loading,
+.templates-error {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.templates-loading {
+  color: #5d6850;
+}
+
+.templates-error {
+  color: #8c5d2d;
+}
+
 .template-card.selected {
   border: 4px solid #7a8568;
   box-shadow: none;
@@ -292,6 +396,11 @@ async function createRoom() {
     radial-gradient(circle at 30% 25%, #ffc0da 0%, #f29abf 42%, transparent 43%),
     radial-gradient(circle at 70% 72%, #8fe1da 0%, #58b6c6 35%, transparent 36%),
     linear-gradient(135deg, #f9c7df 0%, #ca9fda 60%, #6f8fb8 100%);
+}
+
+.generic-room {
+  background:
+    linear-gradient(135deg, #d3d7de 0%, #b7c0cb 50%, #909faf 100%);
 }
 
 .form-card {
