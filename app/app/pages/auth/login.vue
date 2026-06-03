@@ -19,7 +19,23 @@
 
           <div class="field-group">
             <label for="login-password">Wachtwoord</label>
-            <input id="login-password" v-model="password" type="password" class="auth-input" placeholder="••••••••" />
+            <div class="password-field-row">
+              <input
+                id="login-password"
+                v-model="password"
+                :type="isPasswordVisible ? 'text' : 'password'"
+                class="auth-input"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :aria-label="isPasswordVisible ? 'Verberg wachtwoord' : 'Toon wachtwoord'"
+                @click="isPasswordVisible = !isPasswordVisible"
+              >
+                <img :src="isPasswordVisible ? '/icons/eye_hide.svg' : '/icons/eye.svg'" alt="" />
+              </button>
+            </div>
           </div>
 
           <button type="submit" class="auth-primary-button">Log in</button>
@@ -44,6 +60,7 @@ definePageMeta({
 
 const email = ref('')
 const password = ref('')
+const isPasswordVisible = ref(false)
 
 function submitLogin() {
   // UI-only screen for now.
@@ -126,6 +143,17 @@ function submitLogin() {
   gap: 0.45rem;
 }
 
+.password-field {
+  display: contents;
+}
+
+.password-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.2rem;
+  gap: 0.65rem;
+  align-items: center;
+}
+
 .field-group label {
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -146,6 +174,34 @@ function submitLogin() {
 
 .auth-input::placeholder {
   color: #e8ebf2;
+}
+
+.password-toggle {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid rgba(124, 138, 110, 0.22);
+  padding: 0;
+  border-radius: 0.5rem;
+  background: linear-gradient(180deg, #fbfcfa 0%, #edf2e7 100%);
+  box-shadow: 0 2px 8px rgba(62, 73, 49, 0.14);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  border-color: rgba(101, 124, 74, 0.32);
+  background: linear-gradient(180deg, #ffffff 0%, #e7f0dc 100%);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid rgba(90, 116, 60, 0.72);
+  outline-offset: 2px;
+}
+
+.password-toggle img {
+  width: 1rem;
+  height: 1rem;
 }
 
 .auth-primary-button {
