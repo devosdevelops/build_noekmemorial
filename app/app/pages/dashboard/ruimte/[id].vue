@@ -1,7 +1,10 @@
 <template>
   <DashboardLayout :showSidebar="false" :showBackButton="true" backTo="/dashboard" backLabel="Ga terug">
-    <div class="room-details-page">
-      <AppLoadingScreen v-if="isLoading" mode="data" message="Herdenkingsruimte wordt geladen..." />
+    <div class="room-details-page" :class="{ 'page-busy': isBusy }">
+      <Card v-if="isLoading" class="details-card room-state-card">
+        <p class="room-state-title">Herdenkingsruimte laden...</p>
+        <p class="room-state-text">Een ogenblik geduld terwijl we de details ophalen.</p>
+      </Card>
 
       <Card v-else-if="roomErrorMessage" class="details-card room-state-card">
         <p class="room-state-title">Kon de herdenkingsruimte niet laden</p>
@@ -385,7 +388,6 @@ import { useRoute } from 'vue-router'
 import QRCode from 'qrcode'
 import DashboardLayout from '../../../components/dashboard/DashboardLayout.vue'
 import Card from '../../../components/ui/Card.vue'
-import AppLoadingScreen from '../../../components/ui/AppLoadingScreen.vue'
 import { useAuth } from '../../../composables/useAuth'
 
 definePageMeta({
@@ -578,6 +580,13 @@ const canManageRoom = computed(() => {
 
 const isOfflineRoom = computed(() => room.value?.visibility === 'offline')
 const isOfflineRoomDraft = computed(() => room.value?.visibility === 'offline')
+const isBusy = computed(() => {
+  return isLoading.value
+    || isInvitingCollaborator.value
+    || Boolean(isRemovingCollaboratorId.value)
+    || isSavingRoomSettings.value
+    || isDeletingRoom.value
+})
 
 let copyToastTimer = null
 let saveToastTimer = null
@@ -945,6 +954,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.page-busy,
+.page-busy * {
+  cursor: wait !important;
 }
 
 .top-actions {
