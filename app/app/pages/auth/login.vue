@@ -38,8 +38,12 @@
             </div>
           </div>
 
-          <button type="submit" class="auth-primary-button">Log in</button>
+          <button type="submit" class="auth-primary-button" :disabled="isSubmitting">
+            {{ isSubmitting ? 'Bezig...' : 'Log in' }}
+          </button>
         </form>
+
+        <p v-if="loginError" class="error-text">{{ loginError }}</p>
 
         <p class="auth-footnote">
           Nog geen account?
@@ -53,17 +57,31 @@
 <script setup>
 import { ref } from 'vue'
 import Card from '../../components/ui/Card.vue'
+import { useAuth } from '../../composables/useAuth'
 
 definePageMeta({
   layout: false
 })
 
+const { signIn } = useAuth()
+const router = useRouter()
+
 const email = ref('')
 const password = ref('')
 const isPasswordVisible = ref(false)
-
-function submitLogin() {
-  // UI-only screen for now.
+const loginError = ref('')
+const isSubmitting = ref(false)
+async function submitLogin() {
+  loginError.value = ''
+  isSubmitting.value = true
+  try {
+    await signIn({ email: email.value.trim(), password: password.value })
+    router.push('/dashboard')
+  } catch (err) {
+    loginError.value = err.message || 'Inloggen mislukt. Controleer je gegevens en probeer opnieuw.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -228,6 +246,12 @@ function submitLogin() {
   color: #6fb63e;
   font-weight: 700;
   text-decoration: none;
+}
+
+.error-text {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #c0392b;
 }
 
 @media (max-width: 900px) {
