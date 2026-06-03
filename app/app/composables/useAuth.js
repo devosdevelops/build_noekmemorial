@@ -33,7 +33,7 @@ export function useAuth() {
   async function loadAppUser(userId) {
     const { data, error } = await supabase
       .from('app_users')
-      .select('id, email, first_name, last_name, maintenance_yearly_price_cents, rooms_limit')
+      .select('id, email, first_name, last_name, billing_card_last4, maintenance_yearly_price_cents, rooms_limit')
       .eq('id', userId)
       .single()
 
@@ -43,20 +43,18 @@ export function useAuth() {
   }
 
   async function signUp({ email, password, firstName, lastName }) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          display_name: `${firstName} ${lastName}`.trim()
+        }
+      }
+    })
     if (error) throw error
-
-    const userId = data.user?.id
-    if (userId) {
-      const { error: insertError } = await supabase.from('app_users').insert({
-        id: userId,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        display_name: `${firstName} ${lastName}`.trim()
-      })
-      if (insertError) throw insertError
-    }
 
     return data
   }
