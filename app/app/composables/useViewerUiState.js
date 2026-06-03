@@ -1,3 +1,5 @@
+import { computed } from 'vue'
+
 export function useViewerUiState() {
   const isUiHidden = useState('viewer-ui-hidden', () => false)
   const activePanel = useState('viewer-active-panel', () => '')
