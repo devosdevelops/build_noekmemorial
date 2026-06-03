@@ -2,7 +2,7 @@
 
 [x] delete object
 [x] recolor object
-[] refactor ui to match figma design
+[x] refactor ui to match figma design
     [x] refactor ui to stick to sides
     [x] reposition config ui to center
     [x] add logo

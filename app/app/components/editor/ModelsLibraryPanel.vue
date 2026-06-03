@@ -98,9 +98,7 @@ function handleSelectModel(model) {
           class="library-info"
           aria-label="Modellen uitleg"
           data-tooltip="Kies een 3D-model om aan de scene toe te voegen. Zoektermen werken momenteel in het Engels."
-        >
-          i
-        </button>
+        />
       </div>
       <CloseIconButton @click="handleClose" />
     </header>
@@ -193,16 +191,21 @@ function handleSelectModel(model) {
   position: relative;
   width: 1.14rem;
   height: 1.14rem;
-  border: 1px solid rgba(88, 103, 72, 0.45);
-  border-radius: 999px;
-  background: rgba(246, 247, 252, 0.86);
-  color: #4e5b41;
-  display: grid;
-  place-items: center;
-  font-size: 0.7rem;
-  font-weight: 800;
-  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: 0.46rem;
+  background-color: transparent;
+  background-image: url('/icons/info.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.88rem 0.88rem;
   cursor: help;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.library-info:hover,
+.library-info:focus-visible {
+  border-color: rgba(124, 138, 110, 0.22);
+  background-color: rgba(124, 138, 110, 0.08);
 }
 
 .library-info::after {
