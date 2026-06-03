@@ -93,7 +93,7 @@
           <Card class="details-card">
             <div class="card-title-row">
               <h2 class="card-title">Samenwerkers</h2>
-              <button type="button" class="link-action">+ Toevoegen</button>
+              <button type="button" class="link-action" @click="isCollaboratorModalOpen = true">+ Toevoegen</button>
             </div>
             <div class="collaborators-list">
               <div class="collaborator-item" v-for="person in collaborators" :key="person.id">
@@ -116,8 +116,25 @@
               Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft.
               Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
             </p>
-            <button class="share-btn" type="button">Kopieer link</button>
+            <button class="share-btn" type="button" @click="copyRoomUrl">Kopieer link</button>
             <button class="share-btn" type="button">Stuur via e-mail</button>
+            <div v-if="visibility === 'private'" class="pin-field">
+              <input
+                v-model="roomPinCode"
+                :type="isPinHidden ? 'password' : 'text'"
+                class="pin-input"
+                readonly
+                aria-label="Pincode"
+              />
+              <button
+                type="button"
+                class="pin-toggle"
+                :aria-label="isPinHidden ? 'Toon pincode' : 'Verberg pincode'"
+                @click="isPinHidden = !isPinHidden"
+              >
+                <img :src="isPinHidden ? '/icons/eye_hide.svg' : '/icons/eye.svg'" alt="" aria-hidden="true" />
+              </button>
+            </div>
             <div class="qr-box" aria-hidden="true">
               <div class="qr-grid"></div>
             </div>
@@ -134,12 +151,57 @@
           </Card>
         </aside>
       </div>
+
+      <div
+        v-if="isCollaboratorModalOpen"
+        class="collaborator-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="collaborator-modal-title"
+        @click.self="closeCollaboratorModal"
+      >
+        <Card class="collaborator-modal-card">
+          <div class="collaborator-modal-header">
+            <h2 id="collaborator-modal-title">Collaborator Toevoegen</h2>
+            <button
+              type="button"
+              class="collaborator-modal-close"
+              aria-label="Sluiten"
+              @click="closeCollaboratorModal"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="collaborator-modal-field">
+            <label for="collaborator-email">E-mail</label>
+            <input
+              id="collaborator-email"
+              v-model="collaboratorEmail"
+              type="email"
+              class="collaborator-modal-input"
+              placeholder="naam@mail.com"
+            />
+          </div>
+
+          <button type="button" class="collaborator-modal-submit" @click="sendCollaboratorInvite">
+            Verzend Uitnodiging
+          </button>
+        </Card>
+      </div>
+
+      <transition name="copy-toast">
+        <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
+          <span class="copy-toast-icon" aria-hidden="true">✓</span>
+          <span>Link gekopieerd naar klipbord</span>
+        </div>
+      </transition>
     </div>
   </DashboardLayout>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import DashboardLayout from '../../../components/dashboard/DashboardLayout.vue'
 import Card from '../../../components/ui/Card.vue'
@@ -170,6 +232,13 @@ const roomUrl = computed(() => `https://${room.value.slug}`)
 
 const visibility = ref('public')
 const approvalMode = ref('manual')
+const roomPinCode = ref('8391')
+const isPinHidden = ref(true)
+const isCollaboratorModalOpen = ref(false)
+const collaboratorEmail = ref('')
+const isCopyToastVisible = ref(false)
+
+let copyToastTimer = null
 
 const collaborators = ref([
   { id: 1, initials: 'J', name: 'Jan Jansen', role: 'Eigenaar' },
@@ -186,8 +255,40 @@ const moderationItems = ref([
 function copyRoomUrl() {
   if (typeof navigator !== 'undefined' && navigator.clipboard) {
     navigator.clipboard.writeText(roomUrl.value)
+    triggerCopyToast()
   }
 }
+
+function triggerCopyToast() {
+  if (copyToastTimer) {
+    clearTimeout(copyToastTimer)
+  }
+
+  isCopyToastVisible.value = true
+  copyToastTimer = setTimeout(() => {
+    isCopyToastVisible.value = false
+    copyToastTimer = null
+  }, 2200)
+}
+
+function closeCollaboratorModal() {
+  isCollaboratorModalOpen.value = false
+}
+
+function sendCollaboratorInvite() {
+  if (!collaboratorEmail.value.trim()) {
+    return
+  }
+
+  closeCollaboratorModal()
+  collaboratorEmail.value = ''
+}
+
+onUnmounted(() => {
+  if (copyToastTimer) {
+    clearTimeout(copyToastTimer)
+  }
+})
 </script>
 
 <style scoped>
@@ -532,6 +633,42 @@ function copyRoomUrl() {
   margin-bottom: 0.45rem;
 }
 
+.pin-field {
+  margin: 0.15rem 0 0.55rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pin-input {
+  width: 100%;
+  border: 1px solid #d1d7cf;
+  border-radius: 7px;
+  background: #fafcf9;
+  color: #364055;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.6rem;
+  box-sizing: border-box;
+}
+
+.pin-toggle {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #d1d7cf;
+  border-radius: 7px;
+  background: #fafcf9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pin-toggle img {
+  width: 1rem;
+  height: 1rem;
+}
+
 .qr-box {
   display: flex;
   justify-content: center;
@@ -568,6 +705,131 @@ function copyRoomUrl() {
   line-height: 1.55;
 }
 
+.collaborator-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 28, 23, 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 250;
+}
+
+.collaborator-modal-card {
+  width: min(100%, 470px);
+  padding: 1.65rem 1.8rem;
+}
+
+.collaborator-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.collaborator-modal-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #232635;
+}
+
+.collaborator-modal-close {
+  border: none;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #e55a3c 0%, #cf482e 100%);
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.collaborator-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1.1rem;
+}
+
+.collaborator-modal-field label {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2433;
+}
+
+.collaborator-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 10px;
+  padding: 0.56rem 0.7rem;
+  background: linear-gradient(180deg, #a6abb8 0%, #9ba0ad 100%);
+  color: #ffffff;
+  font-size: 0.92rem;
+}
+
+.collaborator-modal-input::placeholder {
+  color: #e7ebf3;
+}
+
+.collaborator-modal-submit {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 0.72rem 1rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82d14d 0%, #629d3a 100%));
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.copy-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: min(88vw, 650px);
+  border-radius: 12px;
+  padding: 1.15rem 1.4rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82d14d 0%, #629d3a 100%));
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  z-index: 260;
+  box-shadow: 0 22px 36px rgba(44, 78, 29, 0.35);
+}
+
+.copy-toast-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.copy-toast-enter-active,
+.copy-toast-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.copy-toast-enter-from,
+.copy-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+}
+
 @media (max-width: 980px) {
   .top-actions {
     grid-template-columns: 1fr;
@@ -579,6 +841,16 @@ function copyRoomUrl() {
 
   .details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .copy-toast {
+    min-width: calc(100vw - 1.5rem);
+    font-size: 0.86rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .copy-toast-icon {
+    font-size: 1.5rem;
   }
 }
 </style>
