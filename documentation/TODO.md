@@ -65,6 +65,7 @@
 [] login
 [] add workspace
 [] start room
+[] mail invites
 [] manage rooms
 [] manage collaborators
 [] memorial settings
@@ -80,7 +81,7 @@
 [x] Auto deselect any other object
 [x] change texture names
 [x] change selected mode because current glow hides the color
-[x] add new floors not just change the texture of the one existing floor
+[x] add new floors not just change the texture of the one existing  floor
 [x] make sure models are saved to the supabase 
 [x] block preview in 3D instead of flat shapes
 [x] translate to dutch

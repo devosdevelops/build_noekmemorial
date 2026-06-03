@@ -108,8 +108,16 @@
                   <div class="avatar">{{ person.initials }}</div>
                   <div>
                     <p class="item-name">{{ person.name }}</p>
-                    <p class="item-time">{{ person.role }}</p>
+                    <p class="item-time">{{ collaboratorRoleLabel(person.role) }}</p>
                   </div>
+                  <button
+                    type="button"
+                    class="collaborator-remove"
+                    :disabled="isRemovingCollaboratorId === person.id"
+                    @click="removeCollaborator(person)"
+                  >
+                    {{ isRemovingCollaboratorId === person.id ? 'Bezig...' : 'Verwijder' }}
+                  </button>
                 </div>
               </div>
             </Card>
@@ -416,6 +424,7 @@ const collaboratorEmail = ref('')
 const collaboratorError = ref('')
 const collaboratorSuccess = ref('')
 const isInvitingCollaborator = ref(false)
+const isRemovingCollaboratorId = ref('')
 const isInviteToastVisible = ref(false)
 const inviteToastMessage = ref('')
 const isCopyToastVisible = ref(false)
@@ -503,6 +512,11 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+function collaboratorRoleLabel(role) {
+  if (role === 'collaborator') return 'Samenwerker'
+  return role || 'Samenwerker'
+}
+
 async function sendCollaboratorInvite() {
   collaboratorError.value = ''
   collaboratorSuccess.value = ''
@@ -545,6 +559,49 @@ async function sendCollaboratorInvite() {
     triggerInviteWarningToast(collaboratorError.value)
   } finally {
     isInvitingCollaborator.value = false
+  }
+}
+
+async function removeCollaborator(person) {
+  if (!person?.id || !workspaceId.value) {
+    return
+  }
+
+  const confirmed = typeof window === 'undefined'
+    ? true
+    : window.confirm(`Wil je ${person.name || 'deze collaborator'} verwijderen?`)
+
+  if (!confirmed) {
+    return
+  }
+
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    const message = 'Je sessie is verlopen. Log opnieuw in.'
+    collaboratorError.value = message
+    triggerInviteWarningToast(message)
+    return
+  }
+
+  collaboratorError.value = ''
+  collaboratorSuccess.value = ''
+  isRemovingCollaboratorId.value = person.id
+
+  try {
+    await $fetch(`/api/workspaces/${workspaceId.value}/collaborators/${person.id}`, {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    })
+
+    collaboratorSuccess.value = `${person.name || 'Collaborator'} werd verwijderd.`
+    await refreshRoom()
+  } catch (error) {
+    collaboratorError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Collaborator verwijderen is mislukt.'
+    triggerInviteWarningToast(collaboratorError.value)
+  } finally {
+    isRemovingCollaboratorId.value = ''
   }
 }
 
@@ -937,6 +994,23 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0;
+}
+
+.collaborator-remove {
+  margin-left: auto;
+  border: 1px solid #e3c4bc;
+  border-radius: 7px;
+  background: #fff8f6;
+  color: #b44b3a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.28rem 0.52rem;
+  cursor: pointer;
+}
+
+.collaborator-remove:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .avatar {
