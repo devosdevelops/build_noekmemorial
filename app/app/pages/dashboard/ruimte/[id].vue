@@ -264,7 +264,7 @@
             </div>
           </div>
 
-          <button type="button" class="room-settings-save" @click="closeRoomSettings">
+          <button type="button" class="room-settings-save" @click="saveRoomSettings">
             Veranderingen Opslaan
           </button>
         </Card>
@@ -274,6 +274,13 @@
         <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
           <span class="copy-toast-icon" aria-hidden="true">✓</span>
           <span>Link gekopieerd naar klipbord</span>
+        </div>
+      </transition>
+
+      <transition name="save-toast">
+        <div v-if="isSaveToastVisible" class="save-toast" role="status" aria-live="polite">
+          <span class="save-toast-icon" aria-hidden="true">✓</span>
+          <span>Veranderingen opgeslagen</span>
         </div>
       </transition>
     </div>
@@ -323,8 +330,10 @@ const isPinHidden = ref(true)
 const isCollaboratorModalOpen = ref(false)
 const collaboratorEmail = ref('')
 const isCopyToastVisible = ref(false)
+const isSaveToastVisible = ref(false)
 
 let copyToastTimer = null
+let saveToastTimer = null
 
 const collaborators = ref([
   { id: 1, initials: 'J', name: 'Jan Jansen', role: 'Eigenaar' },
@@ -380,9 +389,30 @@ function sendCollaboratorInvite() {
   collaboratorEmail.value = ''
 }
 
+function saveRoomSettings() {
+  closeRoomSettings()
+  triggerSaveToast()
+}
+
+function triggerSaveToast() {
+  if (saveToastTimer) {
+    clearTimeout(saveToastTimer)
+  }
+
+  isSaveToastVisible.value = true
+  saveToastTimer = setTimeout(() => {
+    isSaveToastVisible.value = false
+    saveToastTimer = null
+  }, 2200)
+}
+
 onUnmounted(() => {
   if (copyToastTimer) {
     clearTimeout(copyToastTimer)
+  }
+
+  if (saveToastTimer) {
+    clearTimeout(saveToastTimer)
   }
 })
 </script>
@@ -1013,6 +1043,43 @@ onUnmounted(() => {
 
 .copy-toast-enter-from,
 .copy-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+}
+
+.save-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: min(88vw, 650px);
+  border-radius: 12px;
+  padding: 1.15rem 1.4rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82d14d 0%, #629d3a 100%));
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  z-index: 260;
+  box-shadow: 0 22px 36px rgba(44, 78, 29, 0.35);
+}
+
+.save-toast-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.save-toast-enter-active,
+.save-toast-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.save-toast-enter-from,
+.save-toast-leave-to {
   opacity: 0;
   transform: translate(-50%, calc(-50% + 8px));
 }
