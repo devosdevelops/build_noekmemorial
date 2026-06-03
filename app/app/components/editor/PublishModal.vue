@@ -60,6 +60,41 @@
         </label>
       </div>
 
+      <div v-if="selectedVisibility === 'private'" class="publish-modal-pin-field">
+        <label for="publish-modal-pin" class="publish-modal-pin-label">Pincode (6 cijfers)</label>
+        <div class="publish-modal-pin-row">
+          <input
+            id="publish-modal-pin"
+            :value="selectedAccessPin"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            class="publish-modal-pin-input"
+            placeholder="Bijv. 123456"
+            :disabled="isSubmitting"
+            @input="handlePinInput"
+          />
+          <button
+            type="button"
+            class="publish-modal-pin-generate"
+            :disabled="isSubmitting"
+            @click="handleGeneratePin"
+          >
+            Genereer PIN
+          </button>
+          <button
+            type="button"
+            class="publish-modal-pin-copy"
+            :disabled="isSubmitting || !/^\d{6}$/.test(selectedAccessPin)"
+            aria-label="Kopieer pincode"
+            title="Kopieer pincode"
+            @click="handleCopyPin"
+          >
+            <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
       <p v-if="errorMessage" class="publish-modal-error">{{ errorMessage }}</p>
 
       <div class="publish-modal-actions">
@@ -92,6 +127,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  selectedAccessPin: {
+    type: String,
+    default: ''
+  },
   isSubmitting: {
     type: Boolean,
     default: false
@@ -102,9 +141,31 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'confirm', 'update:selectedVisibility'])
+const emit = defineEmits(['close', 'confirm', 'update:selectedVisibility', 'update:selectedAccessPin'])
 
-const isValidVisibility = computed(() => props.selectedVisibility === 'public' || props.selectedVisibility === 'private')
+const isValidVisibility = computed(() => {
+  if (props.selectedVisibility === 'public') {
+    return true
+  }
+
+  if (props.selectedVisibility === 'private') {
+    return /^\d{6}$/.test(props.selectedAccessPin)
+  }
+
+  return false
+})
+
+function normalizeAccessPin(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
+function generateAccessPin() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
 
 function handleClose() {
   emit('close')
@@ -120,6 +181,26 @@ function handleConfirm() {
 
 function handleVisibilityChange(nextVisibility) {
   emit('update:selectedVisibility', nextVisibility)
+}
+
+function handlePinInput(event) {
+  emit('update:selectedAccessPin', normalizeAccessPin(event?.target?.value || ''))
+}
+
+function handleGeneratePin() {
+  emit('update:selectedAccessPin', generateAccessPin())
+}
+
+async function handleCopyPin() {
+  if (!/^\d{6}$/.test(props.selectedAccessPin)) {
+    return
+  }
+
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    return
+  }
+
+  await navigator.clipboard.writeText(props.selectedAccessPin)
 }
 </script>
 
@@ -214,6 +295,61 @@ function handleVisibilityChange(nextVisibility) {
   font-weight: 700;
 }
 
+.publish-modal-pin-field {
+  margin-top: 0.85rem;
+}
+
+.publish-modal-pin-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #3c4732;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.publish-modal-pin-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.45rem;
+}
+
+.publish-modal-pin-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ccd8bd;
+  border-radius: 9px;
+  padding: 0.54rem 0.62rem;
+  color: #263122;
+  background: #ffffff;
+}
+
+.publish-modal-pin-generate {
+  border: 1px solid #ccd8bd;
+  border-radius: 9px;
+  background: #edf2e6;
+  color: #425137;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.54rem 0.68rem;
+  cursor: pointer;
+}
+
+.publish-modal-pin-copy {
+  width: 2.2rem;
+  border: 1px solid #ccd8bd;
+  border-radius: 9px;
+  background: #edf2e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.publish-modal-pin-copy img {
+  width: 1rem;
+  height: 1rem;
+}
+
 .publish-modal-actions {
   margin-top: 1rem;
   display: flex;
@@ -244,7 +380,9 @@ function handleVisibilityChange(nextVisibility) {
 
 .publish-modal-cancel:disabled,
 .publish-modal-confirm:disabled,
-.publish-modal-close:disabled {
+.publish-modal-close:disabled,
+.publish-modal-pin-generate:disabled,
+.publish-modal-pin-copy:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
