@@ -30,12 +30,12 @@ import '../../assets/css/dashboard.css'
 <style scoped>
 .dashboard-layout {
   min-height: 100vh;
-  background: #f5f3f0;
+  background: linear-gradient(160deg, #f3f2ee 0%, #edf0e8 52%, #e7eddf 100%);
   font-family: var(--font-sans);
 }
 
 .dashboard-header {
-  background: linear-gradient(135deg, #7a9b7e 0%, #6b8a6f 100%);
+  background: var(--Brand-CTA, linear-gradient(180deg, #A3B18A 0%, #7A8568 100%));
   padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }

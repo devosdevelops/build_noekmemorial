@@ -6,15 +6,15 @@
 
 <style scoped>
 .card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfb 100%);
+  border: 1px solid #d9dfd6;
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(37, 52, 35, 0.08);
   transition: box-shadow 0.2s;
 }
 
 .card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(37, 52, 35, 0.11);
 }
 </style>

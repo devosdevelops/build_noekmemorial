@@ -37,7 +37,7 @@
     </div>
 
     <!-- Action Button -->
-    <button class="btn-primary btn-large btn-full-width">
+    <button class="btn-primary btn-large btn-full-width btn-ok-gradient">
       <span class="btn-icon">+</span>
       {{ rooms.length === 0 ? 'Nieuwe Ruimte' : 'Nieuwe Ruimte Aankopen' }}
     </button>
@@ -207,6 +207,16 @@ function formatDate(date) {
   font-size: 0.95rem;
   width: 100%;
   justify-content: center;
+}
+
+.btn-ok-gradient {
+  background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
+  box-shadow: 0 3px 10px rgba(98, 157, 58, 0.35);
+}
+
+.btn-ok-gradient:hover {
+  background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
+  filter: brightness(0.95);
 }
 
 .btn-full-width {

@@ -82,7 +82,7 @@ const roomsLimit = ref(1)
 .overview-icon {
   width: 56px;
   height: 56px;
-  background: #f0f4f8;
+  background: linear-gradient(145deg, #f2f5fa 0%, #e8edf4 100%);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -165,7 +165,7 @@ const roomsLimit = ref(1)
 }
 
 .settings-button:hover {
-  background: #f9f9f9;
+  background: linear-gradient(180deg, #f8fbf7 0%, #f1f5ef 100%);
   color: #1a1a1a;
 }
 
@@ -178,7 +178,7 @@ const roomsLimit = ref(1)
 
 .logout-button {
   padding: 1rem;
-  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  background: var(--danger-gradient, linear-gradient(180deg, #E54E34 0%, #E54E34 50%, #892F1F 100%));
   color: white;
   border: none;
   border-radius: 8px;
@@ -191,7 +191,8 @@ const roomsLimit = ref(1)
 }
 
 .logout-button:hover {
-  background: linear-gradient(135deg, #b71c1c 0%, #9a1515 100%);
+  background: var(--danger-gradient, linear-gradient(180deg, #E54E34 0%, #E54E34 50%, #892F1F 100%));
+  filter: brightness(0.95);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(211, 47, 47, 0.4);
 }
