@@ -169,6 +169,16 @@
                 />
                 <button
                   type="button"
+                  class="pin-copy"
+                  :disabled="!/^[0-9]{6}$/.test(roomPinCode)"
+                  aria-label="Kopieer pincode"
+                  title="Kopieer pincode"
+                  @click="copyRoomPinCode"
+                >
+                  <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
                   class="pin-toggle"
                   :aria-label="isPinHidden ? 'Toon pincode' : 'Verberg pincode'"
                   @click="isPinHidden = !isPinHidden"
@@ -322,6 +332,16 @@
                   placeholder="Bijv. 123456"
                 />
                 <button type="button" class="pin-generate" @click="generateRoomSettingsPin">Genereer PIN</button>
+                <button
+                  type="button"
+                  class="pin-copy"
+                  :disabled="!/^[0-9]{6}$/.test(roomSettingsAccessPin)"
+                  aria-label="Kopieer pincode"
+                  title="Kopieer pincode"
+                  @click="copyRoomSettingsPin"
+                >
+                  <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+                </button>
               </div>
             </div>
 
@@ -360,7 +380,7 @@
         <transition name="copy-toast">
           <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
             <span class="copy-toast-icon" aria-hidden="true">✓</span>
-            <span>Link gekopieerd naar klipbord</span>
+            <span>{{ copyToastMessage }}</span>
           </div>
         </transition>
 
@@ -561,6 +581,7 @@ const isRemovingCollaboratorId = ref('')
 const isInviteToastVisible = ref(false)
 const inviteToastMessage = ref('')
 const isCopyToastVisible = ref(false)
+const copyToastMessage = ref('Link gekopieerd naar klipbord')
 const isSaveToastVisible = ref(false)
 const isSavingRoomSettings = ref(false)
 const isDeletingRoom = ref(false)
@@ -658,17 +679,51 @@ function generateRoomSettingsPin() {
 }
 
 function copyRoomUrl() {
-  if (typeof navigator !== 'undefined' && navigator.clipboard && roomUrl.value && roomUrl.value !== '—') {
-    navigator.clipboard.writeText(roomUrl.value)
-    triggerCopyToast()
+  if (!roomUrl.value || roomUrl.value === '—') {
+    return
+  }
+
+  copyTextToClipboard(roomUrl.value, 'Link gekopieerd naar klipbord')
+}
+
+function copyRoomPinCode() {
+  if (!/^\d{6}$/.test(roomPinCode.value)) {
+    return
+  }
+
+  copyTextToClipboard(roomPinCode.value, 'Pincode gekopieerd naar klipbord')
+}
+
+function copyRoomSettingsPin() {
+  roomSettingsAccessPin.value = normalizePinInput(roomSettingsAccessPin.value)
+
+  if (!/^\d{6}$/.test(roomSettingsAccessPin.value)) {
+    saveError.value = 'PIN moet exact 6 cijfers bevatten.'
+    return
+  }
+
+  copyTextToClipboard(roomSettingsAccessPin.value, 'Pincode gekopieerd naar klipbord')
+}
+
+async function copyTextToClipboard(value, successMessage) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(value)
+    triggerCopyToast(successMessage)
+  } catch {
+    triggerInviteWarningToast('Kopieren is mislukt. Probeer opnieuw.')
   }
 }
 
-function triggerCopyToast() {
+function triggerCopyToast(message = 'Link gekopieerd naar klipbord') {
   if (copyToastTimer) {
     clearTimeout(copyToastTimer)
   }
 
+  copyToastMessage.value = message
   isCopyToastVisible.value = true
   copyToastTimer = setTimeout(() => {
     isCopyToastVisible.value = false
@@ -1046,6 +1101,7 @@ onUnmounted(() => {
 .share-btn:focus-visible,
 .download-btn:focus-visible,
 .pin-toggle:focus-visible,
+.pin-copy:focus-visible,
 .link-action:focus-visible,
 .collaborator-remove:focus-visible,
 .collaborator-modal-submit:focus-visible,
@@ -1453,7 +1509,7 @@ onUnmounted(() => {
 .pin-field {
   margin: 0.15rem 0 0.55rem;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 0.4rem;
 }
@@ -1488,6 +1544,38 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.pin-copy {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #d1d7cf;
+  border-radius: 7px;
+  background: #fafcf9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.pin-copy:hover {
+  background: #f2f6f0;
+  border-color: #bcc6b8;
+}
+
+.pin-copy:active {
+  transform: translateY(1px);
+}
+
+.pin-copy:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pin-copy img {
+  width: 1rem;
+  height: 1rem;
 }
 
 .pin-toggle:hover {
@@ -2005,7 +2093,7 @@ onUnmounted(() => {
 
 .room-settings-pin-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 0.6rem;
 }
 
