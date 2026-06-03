@@ -73,9 +73,6 @@ const cameraFocusState = {
   toTarget: new THREE.Vector3()
 }
 
-const defaultCameraPosition = new THREE.Vector3()
-const defaultCameraTarget = new THREE.Vector3()
-
 let pointerIsDown = false
 let pointerMoved = false
 let pointerDownX = 0
