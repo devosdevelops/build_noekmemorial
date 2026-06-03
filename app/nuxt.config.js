@@ -2,6 +2,14 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=20260603' },
+        { rel: 'shortcut icon', href: '/favicon.ico?v=20260603' }
+      ]
+    }
+  },
   css: ['~/assets/css/global.css'],
   runtimeConfig: {
     supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
