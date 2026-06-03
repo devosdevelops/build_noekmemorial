@@ -170,7 +170,7 @@ const sceneObjects = reactive([
     scaleProfile: 'floor',
     position: [0, -0.07, 0],
     rotation: [0, 0, 0],
-    scale: [1, 1, 1],
+    scale: [10, 1, 10],
     appearance: {
       ...getDefaultAppearance(SCENE_KIND.FLOOR),
       color: '#7a8fa0'
@@ -426,7 +426,7 @@ function applyHydratedSceneDocument(sceneDocument) {
       scaleProfile: 'floor',
       position: [0, -0.07, 0],
       rotation: [0, 0, 0],
-      scale: [1, 1, 1],
+      scale: [10, 1, 10],
       appearance: getDefaultAppearance(SCENE_KIND.FLOOR)
     }
     const nextShapeObjects = runtimeObjects
@@ -705,7 +705,7 @@ function updateFloorTextureById(objectId, textureId) {
 
     groundAppearance = {
       ...groundAppearance,
-      color: textureConfig ? '#ffffff' : GROUND_DEFAULT_COLOR,
+      color: textureConfig ? '#ffffff' : (groundAppearance.color || GROUND_DEFAULT_COLOR),
       texture: textureConfig
         ? {
             textureId,
@@ -737,7 +737,7 @@ function updateFloorTextureById(objectId, textureId) {
 
   objectState.appearance = {
     ...objectState.appearance,
-    color: textureConfig ? '#ffffff' : '#7a8fa0',
+    color: textureConfig ? '#ffffff' : (objectState.appearance?.color || '#7a8fa0'),
     texture: textureConfig
       ? {
           textureId,

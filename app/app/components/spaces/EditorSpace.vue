@@ -33,6 +33,11 @@
       @close="handleModelsLibraryClose"
       @select-model="handleSelectModel"
     />
+    <MediaLibraryPanel
+      v-if="isMediaLibraryVisible"
+      @close="handleMediaLibraryClose"
+      @select-model="handleSelectModel"
+    />
     <LightLibraryPanel
       v-if="isLightLibraryVisible"
       :current-preset-id="currentLightingPresetId"
@@ -234,6 +239,7 @@ import AudioConfigurationPanel from '../editor/AudioConfigurationPanel.vue'
 import BlocksLibraryPanel from '../editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from '../editor/FloorLibraryPanel.vue'
 import LightLibraryPanel from '../editor/LightLibraryPanel.vue'
+import MediaLibraryPanel from '../editor/MediaLibraryPanel.vue'
 import ModelsLibraryPanel from '../editor/ModelsLibraryPanel.vue'
 import PublishModal from '../editor/PublishModal.vue'
 import SoundsLibraryPanel from '../editor/SoundsLibraryPanel.vue'
@@ -267,6 +273,7 @@ const { playClickSound } = useUiClickSound({
 const isBlocksLibraryVisible = ref(false)
 const isFloorLibraryVisible = ref(false)
 const isModelsLibraryVisible = ref(false)
+const isMediaLibraryVisible = ref(false)
 const isLightLibraryVisible = ref(false)
 const isSoundsLibraryVisible = ref(false)
 const blockAction = ref({
@@ -687,6 +694,7 @@ function closeAllLibraries() {
   isBlocksLibraryVisible.value = false
   isFloorLibraryVisible.value = false
   isModelsLibraryVisible.value = false
+  isMediaLibraryVisible.value = false
   isLightLibraryVisible.value = false
   isSoundsLibraryVisible.value = false
 }
@@ -694,6 +702,7 @@ function closeAllLibraries() {
 function handleSideToolClick(toolId) {
   const isBlocksOpen = isBlocksLibraryVisible.value
   const isModelsOpen = isModelsLibraryVisible.value
+  const isMediaOpen = isMediaLibraryVisible.value
   const isFloorsOpen = isFloorLibraryVisible.value
   const isLightOpen = isLightLibraryVisible.value
   const isAudioOpen = isSoundsLibraryVisible.value
@@ -717,6 +726,17 @@ function handleSideToolClick(toolId) {
 
     closeAllLibraries()
     isModelsLibraryVisible.value = true
+    return
+  }
+
+  if (toolId === 'media') {
+    if (isMediaOpen) {
+      closeAllLibraries()
+      return
+    }
+
+    closeAllLibraries()
+    isMediaLibraryVisible.value = true
     return
   }
 
@@ -768,6 +788,10 @@ function handleModelsLibraryClose() {
   isModelsLibraryVisible.value = false
 }
 
+function handleMediaLibraryClose() {
+  isMediaLibraryVisible.value = false
+}
+
 function handleFloorLibraryClose() {
   isFloorLibraryVisible.value = false
 }
@@ -789,6 +813,7 @@ function handleAssetConfigurationClose() {
 
 function handleSelectModel({ downloadUrl, title, attribution, licence, libraryCategory, tags }) {
   isModelsLibraryVisible.value = false
+  isMediaLibraryVisible.value = false
   modelAction.value = {
     type: 'add-model',
     downloadUrl,

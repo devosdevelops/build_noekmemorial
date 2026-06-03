@@ -32,7 +32,7 @@ function buildFallbackSceneDocument(name) {
         transform: {
           position: [0, -0.07, 0],
           rotation: [0, 0, 0],
-          scale: [20, 1, 20]
+          scale: [10, 1, 10]
         },
         appearance: {
           color: '#7a8fa0',

@@ -7,6 +7,18 @@ import { POLY_PIZZA_LISTS, POLY_PIZZA_LIST_CATEGORY } from '../../config/polypiz
 const emit = defineEmits(['close', 'select-model'])
 const MIN_LOADING_SPINNER_MS = 1000
 
+const MEDIA_CATEGORIES = [
+  POLY_PIZZA_LIST_CATEGORY.MESSAGE,
+  POLY_PIZZA_LIST_CATEGORY.IMAGE_VIDEO,
+  POLY_PIZZA_LIST_CATEGORY.AUDIO
+]
+
+const mediaCategoryLabel = {
+  [POLY_PIZZA_LIST_CATEGORY.MESSAGE]: 'Bericht-objecten',
+  [POLY_PIZZA_LIST_CATEGORY.IMAGE_VIDEO]: 'Foto / Video objecten',
+  [POLY_PIZZA_LIST_CATEGORY.AUDIO]: 'Audio objecten'
+}
+
 async function fetchList(listConfig) {
   const listId = listConfig?.id
 
@@ -34,6 +46,7 @@ async function fetchList(listConfig) {
 function mergeAndDeduplicate(arrays) {
   const seen = new Set()
   const result = []
+
   for (const models of arrays) {
     for (const model of models) {
       if (!model?.ID) {
@@ -43,37 +56,12 @@ function mergeAndDeduplicate(arrays) {
       if (!seen.has(model.ID)) {
         seen.add(model.ID)
         result.push(model)
-        continue
-      }
-
-      const existingIndex = result.findIndex((entry) => entry?.ID === model.ID)
-      if (existingIndex < 0) {
-        continue
-      }
-
-      const existing = result[existingIndex]
-      const existingCategory = existing?.libraryCategory
-      const nextCategory = model?.libraryCategory
-      const shouldPromoteCategory =
-        existingCategory === POLY_PIZZA_LIST_CATEGORY.MODEL
-        && nextCategory
-        && nextCategory !== POLY_PIZZA_LIST_CATEGORY.MODEL
-
-      if (shouldPromoteCategory) {
-        result[existingIndex] = {
-          ...existing,
-          libraryCategory: nextCategory
-        }
       }
     }
   }
+
   return result
 }
-
-const models = ref([])
-const isLoading = ref(false)
-const loadError = ref(null)
-const searchQuery = ref('')
 
 function normalizeSearch(value) {
   return String(value ?? '')
@@ -89,40 +77,57 @@ function buildModelSearchText(model) {
   return normalizeSearch(`${model?.Title ?? ''} ${model?.Category ?? ''} ${tags} ${creatorName}`)
 }
 
-const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
-const modelOnlyLibrary = computed(() => {
-  return models.value.filter((model) => {
-    const category = typeof model?.libraryCategory === 'string' ? model.libraryCategory : POLY_PIZZA_LIST_CATEGORY.MODEL
+const models = ref([])
+const isLoading = ref(false)
+const loadError = ref(null)
+const searchQuery = ref('')
 
-    return category !== POLY_PIZZA_LIST_CATEGORY.MESSAGE
-      && category !== POLY_PIZZA_LIST_CATEGORY.IMAGE_VIDEO
-      && category !== POLY_PIZZA_LIST_CATEGORY.AUDIO
-  })
+const mediaListConfigs = computed(() => {
+  return POLY_PIZZA_LISTS.filter((entry) => MEDIA_CATEGORIES.includes(entry.category))
 })
+
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+
 const filteredModels = computed(() => {
   const query = normalizeSearch(searchQuery.value)
   if (!query.length) {
-    return modelOnlyLibrary.value
+    return models.value
   }
-  return modelOnlyLibrary.value.filter((model) => buildModelSearchText(model).includes(query))
+
+  return models.value.filter((model) => buildModelSearchText(model).includes(query))
+})
+
+const groupedModels = computed(() => {
+  const groups = MEDIA_CATEGORIES.map((category) => ({
+    category,
+    label: mediaCategoryLabel[category] || category,
+    items: filteredModels.value.filter((model) => model.libraryCategory === category)
+  }))
+
+  return groups.filter((group) => group.items.length > 0)
 })
 
 async function loadModels() {
-  if (!POLY_PIZZA_LISTS.length) return
+  if (!mediaListConfigs.value.length) {
+    return
+  }
+
   const loadStartTime = Date.now()
   isLoading.value = true
   loadError.value = null
+
   try {
-    const results = await Promise.all(POLY_PIZZA_LISTS.map(fetchList))
+    const results = await Promise.all(mediaListConfigs.value.map(fetchList))
     models.value = mergeAndDeduplicate(results)
   } catch (err) {
-    loadError.value = err.message ?? 'Modellen konden niet worden geladen.'
+    loadError.value = err.message ?? 'Media objecten konden niet worden geladen.'
   } finally {
     const elapsedMs = Date.now() - loadStartTime
     const remainingMs = Math.max(0, MIN_LOADING_SPINNER_MS - elapsedMs)
     if (remainingMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, remainingMs))
     }
+
     isLoading.value = false
   }
 }
@@ -140,10 +145,6 @@ function handleSelectModel(model) {
   const tags = Array.isArray(model?.Tags)
     ? model.Tags.filter((tag) => typeof tag === 'string' && tag.trim().length).map((tag) => tag.trim())
     : []
-  const isSpecialMediaObject =
-    category === POLY_PIZZA_LIST_CATEGORY.MESSAGE
-    || category === POLY_PIZZA_LIST_CATEGORY.IMAGE_VIDEO
-    || category === POLY_PIZZA_LIST_CATEGORY.AUDIO
 
   emit('select-model', {
     id: model.ID,
@@ -153,40 +154,34 @@ function handleSelectModel(model) {
     licence: model.Licence ?? '',
     libraryCategory: category,
     tags,
-    isSpecialMediaObject
+    isSpecialMediaObject: true
   })
 }
 </script>
 
 <template>
-  <OverlayCard class="models-library" aria-label="Modellenbibliotheek">
+  <OverlayCard class="media-library" aria-label="Mediabibliotheek">
     <header class="library-header">
       <div class="library-heading">
-        <h2 class="library-title">Modellen</h2>
-        <button
-          type="button"
-          class="library-info"
-          aria-label="Modellen uitleg"
-          data-tooltip="Kies een 3D-model om aan de scene toe te voegen. Zoektermen werken momenteel in het Engels."
-        />
+        <h2 class="library-title">Media</h2>
       </div>
       <CloseIconButton @click="handleClose" />
     </header>
 
     <div v-if="isLoading" class="library-status library-status--loading" role="status" aria-live="polite">
       <span class="loading-spinner" aria-hidden="true"></span>
-      <span>Modellenbibliotheek wordt geladen...</span>
+      <span>Mediabibliotheek wordt geladen...</span>
     </div>
     <p v-else-if="loadError" class="library-status library-status--error">{{ loadError }}</p>
-    <p v-else-if="!modelOnlyLibrary.length" class="library-status">Geen modellen beschikbaar.</p>
+    <p v-else-if="!models.length" class="library-status">Geen media objecten beschikbaar.</p>
 
     <template v-else>
-      <label class="library-search" for="models-search-input">
+      <label class="library-search" for="media-search-input">
         <span class="search-icon-wrap" aria-hidden="true">
           <span class="search-icon"></span>
         </span>
         <input
-          id="models-search-input"
+          id="media-search-input"
           v-model="searchQuery"
           class="library-search-input"
           type="search"
@@ -195,34 +190,39 @@ function handleSelectModel(model) {
         />
       </label>
 
-      <p v-if="hasSearchQuery && !filteredModels.length" class="library-status">
-        Geen modellen gevonden voor "{{ searchQuery.trim() }}".
+      <p v-if="hasSearchQuery && !groupedModels.length" class="library-status">
+        Geen media objecten gevonden voor "{{ searchQuery.trim() }}".
       </p>
 
-      <div v-else class="models-grid">
-        <button
-          v-for="model in filteredModels"
-          :key="model.ID"
-          type="button"
-          class="model-card"
-          :title="model.Title"
-          @click="handleSelectModel(model)"
-        >
-          <img
-            v-if="model.Thumbnail"
-            :src="model.Thumbnail"
-            :alt="model.Title"
-            class="model-thumbnail"
-            loading="lazy"
-          />
-        </button>
+      <div v-else class="media-groups">
+        <section v-for="group in groupedModels" :key="group.category" class="media-group">
+          <h3 class="media-group-title">{{ group.label }}</h3>
+          <div class="models-grid">
+            <button
+              v-for="model in group.items"
+              :key="model.ID"
+              type="button"
+              class="model-card"
+              :title="model.Title"
+              @click="handleSelectModel(model)"
+            >
+              <img
+                v-if="model.Thumbnail"
+                :src="model.Thumbnail"
+                :alt="model.Title"
+                class="model-thumbnail"
+                loading="lazy"
+              />
+            </button>
+          </div>
+        </section>
       </div>
     </template>
   </OverlayCard>
 </template>
 
 <style scoped>
-.models-library {
+.media-library {
   top: 28%;
   left: calc(14.2rem + 0.8rem);
   z-index: 3;
@@ -250,82 +250,6 @@ function handleSelectModel(model) {
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-}
-
-.close-button {
-  padding: 0.42rem 0.62rem;
-  font-size: 0.84rem;
-}
-
-.library-info {
-  position: relative;
-  width: 1.14rem;
-  height: 1.14rem;
-  border: 1px solid transparent;
-  border-radius: 0.46rem;
-  background-color: transparent;
-  background-image: url('/icons/info.svg');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 0.88rem 0.88rem;
-  cursor: help;
-  transition: background-color 160ms ease, border-color 160ms ease;
-}
-
-.library-info:hover,
-.library-info:focus-visible {
-  border-color: rgba(124, 138, 110, 0.22);
-  background-color: rgba(124, 138, 110, 0.08);
-}
-
-.library-info::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 0.58rem);
-  transform: translateX(-50%);
-  min-width: 13rem;
-  max-width: 15rem;
-  padding: 0.44rem 0.56rem;
-  border-radius: 0.7rem;
-  background: rgba(106, 106, 110, 0.97);
-  color: rgba(255, 255, 255, 0.96);
-  font-size: 0.74rem;
-  font-weight: 600;
-  line-height: 1.3;
-  text-transform: none;
-  letter-spacing: 0;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 130ms ease;
-  z-index: 4;
-}
-
-.library-info::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 0.22rem);
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 0.34rem solid transparent;
-  border-right: 0.34rem solid transparent;
-  border-top: 0.38rem solid rgba(106, 106, 110, 0.97);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 130ms ease;
-  z-index: 4;
-}
-
-.library-info:hover::after,
-.library-info:hover::before,
-.library-info:focus-visible::after,
-.library-info:focus-visible::before {
-  opacity: 1;
-  visibility: visible;
 }
 
 .library-search {
@@ -384,14 +308,6 @@ function handleSelectModel(model) {
   color: rgba(78, 91, 65, 0.48);
 }
 
-.library-placeholder {
-  margin: 0;
-  color: rgba(68, 80, 56, 0.5);
-  font-size: 0.85rem;
-  text-align: center;
-  padding: 1rem 0;
-}
-
 .library-status {
   margin: 0;
   color: rgba(68, 80, 56, 0.5);
@@ -429,46 +345,62 @@ function handleSelectModel(model) {
   }
 }
 
+.media-groups {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.media-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.media-group-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #4e5b41;
+}
+
 .models-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-  max-height: 22rem;
+  gap: 0.45rem;
+  max-height: 10.8rem;
   overflow-y: auto;
+  padding-right: 0.1rem;
 }
 
 .model-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.4rem;
-  border: 1px solid rgba(124, 138, 110, 0.28);
-  border-radius: 0.6rem;
-  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(124, 138, 110, 0.35);
+  border-radius: 0.62rem;
+  background: linear-gradient(180deg, #ffffff, #f4f8ef);
+  display: grid;
+  place-items: center;
+  padding: 0;
   cursor: pointer;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-  text-align: center;
+  overflow: hidden;
 }
 
 .model-card:hover {
-  border-color: rgba(114, 131, 98, 0.55);
-  box-shadow: 0 2px 8px rgba(73, 88, 60, 0.12);
+  border-color: rgba(93, 117, 77, 0.78);
 }
 
 .model-thumbnail {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
-  border-radius: 0.4rem;
-  background: rgba(68, 80, 56, 0.06);
 }
 
 @media (max-width: 900px) {
-  .models-library {
-    left: 1rem;
+  .media-library {
     top: auto;
-    bottom: 12.4rem;
-    width: min(22rem, calc(100vw - 2rem));
+    bottom: 6.4rem;
+    left: 0.8rem;
+    width: min(19.4rem, calc(100vw - 1.6rem));
+    transform: none;
   }
 }
 </style>
