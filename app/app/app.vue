@@ -403,6 +403,10 @@ function handleSideToolClick(toolId) {
   if (toolId === 'audio') {
     closeAllLibraries()
     isSoundsLibraryVisible.value = true
+    if (sceneAudioItems.value.length > 0) {
+      selectedSceneAudioId.value = sceneAudioItems.value[0].objectId
+      selectedAsset.value = null
+    }
     return
   }
 
