@@ -11,6 +11,19 @@
         <h2>Log in</h2>
         <p class="auth-subtitle">Gebruik je e-mailadres en wachtwoord om verder te gaan.</p>
 
+        <AlertToast
+          v-if="registeredMessage"
+          type="warning"
+          title="Bevestig je e-mailadres"
+          :message="registeredMessage"
+        />
+        <AlertToast
+          v-if="verifiedMessage"
+          type="success"
+          title="E-mailadres bevestigd"
+          :message="verifiedMessage"
+        />
+
         <form class="auth-form" @submit.prevent="submitLogin">
           <div class="field-group">
             <label for="login-email">E-mail</label>
@@ -43,7 +56,29 @@
           </button>
         </form>
 
-        <p v-if="loginError" class="error-text">{{ loginError }}</p>
+        <AlertToast
+          v-if="loginError"
+          type="error"
+          title="Inloggen mislukt"
+          :message="loginError"
+        >
+          <button
+            v-if="showResendVerificationButton"
+            type="button"
+            class="alert-action-btn"
+            :disabled="isResendingVerification"
+            @click="resendVerification"
+          >
+            {{ isResendingVerification ? 'Verificatiemail verzenden...' : 'Stuur verificatiemail opnieuw' }}
+          </button>
+        </AlertToast>
+
+        <AlertToast
+          v-if="resendFeedbackMessage"
+          :type="resendFeedbackType"
+          :title="resendFeedbackTitle"
+          :message="resendFeedbackMessage"
+        />
 
         <p class="auth-footnote">
           Nog geen account?
@@ -55,15 +90,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Card from '../../components/ui/Card.vue'
+import AlertToast from '../../components/ui/AlertToast.vue'
 import { useAuth } from '../../composables/useAuth'
 
 definePageMeta({
   layout: false
 })
 
-const { signIn } = useAuth()
+const { signIn, resendSignupVerification } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
@@ -72,8 +108,33 @@ const password = ref('')
 const isPasswordVisible = ref(false)
 const loginError = ref('')
 const isSubmitting = ref(false)
+const showResendVerificationButton = ref(false)
+const isResendingVerification = ref(false)
+const resendFeedbackType = ref('success')
+const resendFeedbackTitle = ref('')
+const resendFeedbackMessage = ref('')
+
+const registeredMessage = computed(() => {
+  if (route.query.registered !== '1') {
+    return ''
+  }
+
+  return 'Je account is aangemaakt. Controleer je inbox en klik op de verificatielink voordat je inlogt.'
+})
+
+const verifiedMessage = computed(() => {
+  if (route.query.verified !== '1') {
+    return ''
+  }
+
+  return 'Je e-mailadres is succesvol bevestigd. Je kan nu inloggen.'
+})
+
 async function submitLogin() {
   loginError.value = ''
+  showResendVerificationButton.value = false
+  resendFeedbackMessage.value = ''
+  resendFeedbackTitle.value = ''
   isSubmitting.value = true
   try {
     await signIn({ email: email.value.trim(), password: password.value })
@@ -82,9 +143,39 @@ async function submitLogin() {
       : '/dashboard'
     router.push(redirect)
   } catch (err) {
-    loginError.value = err.message || 'Inloggen mislukt. Controleer je gegevens en probeer opnieuw.'
+    const message = err?.message || 'Inloggen mislukt. Controleer je gegevens en probeer opnieuw.'
+    loginError.value = message
+    showResendVerificationButton.value = /email\s+not\s+confirmed|not\s+confirmed/i.test(message)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function resendVerification() {
+  resendFeedbackMessage.value = ''
+  resendFeedbackTitle.value = ''
+
+  const cleanEmail = email.value.trim().toLowerCase()
+  if (!cleanEmail.length) {
+    resendFeedbackType.value = 'warning'
+    resendFeedbackTitle.value = 'E-mailadres ontbreekt'
+    resendFeedbackMessage.value = 'Vul eerst je e-mailadres in om de verificatiemail opnieuw te sturen.'
+    return
+  }
+
+  isResendingVerification.value = true
+
+  try {
+    await resendSignupVerification(cleanEmail)
+    resendFeedbackType.value = 'success'
+    resendFeedbackTitle.value = 'Verificatiemail verzonden'
+    resendFeedbackMessage.value = `We hebben een nieuwe verificatielink verstuurd naar ${cleanEmail}.`
+  } catch (error) {
+    resendFeedbackType.value = 'error'
+    resendFeedbackTitle.value = 'Verzenden mislukt'
+    resendFeedbackMessage.value = error?.message || 'Verificatiemail opnieuw sturen is mislukt.'
+  } finally {
+    isResendingVerification.value = false
   }
 }
 </script>
@@ -252,10 +343,21 @@ async function submitLogin() {
   text-decoration: none;
 }
 
-.error-text {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
-  color: #c0392b;
+.alert-action-btn {
+  border: 1px solid rgba(120, 61, 53, 0.3);
+  background: linear-gradient(180deg, #fff8f6 0%, #f5ece9 100%);
+  color: #4f221d;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+}
+
+.alert-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 @media (max-width: 900px) {
