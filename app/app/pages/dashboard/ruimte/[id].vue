@@ -147,7 +147,6 @@
                 Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
               </p>
               <button class="share-btn" type="button" @click="copyRoomUrl">Kopieer link</button>
-              <button class="share-btn" type="button">Stuur via e-mail</button>
               <div v-if="visibility === 'private'" class="pin-field">
                 <input
                   v-model="roomPinCode"
@@ -165,10 +164,10 @@
                   <img :src="isPinHidden ? '/icons/eye_hide.svg' : '/icons/eye.svg'" alt="" aria-hidden="true" />
                 </button>
               </div>
-              <div class="qr-box" aria-hidden="true">
-                <div class="qr-grid"></div>
+              <div class="qr-box">
+                <canvas ref="qrCanvasRef" class="qr-canvas"></canvas>
               </div>
-              <button class="download-btn" type="button">Download QR Code</button>
+              <button class="download-btn" type="button" @click="downloadQRCode">Download QR Code</button>
             </Card>
 
             <Card class="details-card">
@@ -374,6 +373,7 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import QRCode from 'qrcode'
 import DashboardLayout from '../../../components/dashboard/DashboardLayout.vue'
 import Card from '../../../components/ui/Card.vue'
 import AppLoadingScreen from '../../../components/ui/AppLoadingScreen.vue'
@@ -543,6 +543,7 @@ const isSaveToastVisible = ref(false)
 const isSavingRoomSettings = ref(false)
 const isDeletingRoom = ref(false)
 const saveError = ref('')
+const qrCanvasRef = ref(null)
 
 const canManageRoom = computed(() => {
   const currentUserId = session.value?.user?.id
@@ -576,6 +577,24 @@ watch(
     roomSettingsApprovalMode.value = nextRoom.approvalMode
     roomPinCode.value = nextRoom.accessPin || ''
     roomSettingsAccessPin.value = nextRoom.accessPin || ''
+  },
+  { immediate: true }
+)
+
+watch(
+  roomUrl,
+  async (nextUrl) => {
+    if (!nextUrl || nextUrl === '—' || !qrCanvasRef.value) return
+    try {
+      await QRCode.toCanvas(qrCanvasRef.value, nextUrl, {
+        errorCorrectionLevel: 'H',
+        type: 'image/png',
+        quality: 0.95,
+        width: 160
+      })
+    } catch (error) {
+      console.error('QR code generation failed:', error)
+    }
   },
   { immediate: true }
 )
@@ -864,6 +883,17 @@ function triggerSaveToast() {
     isSaveToastVisible.value = false
     saveToastTimer = null
   }, 2200)
+}
+
+function downloadQRCode() {
+  if (!qrCanvasRef.value) return
+
+  const link = document.createElement('a')
+  link.href = qrCanvasRef.value.toDataURL('image/png')
+  link.download = `QR-code-${room.value?.slug || 'memorial'}.png`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 onUnmounted(() => {
@@ -1333,15 +1363,12 @@ onUnmounted(() => {
   margin: 0.25rem 0 0.6rem;
 }
 
-.qr-grid {
-  width: 80px;
-  height: 80px;
+.qr-canvas {
   border-radius: 8px;
   border: 1px solid #d5dbd2;
-  background:
-    linear-gradient(90deg, #10131a 10px, transparent 10px) 0 0/20px 20px,
-    linear-gradient(#10131a 10px, transparent 10px) 0 0/20px 20px,
-    #fff;
+  background: #fff;
+  max-width: 100%;
+  height: auto;
 }
 
 .download-btn {
