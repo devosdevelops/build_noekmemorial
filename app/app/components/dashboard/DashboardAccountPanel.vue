@@ -1,5 +1,5 @@
 <template>
-  <div class="account-section">
+  <div class="account-section" :class="{ 'section-busy': isBusy }">
     <!-- Account Overview Card -->
     <Card class="overview-card">
       <div class="overview-header">
@@ -143,11 +143,6 @@ const { appUser, init, signOut, updateProfile, updateEmail } = useAuth()
 const { workspaces, loadWorkspaces } = useDashboardWorkspaces()
 const router = useRouter()
 
-onMounted(async () => {
-  await init()
-  await loadWorkspaces()
-})
-
 const userName = computed(() => {
   if (!appUser.value) return '—'
   const { first_name, last_name } = appUser.value
@@ -173,6 +168,20 @@ const accountCard = ref('')
 const isSaveToastVisible = ref(false)
 const isSavingAccount = ref(false)
 const isSupportPopupOpen = ref(false)
+const isBootstrapping = ref(false)
+const isSigningOut = ref(false)
+const isBusy = computed(() => isBootstrapping.value || isSavingAccount.value || isSigningOut.value)
+
+onMounted(async () => {
+  isBootstrapping.value = true
+
+  try {
+    await init()
+    await loadWorkspaces()
+  } finally {
+    isBootstrapping.value = false
+  }
+})
 
 // Pre-fill settings modal from live data
 function openAccountSettings() {
@@ -186,8 +195,14 @@ function openAccountSettings() {
 let saveToastTimer = null
 
 async function handleSignOut() {
-  await signOut()
-  router.push('/auth/login')
+  isSigningOut.value = true
+
+  try {
+    await signOut()
+    router.push('/auth/login')
+  } finally {
+    isSigningOut.value = false
+  }
 }
 
 async function saveAccountSettings() {
@@ -228,6 +243,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.section-busy,
+.section-busy * {
+  cursor: wait !important;
 }
 
 .overview-card {
