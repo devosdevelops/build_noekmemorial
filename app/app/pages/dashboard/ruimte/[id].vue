@@ -416,6 +416,7 @@ definePageMeta({
 })
 
 const route = useRoute()
+const runtimeConfig = useRuntimeConfig()
 const { init, session } = useAuth()
 
 await init()
@@ -534,7 +535,15 @@ const room = computed(() => {
 const roomUrl = computed(() => {
   if (!room.value?.slug) return '—'
 
-  return `https://my.noekmemorial.be/${room.value.slug}`
+  const configuredBaseUrl = typeof runtimeConfig.public?.appBaseUrl === 'string'
+    ? runtimeConfig.public.appBaseUrl.trim()
+    : ''
+  const fallbackBaseUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : 'https://app.noekmemorial.be'
+  const baseUrl = (configuredBaseUrl || fallbackBaseUrl).replace(/\/+$/, '')
+
+  return `${baseUrl}/viewer/${encodeURIComponent(room.value.slug)}`
 })
 const collaborators = computed(() => roomResponse.value?.collaborators ?? [])
 const moderationPendingCount = computed(() => Number(moderation.value?.pendingCount) || 0)
