@@ -8,6 +8,11 @@ create table if not exists public.app_workspaces (
   name text not null,
   slug text not null unique,
   owner_id uuid not null references public.app_users(id) on delete cascade,
+  deceased_first_name text null,
+  deceased_last_name text null,
+  visibility text not null default 'public' check (visibility in ('public', 'private')),
+  approval_mode text not null default 'manual' check (approval_mode in ('manual', 'automatic')),
+  access_pin text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
