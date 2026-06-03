@@ -34,7 +34,7 @@
 
     <!-- Settings Card -->
     <Card class="settings-card">
-      <button class="settings-button" type="button" @click="isAccountSettingsOpen = true">
+      <button class="settings-button" type="button" @click="openAccountSettings">
         <img src="/icons/SettingsInline.svg" alt="Settings" class="settings-icon" />
         Accountinstellingen
       </button>
@@ -45,7 +45,7 @@
     </Card>
 
     <!-- Logout Button -->
-    <button class="logout-button">Logout</button>
+    <button class="logout-button" type="button" @click="handleSignOut">Logout</button>
 
     <div
       v-if="isAccountSettingsOpen"
@@ -130,35 +130,57 @@
 </template>
 
 <script setup>
-import { onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Card from '../ui/Card.vue'
 import IconAccount from '../icons/IconAccount.vue'
+import { useAuth } from '../../composables/useAuth'
 
-const userName = ref('Jan Jansen')
-const userEmail = ref('jan.jansen@voorbeeld.nl')
-const subscriptionPrice = ref('€ 45,00')
-const roomsUsed = ref(0)
-const roomsLimit = ref(1)
+const { appUser, init, signOut } = useAuth()
+const router = useRouter()
+
+onMounted(init)
+
+const userName = computed(() => {
+  if (!appUser.value) return '—'
+  const { first_name, last_name } = appUser.value
+  return `${first_name ?? ''} ${last_name ?? ''}`.trim() || '—'
+})
+
+const userEmail = computed(() => appUser.value?.email ?? '—')
+
+const subscriptionPrice = computed(() => {
+  const cents = appUser.value?.maintenance_yearly_price_cents
+  if (cents == null) return '—'
+  return `€ ${(cents / 100).toFixed(2).replace('.', ',')}`
+})
+
+const roomsLimit = computed(() => appUser.value?.rooms_limit ?? 1)
+const roomsUsed = ref(0) // will be driven by workspaces count later
 
 const isAccountSettingsOpen = ref(false)
-const accountFirstName = ref('Jan')
-const accountLastName = ref('Jansens')
-const accountEmail = ref('janjansens@bedrijf.be')
-const accountCard = ref('BE123456790')
+const accountFirstName = ref('')
+const accountLastName = ref('')
+const accountEmail = ref('')
+const accountCard = ref('')
 const isSaveToastVisible = ref(false)
 const isSupportPopupOpen = ref(false)
+
+// Pre-fill settings modal from live data
+function openAccountSettings() {
+  accountFirstName.value = appUser.value?.first_name ?? ''
+  accountLastName.value = appUser.value?.last_name ?? ''
+  accountEmail.value = appUser.value?.email ?? ''
+  accountCard.value = appUser.value?.billing_card_last4 ?? ''
+  isAccountSettingsOpen.value = true
+}
 
 let saveToastTimer = null
 
 function saveAccountSettings() {
-  userName.value = `${accountFirstName.value} ${accountLastName.value}`.trim()
-  userEmail.value = accountEmail.value
+  // Persistence will be wired to a server API in a later step.
   isAccountSettingsOpen.value = false
 
-  if (saveToastTimer) {
-    clearTimeout(saveToastTimer)
-  }
-
+  if (saveToastTimer) clearTimeout(saveToastTimer)
   isSaveToastVisible.value = true
   saveToastTimer = setTimeout(() => {
     isSaveToastVisible.value = false
@@ -166,10 +188,13 @@ function saveAccountSettings() {
   }, 2600)
 }
 
+async function handleSignOut() {
+  await signOut()
+  router.push('/auth/login')
+}
+
 onUnmounted(() => {
-  if (saveToastTimer) {
-    clearTimeout(saveToastTimer)
-  }
+  if (saveToastTimer) clearTimeout(saveToastTimer)
 })
 </script>
 
