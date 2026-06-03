@@ -8,7 +8,7 @@
             Open Ruimte in Editor
           </NuxtLink>
 
-          <button class="action-btn-segmented" type="button">
+          <button class="action-btn-segmented" type="button" @click="isRoomSettingsOpen = true">
             <span class="action-segment-icon" aria-hidden="true">
               <img src="/icons/settings_white.svg" alt="" class="btn-icon" />
             </span>
@@ -194,6 +194,82 @@
         </Card>
       </div>
 
+      <div
+        v-if="isRoomSettingsOpen"
+        class="room-settings-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="room-settings-title"
+        @click.self="closeRoomSettings"
+      >
+        <Card class="room-settings-card">
+          <div class="room-settings-header">
+            <h2 id="room-settings-title">Ruimte Intellingen</h2>
+            <button
+              type="button"
+              class="room-settings-close"
+              aria-label="Sluiten"
+              @click="closeRoomSettings"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="room-settings-field">
+            <label for="room-settings-name">Naam van Ruimte</label>
+            <input
+              id="room-settings-name"
+              v-model="roomSettingsName"
+              type="text"
+              class="room-settings-input"
+            />
+          </div>
+
+          <div class="room-settings-field">
+            <label>Naam Overledene</label>
+            <div class="room-settings-name-row">
+              <input v-model="roomSettingsFirstName" type="text" class="room-settings-input" />
+              <input v-model="roomSettingsLastName" type="text" class="room-settings-input" />
+            </div>
+          </div>
+
+          <div class="room-settings-field">
+            <label class="room-settings-section-title">Zichtbaarheids Instellingen</label>
+            <div class="room-settings-radio-row">
+              <label class="room-settings-radio-item">
+                <input v-model="roomSettingsVisibility" type="radio" value="public" />
+                <span>Publiek</span>
+              </label>
+              <label class="room-settings-radio-item">
+                <input v-model="roomSettingsVisibility" type="radio" value="private" />
+                <span>Afgeschermd</span>
+              </label>
+            </div>
+            <p class="room-settings-help-text">
+              Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft. Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken
+            </p>
+          </div>
+
+          <div class="room-settings-field">
+            <label class="room-settings-section-title">Bijdrage goedkeuringsinstellingen</label>
+            <div class="room-settings-radio-stack">
+              <label class="room-settings-radio-item">
+                <input v-model="roomSettingsApprovalMode" type="radio" value="manual" />
+                <span>Handmatige goedkeuring (aanbevolen)</span>
+              </label>
+              <label class="room-settings-radio-item">
+                <input v-model="roomSettingsApprovalMode" type="radio" value="automatic" />
+                <span>Automatische goedkeuring</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="button" class="room-settings-save" @click="closeRoomSettings">
+            Veranderingen Opslaan
+          </button>
+        </Card>
+      </div>
+
       <transition name="copy-toast">
         <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
           <span class="copy-toast-icon" aria-hidden="true">✓</span>
@@ -236,6 +312,12 @@ const roomUrl = computed(() => `https://${room.value.slug}`)
 
 const visibility = ref('public')
 const approvalMode = ref('manual')
+const isRoomSettingsOpen = ref(false)
+const roomSettingsName = ref(room.value.title)
+const roomSettingsFirstName = ref(room.value.deceasedName.split(' ')[0] || '')
+const roomSettingsLastName = ref(room.value.deceasedName.split(' ').slice(1).join(' ') || '')
+const roomSettingsVisibility = ref('public')
+const roomSettingsApprovalMode = ref('manual')
 const roomPinCode = ref('8391')
 const isPinHidden = ref(true)
 const isCollaboratorModalOpen = ref(false)
@@ -283,6 +365,10 @@ function triggerCopyToast() {
 
 function closeCollaboratorModal() {
   isCollaboratorModalOpen.value = false
+}
+
+function closeRoomSettings() {
+  isRoomSettingsOpen.value = false
 }
 
 function sendCollaboratorInvite() {
@@ -931,6 +1017,135 @@ onUnmounted(() => {
   transform: translate(-50%, calc(-50% + 8px));
 }
 
+.room-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 24, 22, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 255;
+}
+
+.room-settings-card {
+  width: min(100%, 760px);
+  padding: 1.7rem 1.85rem 1.75rem;
+  border-radius: 14px;
+}
+
+.room-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.room-settings-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.05rem;
+  font-weight: 700;
+  color: #232635;
+}
+
+.room-settings-close {
+  border: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #e55a3c 0%, #cf482e 100%);
+  color: #ffffff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.room-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1.25rem;
+}
+
+.room-settings-field label,
+.room-settings-section-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #232635;
+}
+
+.room-settings-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 13px;
+  padding: 0.72rem 1rem;
+  background: #aeb1bb;
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.room-settings-name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.room-settings-radio-row {
+  display: flex;
+  gap: 1.8rem;
+  margin-top: 0.1rem;
+}
+
+.room-settings-radio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  margin-top: 0.1rem;
+}
+
+.room-settings-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #26293a;
+}
+
+.room-settings-radio-item input {
+  accent-color: #8b86c9;
+}
+
+.room-settings-help-text {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #3d4353;
+}
+
+.room-settings-save {
+  width: 100%;
+  border: none;
+  border-radius: 13px;
+  padding: 0.95rem 1rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82d14d 0%, #629d3a 100%));
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(98, 157, 58, 0.28);
+}
+
+.room-settings-save:hover {
+  filter: brightness(0.98);
+}
+
 @media (max-width: 980px) {
   .top-actions {
     grid-template-columns: 1fr;
@@ -942,6 +1157,23 @@ onUnmounted(() => {
 
   .details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .room-settings-card {
+    width: min(100%, 620px);
+    padding: 1.3rem;
+  }
+
+  .room-settings-header h2 {
+    font-size: 1.7rem;
+  }
+
+  .room-settings-name-row {
+    grid-template-columns: 1fr;
+  }
+
+  .room-settings-radio-row {
+    gap: 1.1rem;
   }
 
   .copy-toast {
