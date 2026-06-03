@@ -65,6 +65,7 @@ definePageMeta({
 
 const { signIn } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const password = ref('')
@@ -76,7 +77,10 @@ async function submitLogin() {
   isSubmitting.value = true
   try {
     await signIn({ email: email.value.trim(), password: password.value })
-    router.push('/dashboard')
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.length
+      ? route.query.redirect
+      : '/dashboard'
+    router.push(redirect)
   } catch (err) {
     loginError.value = err.message || 'Inloggen mislukt. Controleer je gegevens en probeer opnieuw.'
   } finally {
