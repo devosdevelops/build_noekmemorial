@@ -80,6 +80,13 @@ const modelMaterialTargets = computed(() => {
   return [{ id: 'all-materials', label: 'Alle materialen' }, ...targets]
 })
 const hasActiveTexture = computed(() => selectedTexturePreviewId.value !== 'no-texture')
+const colorTooltipText = computed(() => {
+  if (props.selectedAsset?.assetType === 'model') {
+    return 'Klik een modelonderdeel aan of kies onderaan een doelmateriaal, en pas daarna de kleur aan.'
+  }
+
+  return 'Pas de kleur direct aan met de kleurenschijf.'
+})
 
 watch(
   () => props.selectedAsset?.color,
@@ -233,7 +240,7 @@ function handleColorTargetChange(event) {
             type="button"
             class="section-info"
             aria-label="Kleur uitleg"
-            data-tooltip="Pas de blokkleur direct aan met de kleurenschijf."
+            :data-tooltip="colorTooltipText"
           />
         </div>
         <ColorDiskPicker :model-value="currentColor" @update:model-value="handleColorChange" />
