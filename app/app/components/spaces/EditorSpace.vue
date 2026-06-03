@@ -90,6 +90,14 @@
       :is-grid-visible="isGridVisible"
       @action-click="handleTopActionClick"
     />
+    <PublishModal
+      v-if="isPublishModalOpen"
+      v-model:selected-visibility="publishVisibilitySelection"
+      :is-submitting="isPublishingWorkspace"
+      :error-message="publishModalError"
+      @close="closePublishModal"
+      @confirm="confirmWorkspacePublish"
+    />
     <BottomControlBar
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
@@ -191,6 +199,7 @@ import BlocksLibraryPanel from '../editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from '../editor/FloorLibraryPanel.vue'
 import LightLibraryPanel from '../editor/LightLibraryPanel.vue'
 import ModelsLibraryPanel from '../editor/ModelsLibraryPanel.vue'
+import PublishModal from '../editor/PublishModal.vue'
 import SoundsLibraryPanel from '../editor/SoundsLibraryPanel.vue'
 import BottomControlBar from '../editor/BottomControlBar.vue'
 import BrandPanel from '../editor/BrandPanel.vue'
@@ -295,6 +304,10 @@ const isWorkspaceOwner = ref(false)
 const currentWorkspaceVisibility = ref('offline')
 const isEditorWarningVisible = ref(false)
 const editorWarningMessage = ref('')
+const isPublishModalOpen = ref(false)
+const publishVisibilitySelection = ref('')
+const publishModalError = ref('')
+const isPublishingWorkspace = ref(false)
 const isInitialBootLoadFinished = ref(false)
 const hasSceneViewportMounted = ref(false)
 const hasEditorReadyBeenEmitted = ref(false)
@@ -1049,7 +1062,7 @@ function handleTopActionClick(actionId) {
   }
 
   if (actionId === 'publish') {
-    publishWorkspaceFromEditor()
+    startWorkspacePublishFlow()
     return
   }
 
@@ -1073,7 +1086,37 @@ function handleTopActionClick(actionId) {
   }
 }
 
-async function publishWorkspaceFromEditor() {
+async function fetchWorkspaceContext(accessToken) {
+  const response = await $fetch(`/api/workspaces/${workspaceId.value}`, {
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    }
+  })
+
+  const workspace = response?.workspace
+  const owner = response?.owner
+
+  if (!workspace) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Werkruimte kon niet worden geladen.'
+    })
+  }
+
+  workspaceSettingsName.value = workspace?.name || ''
+  workspaceSettingsFirstName.value = workspace?.deceased_first_name || ''
+  workspaceSettingsLastName.value = workspace?.deceased_last_name || ''
+  currentWorkspaceVisibility.value = workspace?.visibility === 'public' || workspace?.visibility === 'private'
+    ? workspace.visibility
+    : 'offline'
+  workspaceSettingsVisibility.value = currentWorkspaceVisibility.value
+  workspaceSettingsApprovalMode.value = workspace?.approval_mode === 'automatic' ? 'automatic' : 'manual'
+  isWorkspaceOwner.value = Boolean(owner?.id && owner.id === session.value?.user?.id)
+
+  return workspace
+}
+
+async function startWorkspacePublishFlow() {
   if (!workspaceId.value || !workspaceId.value.length) {
     triggerEditorWarning('Open de editor vanuit een bestaande werkruimte om te publiceren.')
     return
@@ -1088,22 +1131,94 @@ async function publishWorkspaceFromEditor() {
   }
 
   try {
-    const response = await $fetch(`/api/workspaces/${workspaceId.value}/publish`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`
-      }
-    })
+    const workspace = await fetchWorkspaceContext(accessToken)
+    const isFirstPublish = workspace?.visibility === 'offline'
 
-    const nextVisibility = response?.workspace?.visibility
-    if (nextVisibility === 'public' || nextVisibility === 'private' || nextVisibility === 'offline') {
-      currentWorkspaceVisibility.value = nextVisibility
-      workspaceSettingsVisibility.value = nextVisibility
+    if (isFirstPublish) {
+      if (!isWorkspaceOwner.value) {
+        triggerEditorWarning('Alleen de eigenaar kan deze ruimte publiceren.')
+        return
+      }
+
+      publishModalError.value = ''
+      publishVisibilitySelection.value = ''
+      isPublishModalOpen.value = true
+      return
     }
 
-    triggerEditorWarning(response?.alreadyPublished ? 'Deze ruimte is al gepubliceerd.' : 'Ruimte is gepubliceerd en staat nu publiek.')
+    await publishWorkspaceFromEditor(accessToken, workspace?.visibility)
   } catch (error) {
     triggerEditorWarning(error?.data?.statusMessage || error?.statusMessage || error?.message || 'Publiceren is mislukt.')
+  }
+}
+
+async function publishWorkspaceFromEditor(accessToken, visibilitySelection) {
+  const nextVisibility = visibilitySelection === 'private' ? 'private' : 'public'
+  const response = await $fetch(`/api/workspaces/${workspaceId.value}/publish`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    },
+    body: {
+      visibility: nextVisibility
+    }
+  })
+
+  const responseVisibility = response?.workspace?.visibility
+  if (responseVisibility === 'public' || responseVisibility === 'private' || responseVisibility === 'offline') {
+    currentWorkspaceVisibility.value = responseVisibility
+    workspaceSettingsVisibility.value = responseVisibility
+  }
+
+  if (response?.alreadyPublished) {
+    triggerEditorWarning('Deze ruimte is al gepubliceerd.')
+    return
+  }
+
+  if (responseVisibility === 'private') {
+    triggerEditorWarning('Ruimte is gepubliceerd als afgeschermd.')
+    return
+  }
+
+  triggerEditorWarning('Ruimte is gepubliceerd als publiek.')
+}
+
+function closePublishModal() {
+  if (isPublishingWorkspace.value) {
+    return
+  }
+
+  isPublishModalOpen.value = false
+  publishModalError.value = ''
+}
+
+async function confirmWorkspacePublish() {
+  publishModalError.value = ''
+
+  if (publishVisibilitySelection.value !== 'public' && publishVisibilitySelection.value !== 'private') {
+    publishModalError.value = 'Kies eerst Publiek of Afgeschermd om te publiceren.'
+    return
+  }
+
+  await initAuth()
+  const accessToken = session.value?.access_token
+
+  if (!accessToken) {
+    publishModalError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
+  isPublishingWorkspace.value = true
+
+  try {
+    await publishWorkspaceFromEditor(accessToken, publishVisibilitySelection.value)
+    isPublishModalOpen.value = false
+    publishVisibilitySelection.value = ''
+    publishModalError.value = ''
+  } catch (error) {
+    publishModalError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Publiceren is mislukt.'
+  } finally {
+    isPublishingWorkspace.value = false
   }
 }
 
@@ -1124,24 +1239,7 @@ async function openWorkspaceSettings() {
   }
 
   try {
-    const response = await $fetch(`/api/workspaces/${workspaceId.value}`, {
-      headers: {
-        authorization: `Bearer ${accessToken}`
-      }
-    })
-
-    const workspace = response?.workspace
-    const owner = response?.owner
-
-    workspaceSettingsName.value = workspace?.name || ''
-    workspaceSettingsFirstName.value = workspace?.deceased_first_name || ''
-    workspaceSettingsLastName.value = workspace?.deceased_last_name || ''
-    currentWorkspaceVisibility.value = workspace?.visibility === 'public' || workspace?.visibility === 'private'
-      ? workspace.visibility
-      : 'offline'
-    workspaceSettingsVisibility.value = currentWorkspaceVisibility.value
-    workspaceSettingsApprovalMode.value = workspace?.approval_mode === 'automatic' ? 'automatic' : 'manual'
-    isWorkspaceOwner.value = Boolean(owner?.id && owner.id === session.value?.user?.id)
+    await fetchWorkspaceContext(accessToken)
     isWorkspaceSettingsOpen.value = true
 
     if (!isWorkspaceOwner.value) {

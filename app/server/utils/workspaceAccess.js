@@ -56,7 +56,7 @@ export async function requireWorkspaceAccess({ supabase, workspaceId, actorId, a
 
   const { data: workspace, error: workspaceError } = await supabase
     .from('app_workspaces')
-    .select('id, owner_id, name, slug')
+    .select('id, owner_id, name, slug, visibility, approval_mode, access_pin, published_at')
     .eq('id', workspaceId)
     .single()
 
