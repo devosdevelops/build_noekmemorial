@@ -4,7 +4,8 @@
 
 <script setup>
 definePageMeta({
-  layout: 'editor'
+  layout: 'editor',
+  middleware: ['auth']
 })
 
 import EditorSpace from '../../components/spaces/EditorSpace.vue'
