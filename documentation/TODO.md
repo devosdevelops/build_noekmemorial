@@ -31,6 +31,7 @@
     [x] add sounds to scene
 [x] add lighting options
 [x] hide grid 
+[] add animation to anything that opens or closes
 [] add special pinboard and candle objects
 [] add templates
 
