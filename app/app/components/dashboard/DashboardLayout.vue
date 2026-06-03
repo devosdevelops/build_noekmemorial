@@ -9,12 +9,12 @@
     </header>
 
     <main class="dashboard-main">
-      <div class="dashboard-container">
+      <div class="dashboard-container" :class="{ 'dashboard-container-no-sidebar': !showSidebar }">
         <section class="dashboard-content">
           <slot />
         </section>
 
-        <aside class="dashboard-sidebar">
+        <aside v-if="showSidebar" class="dashboard-sidebar">
           <DashboardAccountPanel />
         </aside>
       </div>
@@ -25,6 +25,13 @@
 <script setup>
 import DashboardAccountPanel from './DashboardAccountPanel.vue'
 import '../../assets/css/dashboard.css'
+
+defineProps({
+  showSidebar: {
+    type: Boolean,
+    default: true
+  }
+})
 </script>
 
 <style scoped>
@@ -66,6 +73,10 @@ import '../../assets/css/dashboard.css'
   display: grid;
   grid-template-columns: 5fr 3fr;
   gap: 2rem;
+}
+
+.dashboard-container-no-sidebar {
+  grid-template-columns: 1fr;
 }
 
 .dashboard-content {
