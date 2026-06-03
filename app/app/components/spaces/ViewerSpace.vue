@@ -88,10 +88,78 @@
 
       <ViewerRightRail
         :is-ui-hidden="isUiHidden"
+        :is-music-on="isMusicOn"
         :active-mode="activeMode"
+        @toggle-music="toggleMusic"
         @toggle-ui="toggleUi"
         @set-mode="setMode"
       />
+
+      <div
+        v-if="isMediaCarouselOpen"
+        class="viewer-media-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Media weergave"
+        @click="closeMediaCarousel"
+      >
+        <section
+          class="viewer-media-overlay__card"
+          @click.stop
+          @mousedown="beginCarouselSwipe"
+          @mouseup="endCarouselSwipe"
+          @touchstart="beginCarouselSwipe"
+          @touchend="endCarouselSwipe"
+        >
+          <header class="viewer-media-overlay__header">
+            <p>
+              {{ mediaCarouselItems.length ? `${mediaCarouselIndex + 1} / ${mediaCarouselItems.length}` : 'Geen bijdragen' }}
+            </p>
+            <button type="button" @click="closeMediaCarousel">Sluiten</button>
+          </header>
+
+          <article v-if="activeCarouselItem" class="viewer-media-overlay__content">
+            <template v-if="mediaCarouselKind === 'message'">
+              <div class="viewer-media-overlay__message-paper">
+                <p>{{ excerptFromContribution(activeCarouselItem) || 'Geen berichttekst opgegeven.' }}</p>
+              </div>
+              <p class="viewer-media-overlay__meta">{{ posterNameFromContribution(activeCarouselItem) }}</p>
+            </template>
+
+            <template v-else-if="mediaCarouselKind === 'image-video'">
+              <img
+                v-if="String(activeCarouselItem?.content?.media_type || '').toLowerCase() === 'image'"
+                :src="mediaUrlFromContribution(activeCarouselItem)"
+                :alt="activeCarouselItem?.title || 'Herinneringsfoto'"
+              >
+              <video
+                v-else
+                :src="mediaUrlFromContribution(activeCarouselItem)"
+                controls
+                playsinline
+                preload="metadata"
+              />
+              <p class="viewer-media-overlay__meta">Geplaatst door {{ posterNameFromContribution(activeCarouselItem) }}</p>
+            </template>
+
+            <template v-else>
+              <button type="button" class="viewer-media-overlay__audio-toggle" @click="toggleCarouselAudio">
+                {{ carouselAudio ? 'Stop audio' : 'Speel audio' }}
+              </button>
+              <p class="viewer-media-overlay__meta">Geplaatst door {{ posterNameFromContribution(activeCarouselItem) }}</p>
+            </template>
+          </article>
+
+          <article v-else class="viewer-media-overlay__empty">
+            Voor dit media-object zijn nog geen bijdragen beschikbaar.
+          </article>
+
+          <footer class="viewer-media-overlay__nav">
+            <button type="button" @click="previousCarouselItem" :disabled="!mediaCarouselItems.length">Vorige</button>
+            <button type="button" @click="nextCarouselItem" :disabled="!mediaCarouselItems.length">Volgende</button>
+          </footer>
+        </section>
+      </div>
 
       <div v-if="isGuestNamePromptOpen" class="viewer-space__prompt-backdrop" @click="isGuestNamePromptOpen = false">
         <form class="viewer-space__prompt" @submit.prevent="submitGuestName" @click.stop>
@@ -242,20 +310,20 @@ const viewerMusicTrackUrl = computed(() => {
     ? viewerSceneDocument.value.objects
     : []
 
-  const sceneMusicObject = sceneObjects.find((objectState) => {
+  const sceneMusicObjects = sceneObjects.filter((objectState) => {
     return objectState?.kind === 'audio'
       && typeof objectState?.assetRef === 'string'
       && objectState.assetRef.length
   })
 
-  if (sceneMusicObject?.assetRef) {
-    const fromLibrary = AUDIO_TRACKS.find((track) => track.id === sceneMusicObject.assetRef)
-    if (fromLibrary?.url) {
+  for (const objectState of sceneMusicObjects) {
+    const fromLibrary = AUDIO_TRACKS.find((track) => track.id === objectState.assetRef)
+    if (fromLibrary?.url && fromLibrary.categoryId === 'music') {
       return fromLibrary.url
     }
 
-    if (sceneMusicObject.assetRef.startsWith('/audio/') || sceneMusicObject.assetRef.startsWith('http')) {
-      return sceneMusicObject.assetRef
+    if (objectState.assetRef.startsWith('/audio/') || objectState.assetRef.startsWith('http')) {
+      return objectState.assetRef
     }
   }
 
@@ -946,6 +1014,129 @@ async function handleMediaSubmit(payload) {
 .viewer-space__prompt-actions button[type='submit'] {
   background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
   color: #ffffff;
+}
+
+.viewer-media-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 34;
+  background: rgba(6, 11, 16, 0.72);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.viewer-media-overlay__card {
+  width: min(40rem, 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(224, 238, 248, 0.18);
+  background: linear-gradient(165deg, rgba(23, 30, 44, 0.97) 0%, rgba(12, 16, 25, 0.96) 100%);
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.42);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+  color: #eef7ff;
+}
+
+.viewer-media-overlay__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.viewer-media-overlay__header p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: rgba(233, 244, 255, 0.78);
+}
+
+.viewer-media-overlay__header button {
+  border: 0;
+  border-radius: 9px;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  cursor: pointer;
+  background: rgba(232, 241, 250, 0.15);
+  color: #eef7ff;
+}
+
+.viewer-media-overlay__content {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.viewer-media-overlay__content img,
+.viewer-media-overlay__content video {
+  width: 100%;
+  border-radius: 12px;
+  max-height: min(54vh, 30rem);
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.viewer-media-overlay__message-paper {
+  min-height: 10rem;
+  border-radius: 12px;
+  padding: 1rem;
+  background: linear-gradient(180deg, #f6edd6 0%, #efe0b8 100%);
+  color: #2d2b25;
+  border: 1px solid rgba(55, 45, 20, 0.1);
+}
+
+.viewer-media-overlay__message-paper p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.viewer-media-overlay__meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(229, 242, 255, 0.85);
+}
+
+.viewer-media-overlay__audio-toggle {
+  border: 0;
+  border-radius: 11px;
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  cursor: pointer;
+  background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.viewer-media-overlay__empty {
+  min-height: 8rem;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  background: rgba(228, 241, 252, 0.08);
+  color: rgba(229, 242, 255, 0.83);
+}
+
+.viewer-media-overlay__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.viewer-media-overlay__nav button {
+  border: 0;
+  border-radius: 11px;
+  min-height: 2.35rem;
+  padding: 0 1rem;
+  cursor: pointer;
+  background: rgba(232, 241, 250, 0.14);
+  color: #eef7ff;
+}
+
+.viewer-media-overlay__nav button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .viewer-access-error {

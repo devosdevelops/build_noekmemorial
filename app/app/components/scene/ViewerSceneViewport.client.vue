@@ -783,6 +783,10 @@ function updateCameraFocusTransition(now) {
   }
 }
 
+function focusCameraOnPosition(targetPosition) {
+  startCameraFocusTransition(targetPosition)
+}
+
 async function placeVisitorCandle({ candleStyle = 'Klassiek', candleModel = null } = {}) {
   if (!scene) {
     return null
@@ -1194,7 +1198,8 @@ onMounted(() => {
 })
 
 defineExpose({
-  placeVisitorCandle
+  placeVisitorCandle,
+  focusCameraOnPosition
 })
 
 watch(

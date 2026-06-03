@@ -85,19 +85,19 @@
     [x] candle emits glow light + flicker (burning logic)
     [] final visual/model polish pass with expected candle art direction
 [x] leave message
-[] toggle music
+[x] toggle music
 [x] leave voice message
 [x] hide ui
 [x] pin protection
-[] media object activation flow
-    [] On click/tap media object, center camera on object (focus transition)
-    [] Open shared media carousel by object type (all messages OR all images+videos OR all audio)
-    [] Image/video cards always show poster name
-    [] Message cards render white paper panel with sender at bottom
-    [] Audio cards show poster + play button
-    [] Carousel navigation: swipe, drag, arrows, keyboard arrow keys
-    [] Close carousel with top-right X and click-outside
-    [] Fade scene background behind overlay
+[x] media object activation flow
+    [x] On click/tap media object, center camera on object (focus transition)
+    [x] Open shared media carousel by object type (all messages OR all images+videos OR all audio)
+    [x] Image/video cards always show poster name
+    [x] Message cards render white paper panel with sender at bottom
+    [x] Audio cards show poster + play button
+    [x] Carousel navigation: swipe, drag, arrows, keyboard arrow keys
+    [x] Close carousel with top-right X and click-outside
+    [x] Fade scene background behind overlay
     [x] MVP interim: show filtered recent contributions in element detail panel
 
 ## Dashboard
@@ -133,8 +133,8 @@
     [x] see overview of price 
     [x] confirm purchase
     [x] number of room slots goes up
-[] manage rooms
-[] manage collaborators
+[x] manage rooms
+[x] manage collaborators
 [x] memorial settings
 [x] split up your owned spaces and spaces you are a collaborator on.
 [] remove delete powers
