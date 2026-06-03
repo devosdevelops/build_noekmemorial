@@ -645,6 +645,7 @@ function handleSceneElementSelection(element) {
   const worldPosition = Array.isArray(element.worldPosition) ? element.worldPosition : null
   setSelectedElement({
     id: element.id,
+    kind: element.kind || '',
     title: element.title || 'Scene element',
     description: element.description || '',
     interaction: element.interaction ?? null
@@ -653,11 +654,6 @@ function handleSceneElementSelection(element) {
 
   if (worldPosition && viewerViewportRef.value?.focusCameraOnPosition) {
     viewerViewportRef.value.focusCameraOnPosition(worldPosition)
-  }
-
-  if (element.interaction?.type === 'media-carousel' && typeof element.interaction.mediaKind === 'string') {
-    openMediaCarousel(element.interaction.mediaKind)
-    return
   }
 
   closeMediaCarousel()
@@ -674,6 +670,17 @@ function handlePanelQuickAction(action) {
 
   if (action === 'candle') {
     openPanel('candle')
+    return
+  }
+
+  if (action === 'view-media') {
+    if (
+      selectedElement.value?.interaction?.type === 'media-carousel'
+      && typeof selectedElement.value?.interaction?.mediaKind === 'string'
+      && selectedElement.value.interaction.mediaKind.length
+    ) {
+      openMediaCarousel(selectedElement.value.interaction.mediaKind)
+    }
     return
   }
 
@@ -946,12 +953,16 @@ function stopViewerMusic() {
 async function handleMessageSubmit(payload) {
   submitSuccessMessage.value = ''
 
+  const selectedElementId = selectedElement.value?.kind === 'floor'
+    ? null
+    : (selectedElement.value?.id || null)
+
   const response = await submitMessage({
     slug: props.slug,
     message: payload?.message || '',
     voiceUrl: payload?.voiceUrl || '',
     guestName: isAuthenticated.value ? '' : guestName.value,
-    selectedElementId: selectedElement.value?.id || null,
+    selectedElementId,
     worldPosition: pointerWorldPosition.value,
     accessToken: session.value?.access_token || '',
     accessPin: acceptedAccessPin.value
@@ -969,8 +980,12 @@ async function handleMessageSubmit(payload) {
 async function handleCandleSubmit(payload) {
   submitSuccessMessage.value = ''
 
+  const selectedElementId = selectedElement.value?.kind === 'floor'
+    ? null
+    : (selectedElement.value?.id || null)
+
   let candleWorldPosition = pointerWorldPosition.value
-  let candleAnchorElementId = selectedElement.value?.id || null
+  let candleAnchorElementId = selectedElementId
 
   const placement = viewerViewportRef.value?.placeVisitorCandle
     ? viewerViewportRef.value.placeVisitorCandle({
@@ -1012,13 +1027,17 @@ async function handleCandleSubmit(payload) {
 async function handleMediaSubmit(payload) {
   submitSuccessMessage.value = ''
 
+  const selectedElementId = selectedElement.value?.kind === 'floor'
+    ? null
+    : (selectedElement.value?.id || null)
+
   const response = await submitMedia({
     slug: props.slug,
     mediaType: payload?.mediaType || 'image',
     mediaUrl: payload?.mediaUrl || '',
     title: payload?.title || '',
     caption: payload?.caption || '',
-    selectedElementId: selectedElement.value?.id || null,
+    selectedElementId,
     worldPosition: pointerWorldPosition.value,
     accessToken: session.value?.access_token || '',
     accessPin: acceptedAccessPin.value
@@ -1039,7 +1058,7 @@ async function handleMediaSubmit(payload) {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: #070b10;
+  background: #e8dcc0;
   font-family: var(--font-sans);
 }
 
@@ -1047,16 +1066,16 @@ async function handleMediaSubmit(payload) {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 12% 18%, rgba(222, 181, 113, 0.19), transparent 30%),
-    radial-gradient(circle at 82% 78%, rgba(163, 177, 138, 0.22), transparent 30%),
-    linear-gradient(180deg, #1a2433 0%, #0a1118 65%, #05080d 100%);
+    radial-gradient(circle at 14% 20%, rgba(224, 202, 155, 0.35), transparent 32%),
+    radial-gradient(circle at 80% 76%, rgba(188, 202, 165, 0.28), transparent 34%),
+    linear-gradient(180deg, #efe5cf 0%, #e7dbc0 68%, #ddcfb2 100%);
 }
 
 .viewer-space__prompt-backdrop {
   position: absolute;
   inset: 0;
   z-index: 35;
-  background: rgba(0, 0, 0, 0.52);
+  background: rgba(58, 52, 34, 0.38);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -1066,10 +1085,12 @@ async function handleMediaSubmit(payload) {
   width: min(24rem, 100%);
   border-radius: 14px;
   padding: 1rem;
-  background: linear-gradient(160deg, rgba(30, 39, 55, 0.96) 0%, rgba(20, 25, 35, 0.96) 100%);
-  color: #eff7ff;
+  background: linear-gradient(160deg, rgba(252, 253, 249, 0.97) 0%, rgba(244, 248, 238, 0.96) 100%);
+  color: #273122;
   display: grid;
   gap: 0.55rem;
+  border: 1px solid rgba(162, 174, 143, 0.38);
+  box-shadow: 0 16px 34px rgba(44, 37, 21, 0.22);
 }
 
 .viewer-space__prompt h2 {
@@ -1081,21 +1102,21 @@ async function handleMediaSubmit(payload) {
 .viewer-space__prompt-copy {
   margin: 0;
   font-size: 0.9rem;
-  color: rgba(236, 244, 252, 0.86);
+  color: rgba(54, 68, 46, 0.86);
 }
 
 .viewer-space__prompt input {
   min-height: 2.4rem;
   border-radius: 10px;
-  border: 1px solid rgba(224, 238, 248, 0.2);
-  background: rgba(11, 17, 25, 0.88);
-  color: #eff7ff;
+  border: 1px solid rgba(171, 184, 151, 0.65);
+  background: rgba(255, 255, 255, 0.92);
+  color: #253022;
   padding: 0 0.65rem;
 }
 
 .viewer-space__prompt-error {
   margin: 0;
-  color: #fbd0bf;
+  color: #b2452c;
   font-size: 0.85rem;
 }
 
@@ -1122,7 +1143,7 @@ async function handleMediaSubmit(payload) {
   position: absolute;
   inset: 0;
   z-index: 34;
-  background: rgba(6, 11, 16, 0.72);
+  background: rgba(73, 66, 44, 0.34);
   backdrop-filter: blur(8px);
   display: grid;
   place-items: center;
@@ -1132,13 +1153,13 @@ async function handleMediaSubmit(payload) {
 .viewer-media-overlay__card {
   width: min(40rem, 100%);
   border-radius: 16px;
-  border: 1px solid rgba(224, 238, 248, 0.18);
-  background: linear-gradient(165deg, rgba(23, 30, 44, 0.97) 0%, rgba(12, 16, 25, 0.96) 100%);
-  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(162, 174, 143, 0.35);
+  background: linear-gradient(165deg, rgba(252, 253, 249, 0.97) 0%, rgba(242, 247, 236, 0.96) 100%);
+  box-shadow: 0 20px 46px rgba(36, 30, 18, 0.25);
   padding: 0.85rem;
   display: grid;
   gap: 0.75rem;
-  color: #eef7ff;
+  color: #253022;
 }
 
 .viewer-media-overlay__header {
@@ -1150,7 +1171,7 @@ async function handleMediaSubmit(payload) {
 .viewer-media-overlay__header p {
   margin: 0;
   font-size: 0.86rem;
-  color: rgba(233, 244, 255, 0.78);
+  color: rgba(67, 82, 57, 0.84);
 }
 
 .viewer-media-overlay__header button {
@@ -1159,8 +1180,9 @@ async function handleMediaSubmit(payload) {
   min-height: 2rem;
   padding: 0 0.75rem;
   cursor: pointer;
-  background: rgba(232, 241, 250, 0.15);
-  color: #eef7ff;
+  background: rgba(231, 238, 223, 0.95);
+  color: #2a3527;
+  border: 1px solid rgba(145, 158, 126, 0.55);
 }
 
 .viewer-media-overlay__content {
@@ -1195,7 +1217,7 @@ async function handleMediaSubmit(payload) {
 .viewer-media-overlay__meta {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(229, 242, 255, 0.85);
+  color: rgba(67, 82, 57, 0.88);
 }
 
 .viewer-media-overlay__reactions {
@@ -1261,8 +1283,8 @@ async function handleMediaSubmit(payload) {
   place-items: center;
   padding: 1rem;
   text-align: center;
-  background: rgba(228, 241, 252, 0.08);
-  color: rgba(229, 242, 255, 0.83);
+  background: rgba(232, 241, 221, 0.78);
+  color: rgba(67, 82, 57, 0.9);
 }
 
 .viewer-media-overlay__nav {
@@ -1277,8 +1299,9 @@ async function handleMediaSubmit(payload) {
   min-height: 2.35rem;
   padding: 0 1rem;
   cursor: pointer;
-  background: rgba(232, 241, 250, 0.14);
-  color: #eef7ff;
+  background: rgba(231, 238, 223, 0.95);
+  color: #2a3527;
+  border: 1px solid rgba(145, 158, 126, 0.55);
 }
 
 .viewer-media-overlay__nav button:disabled {
@@ -1293,7 +1316,7 @@ async function handleMediaSubmit(payload) {
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgba(6, 9, 13, 0.62);
+  background: rgba(58, 52, 34, 0.38);
   backdrop-filter: blur(8px);
 }
 
@@ -1301,10 +1324,10 @@ async function handleMediaSubmit(payload) {
   width: min(30rem, 100%);
   border-radius: 18px;
   padding: 1.25rem;
-  background: linear-gradient(160deg, rgba(30, 39, 55, 0.96) 0%, rgba(20, 25, 35, 0.96) 100%);
-  border: 1px solid rgba(215, 232, 247, 0.18);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  color: #eff7ff;
+  background: linear-gradient(160deg, rgba(252, 253, 249, 0.97) 0%, rgba(244, 248, 238, 0.96) 100%);
+  border: 1px solid rgba(162, 174, 143, 0.36);
+  box-shadow: 0 16px 40px rgba(44, 37, 21, 0.22);
+  color: #273122;
 }
 
 .viewer-access-error__card h1 {
@@ -1316,7 +1339,7 @@ async function handleMediaSubmit(payload) {
 .viewer-access-error__card p {
   margin: 0;
   font-size: 0.92rem;
-  color: rgba(231, 243, 255, 0.82);
+  color: rgba(54, 68, 46, 0.86);
 }
 
 .viewer-access-error__retry {

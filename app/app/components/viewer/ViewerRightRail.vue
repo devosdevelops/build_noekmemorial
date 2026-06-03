@@ -47,9 +47,10 @@ defineEmits(['toggle-ui', 'toggle-music', 'reset-view'])
   min-height: 2.3rem;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
-  background: rgba(8, 15, 22, 0.78);
-  color: #eff7ff;
-  border: 1px solid rgba(224, 238, 248, 0.2);
+  background: rgba(251, 252, 249, 0.92);
+  color: #2a3527;
+  border: 1px solid rgba(162, 174, 143, 0.36);
+  box-shadow: 0 6px 16px rgba(32, 40, 26, 0.14);
 }
 
 .viewer-rail__modes {

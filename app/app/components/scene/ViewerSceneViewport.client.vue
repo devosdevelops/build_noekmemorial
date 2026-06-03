@@ -588,6 +588,7 @@ function createMemorialObjects() {
     selectableMeshes.push(mesh)
     meshMetaById.set(entry.id, {
       id: entry.id,
+      kind: 'shape',
       title: entry.title,
       description: entry.description,
       interaction: entry.interaction ?? null
@@ -662,6 +663,7 @@ function createObjectsFromSceneDocument() {
 
     meshMetaById.set(selectableId, {
       id: selectableId,
+      kind: objectState?.kind || rootObject?.userData?.sourceKind || 'shape',
       title: typeof metadataTitle === 'string' && metadataTitle.trim().length
         ? metadataTitle.trim()
         : defaultTitle,

@@ -126,11 +126,13 @@
             <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'message')">
               Laat bericht
             </button>
-            <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'candle')">
-              Steek kaars aan
-            </button>
-            <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'add')">
-              Voeg media toe
+            <button
+              v-if="canViewSelectedMedia"
+              type="button"
+              class="viewer-left-panel__chip viewer-left-panel__chip--secondary"
+              @click="$emit('quick-action', 'view-media')"
+            >
+              Bekijk media
             </button>
           </div>
 
@@ -276,6 +278,10 @@ const filteredContributions = computed(() => {
   return filteredByKind.slice(0, 8)
 })
 
+const canViewSelectedMedia = computed(() => {
+  return props.selectedElement?.interaction?.type === 'media-carousel'
+})
+
 async function fetchPolyPizzaList(listId) {
   if (typeof listId !== 'string' || !listId.length) {
     return []
@@ -416,14 +422,16 @@ function submitMedia() {
   bottom: 0.85rem;
   left: 0.85rem;
   z-index: 24;
-  width: min(24rem, calc(100% - 4rem));
+  width: clamp(18rem, 30vw, 22rem);
+  max-width: calc(100% - 1.7rem);
   border-radius: 16px;
-  background: rgba(7, 13, 20, 0.85);
-  border: 1px solid rgba(224, 238, 248, 0.2);
+  background: rgba(251, 252, 249, 0.93);
+  border: 1px solid rgba(162, 174, 143, 0.35);
   backdrop-filter: blur(7px);
-  color: #eff7ff;
+  color: #253022;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  box-shadow: 0 14px 34px rgba(32, 40, 26, 0.2);
 }
 
 .viewer-left-panel__header {
@@ -432,7 +440,7 @@ function submitMedia() {
   align-items: center;
   gap: 0.7rem;
   padding: 0.75rem 0.8rem;
-  border-bottom: 1px solid rgba(224, 238, 248, 0.16);
+  border-bottom: 1px solid rgba(162, 174, 143, 0.24);
 }
 
 .viewer-left-panel__header h2 {
@@ -443,8 +451,8 @@ function submitMedia() {
 
 .viewer-left-panel__close {
   border: 0;
-  background: rgba(232, 244, 255, 0.16);
-  color: #eff7ff;
+  background: rgba(229, 235, 220, 0.96);
+  color: #2f3a2d;
   width: 2rem;
   height: 2rem;
   border-radius: 8px;
@@ -465,7 +473,7 @@ function submitMedia() {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(220, 237, 254, 0.78);
+  color: rgba(83, 98, 74, 0.86);
 }
 
 .viewer-left-panel__element-title {
@@ -476,11 +484,11 @@ function submitMedia() {
 
 .viewer-left-panel__element-description {
   margin-bottom: 0.7rem;
-  color: rgba(236, 245, 255, 0.86);
+  color: rgba(50, 64, 45, 0.84);
 }
 
 .viewer-left-panel__notice {
-  color: #fbd0bf;
+  color: #b2452c;
 }
 
 .viewer-left-panel__form-grid {
@@ -499,9 +507,9 @@ function submitMedia() {
   box-sizing: border-box;
   min-height: 2.3rem;
   border-radius: 10px;
-  border: 1px solid rgba(224, 238, 248, 0.2);
-  background: rgba(11, 17, 25, 0.88);
-  color: #eff7ff;
+  border: 1px solid rgba(171, 184, 151, 0.65);
+  background: rgba(255, 255, 255, 0.9);
+  color: #253022;
   padding: 0 0.65rem;
 }
 
@@ -510,9 +518,9 @@ function submitMedia() {
   min-height: 6.5rem;
   box-sizing: border-box;
   border-radius: 10px;
-  border: 1px solid rgba(224, 238, 248, 0.2);
-  background: rgba(11, 17, 25, 0.88);
-  color: #eff7ff;
+  border: 1px solid rgba(171, 184, 151, 0.65);
+  background: rgba(255, 255, 255, 0.9);
+  color: #253022;
   padding: 0.65rem;
 }
 
@@ -527,6 +535,12 @@ function submitMedia() {
   cursor: pointer;
 }
 
+.viewer-left-panel__chip--secondary {
+  background: rgba(231, 238, 223, 0.95);
+  color: #273122;
+  border: 1px solid rgba(145, 158, 126, 0.65);
+}
+
 .viewer-left-panel__action {
   margin-top: 0.65rem;
 }
@@ -539,7 +553,7 @@ function submitMedia() {
 
 .viewer-left-panel__selection {
   margin: 0.6rem 0 0.2rem;
-  color: rgba(236, 245, 255, 0.86);
+  color: rgba(50, 64, 45, 0.84);
 }
 
 .viewer-left-panel__model-list {
@@ -548,12 +562,12 @@ function submitMedia() {
 }
 
 .viewer-left-panel__model-card {
-  border: 1px solid rgba(224, 238, 248, 0.18);
+  border: 1px solid rgba(162, 174, 143, 0.38);
   border-radius: 10px;
   min-height: 3rem;
   padding: 0.45rem 0.6rem;
-  background: rgba(12, 19, 28, 0.72);
-  color: #eff7ff;
+  background: rgba(246, 250, 239, 0.92);
+  color: #253022;
   text-align: left;
   cursor: pointer;
   display: grid;
@@ -565,7 +579,7 @@ function submitMedia() {
   max-height: 5.8rem;
   object-fit: cover;
   border-radius: 8px;
-  border: 1px solid rgba(224, 238, 248, 0.16);
+  border: 1px solid rgba(162, 174, 143, 0.38);
 }
 
 .viewer-left-panel__model-card--active {
@@ -580,12 +594,12 @@ function submitMedia() {
 
 .viewer-left-panel__model-copy {
   font-size: 0.78rem;
-  color: rgba(225, 240, 252, 0.8);
+  color: rgba(67, 82, 57, 0.82);
 }
 
 .viewer-left-panel__contributions {
   margin-top: 0.9rem;
-  border-top: 1px solid rgba(224, 238, 248, 0.16);
+  border-top: 1px solid rgba(162, 174, 143, 0.28);
   padding-top: 0.75rem;
 }
 
@@ -597,7 +611,7 @@ function submitMedia() {
 
 .viewer-left-panel__contributions-empty {
   margin: 0;
-  color: rgba(226, 240, 252, 0.76);
+  color: rgba(67, 82, 57, 0.78);
   font-size: 0.88rem;
 }
 
@@ -610,10 +624,10 @@ function submitMedia() {
 }
 
 .viewer-left-panel__contribution-item {
-  border: 1px solid rgba(224, 238, 248, 0.16);
+  border: 1px solid rgba(162, 174, 143, 0.35);
   border-radius: 10px;
   padding: 0.5rem 0.6rem;
-  background: rgba(12, 19, 28, 0.72);
+  background: rgba(246, 250, 239, 0.92);
 }
 
 .viewer-left-panel__contribution-title {
@@ -624,19 +638,19 @@ function submitMedia() {
 
 .viewer-left-panel__contribution-excerpt {
   margin: 0.2rem 0 0;
-  color: rgba(226, 240, 252, 0.8);
+  color: rgba(67, 82, 57, 0.84);
   font-size: 0.82rem;
   line-height: 1.35;
 }
 
 .viewer-left-panel__submit-error {
   margin-top: 0.8rem;
-  color: #f4b9ab;
+  color: #b2452c;
 }
 
 .viewer-left-panel__submit-success {
   margin-top: 0.8rem;
-  color: #bfe5be;
+  color: #35572d;
 }
 
 @media (max-width: 700px) {

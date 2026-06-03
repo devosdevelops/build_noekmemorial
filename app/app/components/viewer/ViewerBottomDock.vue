@@ -27,9 +27,10 @@ defineEmits(['open-add', 'open-message', 'open-candle'])
   gap: 0.6rem;
   padding: 0.45rem;
   border-radius: 999px;
-  background: rgba(6, 12, 18, 0.65);
-  border: 1px solid rgba(224, 238, 248, 0.18);
+  background: rgba(251, 252, 249, 0.9);
+  border: 1px solid rgba(162, 174, 143, 0.35);
   backdrop-filter: blur(6px);
+  box-shadow: 0 8px 20px rgba(32, 40, 26, 0.18);
 }
 
 .viewer-dock__icon-button {

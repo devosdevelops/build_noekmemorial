@@ -54,25 +54,26 @@ defineEmits(['edit-guest-name', 'sign-out'])
 .viewer-topbar__user {
   pointer-events: auto;
   border-radius: 999px;
-  min-height: 2.4rem;
-  padding: 0.3rem 0.55rem;
+  min-height: 3rem;
+  padding: 0.35rem 0.7rem;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(6, 12, 18, 0.65);
-  border: 1px solid rgba(224, 238, 248, 0.18);
+  background: rgba(251, 252, 249, 0.9);
+  border: 1px solid rgba(162, 174, 143, 0.35);
   backdrop-filter: blur(6px);
+  box-shadow: 0 8px 20px rgba(32, 40, 26, 0.18);
 }
 
 .viewer-topbar__logo {
-  height: 1.55rem;
+  height: 2.15rem;
   width: auto;
 }
 
 .viewer-topbar__user-name {
   margin: 0;
-  color: #eff7ff;
-  font-size: 0.83rem;
+  color: #2c3829;
+  font-size: 0.86rem;
 }
 
 .viewer-topbar__button {
