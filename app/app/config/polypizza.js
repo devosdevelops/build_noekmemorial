@@ -6,5 +6,9 @@ export const POLY_PIZZA_LIST_IDS = [
   'PG7JoV77qh',
   'lt1qOmzWvB',
   'JNxwMPvx48',
-  'RggYIdGBDn'
+  'RggYIdGBDn',
+  'hfe2dfH3fP', //messages
+  'zqhAh3tdip', //images and videos
+  'lt1qOmzWvB', //candles
+  'lWQZJLiyxP' //audio
 ]
