@@ -99,6 +99,14 @@
                 <button type="button" class="link-action" @click="isCollaboratorModalOpen = true">+ Toevoegen</button>
               </div>
 
+              <div v-if="ownerPerson" class="collaborator-item collaborator-item-owner">
+                <div class="avatar">{{ ownerPerson.initials }}</div>
+                <div>
+                  <p class="item-name">{{ ownerPerson.name }}</p>
+                  <p class="item-time">Eigenaar</p>
+                </div>
+              </div>
+
               <p v-if="collaborators.length === 0" class="empty-message empty-message-compact">
                 Er zijn nog geen samenwerkers toegevoegd.
               </p>
@@ -408,6 +416,24 @@ const room = computed(() => {
 
 const roomUrl = computed(() => (room.value?.slug ? `https://${room.value.slug}` : '—'))
 const collaborators = computed(() => roomResponse.value?.collaborators ?? [])
+
+const ownerPerson = computed(() => {
+  if (!owner.value) return null
+
+  const name = formatDisplayName(owner.value.first_name, owner.value.last_name, owner.value.email)
+  const source = name || owner.value.email || 'E'
+
+  return {
+    id: owner.value.id,
+    name,
+    initials: source
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || source.slice(0, 2).toUpperCase()
+  }
+})
 
 const visibility = ref('public')
 const approvalMode = ref('manual')
@@ -994,6 +1020,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0;
+}
+
+.collaborator-item-owner {
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid #e6e9e3;
 }
 
 .collaborator-remove {
