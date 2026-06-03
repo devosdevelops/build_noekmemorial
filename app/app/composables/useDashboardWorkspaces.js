@@ -24,6 +24,16 @@ function mapWorkspace(workspace) {
 export function useDashboardWorkspaces() {
   const supabase = useSupabaseClient()
 
+  function mapWorkspaceLoadError(error) {
+    const rawMessage = error?.message || ''
+
+    if (/infinite recursion detected in policy/i.test(rawMessage)) {
+      return 'Er is een toegangsprobleem in de databankconfiguratie. Contacteer de beheerder of probeer opnieuw nadat de policy-patch is toegepast.'
+    }
+
+    return rawMessage || 'Kon dashboardruimtes niet laden.'
+  }
+
   async function loadWorkspaces({ force = false } = {}) {
     if (loadPromise && !force) return loadPromise
 
@@ -44,7 +54,7 @@ export function useDashboardWorkspaces() {
       return workspaces.value
     })()
       .catch((error) => {
-        loadError.value = error?.message || 'Kon dashboardruimtes niet laden.'
+        loadError.value = mapWorkspaceLoadError(error)
         workspaces.value = []
         return workspaces.value
       })
