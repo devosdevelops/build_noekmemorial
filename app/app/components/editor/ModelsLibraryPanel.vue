@@ -358,7 +358,7 @@ function handleSelectModel(model) {
 
 .models-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
   max-height: 22rem;
   overflow-y: auto;
