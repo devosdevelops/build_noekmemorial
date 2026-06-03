@@ -60,6 +60,14 @@
                   <p class="label">Zichtbaarheid</p>
                   <p class="status-chip">{{ room.visibilityLabel }}</p>
                 </div>
+                <div>
+                  <p class="label">Publicatiestatus</p>
+                  <p class="status-chip" :class="room.publishStatusClass">{{ room.publishStatusLabel }}</p>
+                </div>
+                <div>
+                  <p class="label">Gepubliceerd op</p>
+                  <p class="value">{{ room.publishedAtLabel }}</p>
+                </div>
               </div>
               <div class="updated-row">
                 <p class="label">Laatst bewerkt</p>
@@ -474,6 +482,14 @@ const room = computed(() => {
     : workspace.value.visibility === 'offline'
       ? 'Offline'
       : 'Publiek'
+  const isPublished = workspace.value.visibility === 'public' || workspace.value.visibility === 'private'
+  const publishStatusLabel = isPublished ? 'Gepubliceerd' : 'Concept'
+  const publishStatusClass = isPublished ? 'status-chip--published' : 'status-chip--draft'
+  const publishedAtLabel = workspace.value.published_at
+    ? formatDateTime(workspace.value.published_at)
+    : isPublished
+      ? 'Onbekend'
+      : 'Nog niet gepubliceerd'
 
   return {
     id: workspace.value.id,
@@ -483,8 +499,11 @@ const room = computed(() => {
     slug: workspace.value.slug,
     visibility: workspace.value.visibility,
     visibilityLabel,
+    publishStatusLabel,
+    publishStatusClass,
     approvalMode: workspace.value.approval_mode,
     accessPin: workspace.value.access_pin,
+    publishedAtLabel,
     updatedAtLabel: formatDateTime(workspace.value.updated_at)
   }
 })
@@ -1096,6 +1115,16 @@ onUnmounted(() => {
   font-weight: 600;
   color: #387145;
   background: #dff3e4;
+}
+
+.status-chip--published {
+  color: #387145;
+  background: #dff3e4;
+}
+
+.status-chip--draft {
+  color: #7a5a1f;
+  background: #f8ebc9;
 }
 
 .updated-row {
