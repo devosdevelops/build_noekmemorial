@@ -11,6 +11,10 @@ const props = defineProps({
   activeMode: {
     type: String,
     default: 'look-around'
+  },
+  sceneDocument: {
+    type: Object,
+    default: null
   }
 })
 
@@ -29,6 +33,7 @@ const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 const selectableMeshes = []
 const meshMetaById = new Map()
+const runtimeMeshes = []
 let activeSelectionMesh = null
 
 let pointerIsDown = false
@@ -95,6 +100,144 @@ function applyFlyCameraRotation() {
   camera.rotation.order = 'YXZ'
   camera.rotation.y = flyState.yaw
   camera.rotation.x = flyState.pitch
+}
+
+function asVector3(input, fallback) {
+  if (!Array.isArray(input) || input.length !== 3) {
+    return [...fallback]
+  }
+
+  return [
+    Number.isFinite(input[0]) ? input[0] : fallback[0],
+    Number.isFinite(input[1]) ? input[1] : fallback[1],
+    Number.isFinite(input[2]) ? input[2] : fallback[2]
+  ]
+}
+
+function disposeMeshResources(mesh) {
+  if (mesh.geometry && typeof mesh.geometry.dispose === 'function') {
+    mesh.geometry.dispose()
+  }
+
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  materials.forEach((material) => {
+    if (material && typeof material.dispose === 'function') {
+      material.dispose()
+    }
+  })
+}
+
+function clearRuntimeSceneObjects() {
+  clearSelectionHighlight()
+
+  runtimeMeshes.forEach((mesh) => {
+    if (scene) {
+      scene.remove(mesh)
+    }
+    disposeMeshResources(mesh)
+  })
+
+  runtimeMeshes.length = 0
+  selectableMeshes.length = 0
+  meshMetaById.clear()
+}
+
+function geometryForObjectState(objectState) {
+  const kind = objectState?.kind || 'shape'
+  const assetRef = objectState?.assetRef || 'square'
+
+  if (kind === 'floor') {
+    return new THREE.BoxGeometry(1, 0.08, 1)
+  }
+
+  if (kind === 'shape') {
+    if (assetRef === 'sphere') {
+      return new THREE.SphereGeometry(0.62, 24, 18)
+    }
+
+    if (assetRef === 'cylinder') {
+      return new THREE.CylinderGeometry(0.52, 0.52, 1.05, 22)
+    }
+
+    if (assetRef === 'cone') {
+      return new THREE.ConeGeometry(0.62, 1.15, 22)
+    }
+
+    if (assetRef === 'triangle') {
+      return new THREE.ConeGeometry(0.66, 1.2, 3)
+    }
+
+    return new THREE.BoxGeometry(1, 1, 1)
+  }
+
+  if (kind === 'light') {
+    return new THREE.SphereGeometry(0.48, 18, 14)
+  }
+
+  if (kind === 'audio') {
+    return new THREE.CylinderGeometry(0.42, 0.42, 0.82, 18)
+  }
+
+  return new THREE.BoxGeometry(1.2, 1.2, 1.2)
+}
+
+function materialForObjectState(objectState) {
+  const kind = objectState?.kind || 'shape'
+  const appearanceColor = objectState?.appearance?.color
+  const color = typeof appearanceColor === 'string' && appearanceColor.length
+    ? appearanceColor
+    : '#8ea3b6'
+
+  if (kind === 'light') {
+    return new THREE.MeshStandardMaterial({
+      color,
+      emissive: '#ffd189',
+      emissiveIntensity: 0.32,
+      roughness: 0.4,
+      metalness: 0.08
+    })
+  }
+
+  if (kind === 'audio') {
+    return new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.58,
+      metalness: 0.1
+    })
+  }
+
+  if (kind === 'floor') {
+    return new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.9,
+      metalness: 0.02
+    })
+  }
+
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.62,
+    metalness: 0.06
+  })
+}
+
+function descriptionForObjectState(objectState) {
+  const metadataTitle = objectState?.metadata?.title
+  const attribution = objectState?.metadata?.attribution
+
+  if (typeof attribution === 'string' && attribution.trim().length) {
+    return attribution
+  }
+
+  if (objectState?.interaction?.type === 'media-carousel') {
+    return 'Interactiepunt voor gedeelde bijdragen in deze herdenkingsruimte.'
+  }
+
+  if (typeof metadataTitle === 'string' && metadataTitle.trim().length) {
+    return `Element: ${metadataTitle.trim()}`
+  }
+
+  return 'Geselecteerd scene-element.'
 }
 
 function createFloor() {
@@ -177,8 +320,66 @@ function createMemorialObjects() {
       description: entry.description,
       interaction: entry.interaction ?? null
     })
+    runtimeMeshes.push(mesh)
     scene.add(mesh)
   })
+}
+
+function createObjectsFromSceneDocument() {
+  const sceneObjects = Array.isArray(props.sceneDocument?.objects)
+    ? props.sceneDocument.objects
+    : []
+
+  if (!sceneObjects.length) {
+    createMemorialObjects()
+    return
+  }
+
+  sceneObjects.forEach((objectState, index) => {
+    const selectableId = typeof objectState?.id === 'string' && objectState.id.length
+      ? objectState.id
+      : `scene-object-${index}`
+    const fallbackPosition = objectState?.kind === 'floor' ? [0, -0.07, 0] : [0, 1, 0]
+    const position = asVector3(objectState?.transform?.position, fallbackPosition)
+    const rotation = asVector3(objectState?.transform?.rotation, [0, 0, 0])
+    const scale = asVector3(objectState?.transform?.scale, [1, 1, 1])
+
+    const mesh = new THREE.Mesh(
+      geometryForObjectState(objectState),
+      materialForObjectState(objectState)
+    )
+
+    mesh.position.set(position[0], position[1], position[2])
+    mesh.rotation.set(rotation[0], rotation[1], rotation[2])
+    mesh.scale.set(scale[0], scale[1], scale[2])
+    mesh.userData.selectableId = selectableId
+
+    selectableMeshes.push(mesh)
+    runtimeMeshes.push(mesh)
+
+    const metadataTitle = objectState?.metadata?.title
+    const defaultTitle = objectState?.kind === 'floor' ? 'Vloer' : 'Scene element'
+
+    meshMetaById.set(selectableId, {
+      id: selectableId,
+      title: typeof metadataTitle === 'string' && metadataTitle.trim().length
+        ? metadataTitle.trim()
+        : defaultTitle,
+      description: descriptionForObjectState(objectState),
+      interaction: objectState?.interaction ?? null
+    })
+
+    scene.add(mesh)
+  })
+}
+
+function rebuildRuntimeSceneObjects() {
+  if (!scene) {
+    return
+  }
+
+  clearRuntimeSceneObjects()
+  createObjectsFromSceneDocument()
 }
 
 function setupRendererAndScene() {
@@ -214,7 +415,7 @@ function setupRendererAndScene() {
   scene.add(sun)
 
   createFloor()
-  createMemorialObjects()
+  rebuildRuntimeSceneObjects()
 
   resizeObserver = new ResizeObserver(() => {
     syncSize()
@@ -550,6 +751,14 @@ onMounted(() => {
 })
 
 watch(
+  () => props.sceneDocument,
+  () => {
+    rebuildRuntimeSceneObjects()
+  },
+  { deep: true }
+)
+
+watch(
   () => props.activeMode,
   () => {
     applyModeSettings()
@@ -568,9 +777,7 @@ onBeforeUnmount(() => {
   controls?.dispose()
   renderer?.dispose()
 
-  meshMetaById.clear()
-  selectableMeshes.length = 0
-  activeSelectionMesh = null
+  clearRuntimeSceneObjects()
 
   if (renderer?.domElement?.parentNode) {
     renderer.domElement.parentNode.removeChild(renderer.domElement)
