@@ -110,6 +110,7 @@ definePageMeta({
 
 const { signUp } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const firstName = ref('')
 const lastName = ref('')
@@ -184,12 +185,16 @@ async function submitSignup() {
       firstName: firstName.value.trim(),
       lastName: lastName.value.trim()
     })
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.length
+      ? route.query.redirect
+      : '/dashboard'
+
     if (result.session) {
-      router.push('/dashboard')
+      router.push(redirect)
       return
     }
 
-    router.push('/auth/login?registered=1')
+    router.push(`/auth/login?registered=1&redirect=${encodeURIComponent(redirect)}`)
   } catch (err) {
     submitError.value = err.message || 'Er is een fout opgetreden. Probeer opnieuw.'
   } finally {
