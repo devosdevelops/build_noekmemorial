@@ -7,6 +7,8 @@ export function useViewerContributions() {
 
   const roomLoading = ref(false)
   const roomError = ref('')
+  const roomErrorStatusCode = ref(0)
+  const roomRequiresPin = ref(false)
 
   const submitStatus = ref('idle')
   const submitError = ref('')
@@ -14,6 +16,8 @@ export function useViewerContributions() {
   async function loadRoomBySlug(slug, accessPin = '') {
     roomLoading.value = true
     roomError.value = ''
+    roomErrorStatusCode.value = 0
+    roomRequiresPin.value = false
 
     try {
       const response = await $fetch(`/api/viewer/room/${encodeURIComponent(slug)}`, {
@@ -31,6 +35,8 @@ export function useViewerContributions() {
       return response
     } catch (error) {
       roomError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Ruimte laden is mislukt.'
+      roomErrorStatusCode.value = Number(error?.statusCode || error?.status || 0)
+      roomRequiresPin.value = Boolean(error?.data?.requiresPin)
       return null
     } finally {
       roomLoading.value = false
@@ -168,6 +174,8 @@ export function useViewerContributions() {
     contributions,
     roomLoading,
     roomError,
+    roomErrorStatusCode,
+    roomRequiresPin,
     submitStatus,
     submitError,
     loadRoomBySlug,

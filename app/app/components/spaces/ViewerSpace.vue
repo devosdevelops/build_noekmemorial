@@ -9,7 +9,7 @@
     <div v-else class="viewer-space__canvas" role="img" :aria-label="`Viewer canvas voor ${roomName}`" />
 
     <ViewerEntryGate
-      v-if="!hasEnteredViewer"
+      v-if="showEntryGate"
       :room-name="roomName"
       :is-authenticated="isAuthenticated"
       :account-label="accountLabel"
@@ -18,6 +18,38 @@
       @continue-auth="continueAsAuthenticated"
       @continue-guest="continueAsGuest"
     />
+
+    <section v-else-if="showAccessError" class="viewer-access-error" role="alert" aria-live="assertive">
+      <div class="viewer-access-error__card">
+        <h1>{{ accessErrorTitle }}</h1>
+        <p>{{ accessErrorMessage }}</p>
+        <button type="button" class="viewer-access-error__retry" @click="retryRoomAccess">Opnieuw proberen</button>
+      </div>
+    </section>
+
+    <div v-if="showPinPrompt" class="viewer-space__prompt-backdrop" @click="closePinPrompt">
+      <form class="viewer-space__prompt" @submit.prevent="submitAccessPin" @click.stop>
+        <h2>Toegangscode vereist</h2>
+        <p class="viewer-space__prompt-copy">
+          Deze herdenkingsruimte is afgeschermd. Vul de 6-cijferige pincode in om verder te gaan.
+        </p>
+        <input
+          v-model="pendingAccessPin"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="Bijv. 123456"
+          @input="normalizePendingAccessPin"
+        />
+        <p v-if="pinError" class="viewer-space__prompt-error">{{ pinError }}</p>
+        <div class="viewer-space__prompt-actions">
+          <button type="button" @click="closePinPrompt">Annuleer</button>
+          <button type="submit" :disabled="isSubmittingPin">
+            {{ isSubmittingPin ? 'Controleren...' : 'Verdergaan' }}
+          </button>
+        </div>
+      </form>
+    </div>
 
     <template v-if="hasEnteredViewer">
       <ViewerTopBar
@@ -116,7 +148,7 @@ const {
   setMode
 } = useViewerUiState()
 
-const { hasEnteredViewer, enterViewer } = useViewerAuthGate()
+const { hasEnteredViewer, enterViewer, resetViewerGate } = useViewerAuthGate()
 const {
   selectedElement,
   pointerWorldPosition,
@@ -129,6 +161,10 @@ const {
   room,
   submitStatus,
   submitError,
+  roomLoading,
+  roomError,
+  roomErrorStatusCode,
+  roomRequiresPin,
   loadRoomBySlug,
   submitMessage,
   submitCandle,
@@ -151,11 +187,130 @@ const isGuestNamePromptOpen = ref(false)
 const pendingGuestName = ref('')
 const guestNameError = ref('')
 const submitSuccessMessage = ref('')
+const accessErrorTitle = ref('')
+const accessErrorMessage = ref('')
+const hasFatalRoomAccessError = ref(false)
+const isPinPromptOpen = ref(false)
+const pendingAccessPin = ref('')
+const acceptedAccessPin = ref('')
+const pinError = ref('')
+const isSubmittingPin = ref(false)
+
+const showEntryGate = computed(() => {
+  return !hasEnteredViewer.value && !hasFatalRoomAccessError.value && !isPinPromptOpen.value && !roomLoading.value
+})
+
+const showAccessError = computed(() => !hasEnteredViewer.value && hasFatalRoomAccessError.value)
+const showPinPrompt = computed(() => !hasEnteredViewer.value && isPinPromptOpen.value)
 
 onMounted(async () => {
+  resetViewerGate()
   await initializeAuth()
-  await loadRoomBySlug(props.slug)
+  await resolveRoomAccess()
 })
+
+async function resolveRoomAccess(accessPin = '') {
+  hasFatalRoomAccessError.value = false
+  accessErrorTitle.value = ''
+  accessErrorMessage.value = ''
+  pinError.value = ''
+
+  const response = await loadRoomBySlug(props.slug, accessPin)
+  if (response?.room) {
+    if (response.room.visibility === 'private' && !accessPin.length) {
+      isPinPromptOpen.value = true
+      return
+    }
+
+    acceptedAccessPin.value = accessPin
+    isPinPromptOpen.value = false
+
+    if (isAuthenticated.value) {
+      submitSuccessMessage.value = ''
+      clearSelection()
+      enterViewer()
+    }
+
+    return
+  }
+
+  if (roomRequiresPin.value) {
+    if (isAuthenticated.value) {
+      isPinPromptOpen.value = true
+    }
+    return
+  }
+
+  if (roomErrorStatusCode.value === 404) {
+    hasFatalRoomAccessError.value = true
+    accessErrorTitle.value = 'Herdenkingsruimte niet gevonden'
+    accessErrorMessage.value = 'Deze herdenkingsruimte bestaat niet.'
+    return
+  }
+
+  if (roomErrorStatusCode.value === 403) {
+    hasFatalRoomAccessError.value = true
+    accessErrorTitle.value = 'Ruimte offline'
+    accessErrorMessage.value = roomError.value || 'Deze ruimte is offline gehaald door de eigenaar of nog niet gepubliceerd.'
+    return
+  }
+
+  hasFatalRoomAccessError.value = true
+  accessErrorTitle.value = 'Ruimte laden mislukt'
+  accessErrorMessage.value = roomError.value || 'Er ging iets mis bij het laden van de ruimte.'
+}
+
+function normalizePendingAccessPin() {
+  pendingAccessPin.value = pendingAccessPin.value.replace(/\D/g, '').slice(0, 6)
+}
+
+function closePinPrompt() {
+  isPinPromptOpen.value = false
+  pinError.value = ''
+}
+
+async function submitAccessPin() {
+  normalizePendingAccessPin()
+
+  if (!/^\d{6}$/.test(pendingAccessPin.value)) {
+    pinError.value = 'Vul een geldige pincode van 6 cijfers in.'
+    return
+  }
+
+  isSubmittingPin.value = true
+  pinError.value = ''
+
+  try {
+    const response = await loadRoomBySlug(props.slug, pendingAccessPin.value)
+
+    if (!response?.room) {
+      pinError.value = roomError.value || 'De pincode is ongeldig.'
+      return
+    }
+
+    acceptedAccessPin.value = pendingAccessPin.value
+    isPinPromptOpen.value = false
+
+    if (isAuthenticated.value) {
+      submitSuccessMessage.value = ''
+      clearSelection()
+      enterViewer()
+      return
+    }
+
+    if (guestName.value.length) {
+      submitSuccessMessage.value = ''
+      clearSelection()
+      enterViewer()
+    }
+  } finally {
+    isSubmittingPin.value = false
+  }
+}
+
+async function retryRoomAccess() {
+  await resolveRoomAccess(acceptedAccessPin.value)
+}
 
 function goToLogin() {
   navigateTo(`/auth/login?redirect=${encodeURIComponent(`/viewer/${props.slug}`)}`)
@@ -166,6 +321,20 @@ function goToSignup() {
 }
 
 function continueAsAuthenticated() {
+  if (isPinPromptOpen.value) {
+    return
+  }
+
+  if (room.value?.visibility === 'private') {
+    isPinPromptOpen.value = true
+    return
+  }
+
+  if (roomRequiresPin.value) {
+    isPinPromptOpen.value = true
+    return
+  }
+
   submitSuccessMessage.value = ''
   clearSelection()
   enterViewer()
@@ -174,6 +343,12 @@ function continueAsAuthenticated() {
 function continueAsGuest(name) {
   setGuestName(name)
   pendingGuestName.value = name
+
+  if (room.value?.visibility === 'private') {
+    isPinPromptOpen.value = true
+    return
+  }
+
   submitSuccessMessage.value = ''
   clearSelection()
   enterViewer()
@@ -255,7 +430,8 @@ async function handleMessageSubmit(payload) {
     guestName: isAuthenticated.value ? '' : guestName.value,
     selectedElementId: selectedElement.value?.id || null,
     worldPosition: pointerWorldPosition.value,
-    accessToken: session.value?.access_token || ''
+    accessToken: session.value?.access_token || '',
+    accessPin: acceptedAccessPin.value
   })
 
   if (!response?.ok) {
@@ -277,7 +453,8 @@ async function handleCandleSubmit(payload) {
     guestName: isAuthenticated.value ? '' : guestName.value,
     selectedElementId: selectedElement.value?.id || null,
     worldPosition: pointerWorldPosition.value,
-    accessToken: session.value?.access_token || ''
+    accessToken: session.value?.access_token || '',
+    accessPin: acceptedAccessPin.value
   })
 
   if (!response?.ok) {
@@ -300,7 +477,8 @@ async function handleMediaSubmit(payload) {
     caption: payload?.caption || '',
     selectedElementId: selectedElement.value?.id || null,
     worldPosition: pointerWorldPosition.value,
-    accessToken: session.value?.access_token || ''
+    accessToken: session.value?.access_token || '',
+    accessPin: acceptedAccessPin.value
   })
 
   if (!response?.ok) {
@@ -357,6 +535,12 @@ async function handleMediaSubmit(payload) {
   font-family: var(--font-display);
 }
 
+.viewer-space__prompt-copy {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(236, 244, 252, 0.86);
+}
+
 .viewer-space__prompt input {
   min-height: 2.4rem;
   border-radius: 10px;
@@ -387,6 +571,52 @@ async function handleMediaSubmit(payload) {
 }
 
 .viewer-space__prompt-actions button[type='submit'] {
+  background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
+  color: #ffffff;
+}
+
+.viewer-access-error {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(6, 9, 13, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.viewer-access-error__card {
+  width: min(30rem, 100%);
+  border-radius: 18px;
+  padding: 1.25rem;
+  background: linear-gradient(160deg, rgba(30, 39, 55, 0.96) 0%, rgba(20, 25, 35, 0.96) 100%);
+  border: 1px solid rgba(215, 232, 247, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  color: #eff7ff;
+}
+
+.viewer-access-error__card h1 {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.viewer-access-error__card p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: rgba(231, 243, 255, 0.82);
+}
+
+.viewer-access-error__retry {
+  margin-top: 0.9rem;
+  border: 0;
+  border-radius: 12px;
+  min-height: 2.7rem;
+  padding: 0 0.95rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
   background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
   color: #ffffff;
 }
