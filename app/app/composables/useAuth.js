@@ -8,6 +8,17 @@ let _initialized = false
 
 export function useAuth() {
   const supabase = useSupabaseClient()
+  const runtimeConfig = useRuntimeConfig()
+
+  function getAuthRedirectUrl() {
+    const runtimeBaseUrl = runtimeConfig.public?.appBaseUrl
+    const browserBaseUrl = import.meta.client && typeof window !== 'undefined'
+      ? window.location.origin
+      : ''
+
+    const baseUrl = (browserBaseUrl || runtimeBaseUrl || '').replace(/\/$/, '')
+    return `${baseUrl}/auth/login?verified=1`
+  }
 
   async function init() {
     if (_initialized) return
@@ -47,6 +58,7 @@ export function useAuth() {
       email,
       password,
       options: {
+        emailRedirectTo: getAuthRedirectUrl(),
         data: {
           first_name: firstName,
           last_name: lastName,
