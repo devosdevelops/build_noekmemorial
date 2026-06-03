@@ -6,6 +6,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 const props = defineProps({
   activeMode: {
@@ -34,7 +35,22 @@ const pointer = new THREE.Vector2()
 const selectableMeshes = []
 const meshMetaById = new Map()
 const runtimeMeshes = []
+const visitorCandleMeshes = []
+const visitorCandleGlowLights = new Set()
 let activeSelectionMesh = null
+const CANDLE_LIGHT_USERDATA_KEY = '__viewerCandleGlowLight'
+
+const gltfLoader = new GLTFLoader()
+
+const cameraFocusState = {
+  active: false,
+  startTime: 0,
+  durationMs: 900,
+  fromPosition: new THREE.Vector3(),
+  toPosition: new THREE.Vector3(),
+  fromTarget: new THREE.Vector3(),
+  toTarget: new THREE.Vector3()
+}
 
 let pointerIsDown = false
 let pointerMoved = false
@@ -127,6 +143,14 @@ function disposeMeshResources(mesh) {
   })
 }
 
+function disposeGroupResources(group) {
+  group.traverse((child) => {
+    if (child.isMesh) {
+      disposeMeshResources(child)
+    }
+  })
+}
+
 function clearRuntimeSceneObjects() {
   clearSelectionHighlight()
 
@@ -140,6 +164,160 @@ function clearRuntimeSceneObjects() {
   runtimeMeshes.length = 0
   selectableMeshes.length = 0
   meshMetaById.clear()
+}
+
+function clearVisitorCandles() {
+  visitorCandleMeshes.forEach((mesh) => {
+    if (scene) {
+      scene.remove(mesh)
+    }
+
+    disposeGroupResources(mesh)
+  })
+
+  visitorCandleMeshes.length = 0
+  visitorCandleGlowLights.clear()
+}
+
+function buildModelWrapper(modelId, gltfScene) {
+  gltfScene.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(gltfScene)
+  const center = new THREE.Vector3()
+  const size = new THREE.Vector3()
+  box.getCenter(center)
+  box.getSize(size)
+
+  const uniformScale = size.length() > 0.0001 ? (1.2 / size.length()) : 1
+  const wrapper = new THREE.Group()
+  wrapper.name = `${modelId}-wrapper`
+
+  gltfScene.scale.setScalar(uniformScale)
+  gltfScene.position.set(
+    -center.x * uniformScale,
+    -box.min.y * uniformScale,
+    -center.z * uniformScale
+  )
+  wrapper.add(gltfScene)
+
+  return wrapper
+}
+
+function loadModelWrapper(downloadUrl, modelId) {
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(
+      downloadUrl,
+      (gltf) => {
+        try {
+          resolve(buildModelWrapper(modelId, gltf.scene))
+        } catch (error) {
+          reject(error)
+        }
+      },
+      undefined,
+      reject
+    )
+  })
+}
+
+function applyCandleGlowToMaterials(modelRoot) {
+  if (!modelRoot) {
+    return
+  }
+
+  modelRoot.traverse((child) => {
+    if (!child?.isMesh) {
+      return
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material]
+    materials.forEach((material) => {
+      if (!material || !('emissive' in material)) {
+        return
+      }
+
+      if (!material.userData) {
+        material.userData = {}
+      }
+
+      if (typeof material.userData.baseEmissiveHex !== 'number') {
+        material.userData.baseEmissiveHex = material.emissive.getHex()
+      }
+
+      if (typeof material.userData.baseEmissiveIntensity !== 'number') {
+        material.userData.baseEmissiveIntensity = typeof material.emissiveIntensity === 'number' ? material.emissiveIntensity : 1
+      }
+
+      material.emissive.set('#ff8c2f')
+      if (typeof material.emissiveIntensity === 'number') {
+        material.emissiveIntensity = Math.max(material.userData.baseEmissiveIntensity, 0.3)
+      }
+      material.userData.candleGlowApplied = true
+      material.needsUpdate = true
+    })
+  })
+}
+
+function attachCandlePointLight(modelRoot) {
+  if (!modelRoot) {
+    return
+  }
+
+  modelRoot.updateMatrixWorld(true)
+  const bounds = new THREE.Box3().setFromObject(modelRoot)
+  const center = new THREE.Vector3()
+  const size = new THREE.Vector3()
+  bounds.getCenter(center)
+  bounds.getSize(size)
+
+  const light = new THREE.PointLight('#ffb057', 0.95, Math.max(2.2, size.length() * 0.85), 1.8)
+  light.userData[CANDLE_LIGHT_USERDATA_KEY] = true
+  light.userData.baseIntensity = light.intensity
+  light.userData.baseDistance = light.distance
+  light.userData.flickerPhase = Math.random() * Math.PI * 2
+  light.position.set(
+    center.x,
+    bounds.max.y + Math.max(0.08, size.y * 0.08),
+    center.z
+  )
+  modelRoot.add(light)
+  visitorCandleGlowLights.add(light)
+}
+
+function updateCandleFlickerAnimation(timeMs) {
+  if (!visitorCandleGlowLights.size) {
+    return
+  }
+
+  const staleLights = []
+
+  visitorCandleGlowLights.forEach((light) => {
+    if (!light?.parent) {
+      staleLights.push(light)
+      return
+    }
+
+    const baseIntensity = Number(light.userData?.baseIntensity) || 0.95
+    const baseDistance = Number(light.userData?.baseDistance) || 3
+    const phase = Number(light.userData?.flickerPhase) || 0
+    const t = (Number.isFinite(timeMs) ? timeMs : performance.now()) / 1000
+
+    const waveA = Math.sin((t * 11.5) + phase)
+    const waveB = Math.sin((t * 23.7) + phase * 0.37)
+    const intensityFactor = 0.9 + (waveA * 0.08) + (waveB * 0.04)
+    const distanceFactor = 0.97 + (waveB * 0.03)
+
+    light.intensity = Math.max(0.05, baseIntensity * intensityFactor)
+    light.distance = Math.max(0.5, baseDistance * distanceFactor)
+  })
+
+  staleLights.forEach((light) => {
+    visitorCandleGlowLights.delete(light)
+  })
+}
+
+function applyCandleLightingEffects(modelRoot) {
+  applyCandleGlowToMaterials(modelRoot)
+  attachCandlePointLight(modelRoot)
 }
 
 function geometryForObjectState(objectState) {
@@ -312,6 +490,7 @@ function createMemorialObjects() {
   entries.forEach((entry) => {
     const mesh = new THREE.Mesh(entry.geometry, entry.material)
     mesh.position.set(...entry.position)
+    mesh.userData.sourceKind = 'shape'
     mesh.userData.selectableId = entry.id
     selectableMeshes.push(mesh)
     meshMetaById.set(entry.id, {
@@ -352,6 +531,7 @@ function createObjectsFromSceneDocument() {
     mesh.position.set(position[0], position[1], position[2])
     mesh.rotation.set(rotation[0], rotation[1], rotation[2])
     mesh.scale.set(scale[0], scale[1], scale[2])
+    mesh.userData.sourceKind = objectState?.kind || 'shape'
     mesh.userData.selectableId = selectableId
 
     selectableMeshes.push(mesh)
@@ -380,6 +560,257 @@ function rebuildRuntimeSceneObjects() {
 
   clearRuntimeSceneObjects()
   createObjectsFromSceneDocument()
+}
+
+function randomFrom(min, max) {
+  return min + Math.random() * (max - min)
+}
+
+function getSupportMeshes() {
+  return runtimeMeshes.filter((mesh) => {
+    if (!mesh || !mesh.isMesh) {
+      return false
+    }
+
+    return mesh.userData?.sourceKind !== 'floor'
+  })
+}
+
+function getMeshBounds(mesh) {
+  const bounds = new THREE.Box3().setFromObject(mesh)
+
+  return {
+    min: bounds.min.clone(),
+    max: bounds.max.clone(),
+    center: bounds.getCenter(new THREE.Vector3())
+  }
+}
+
+function getCandleMeshRadius(style) {
+  if (style === 'Goud') return 0.32
+  if (style === 'Warm licht') return 0.3
+  return 0.28
+}
+
+function findNearestBlockingDistance(candidatePosition, minDistance) {
+  const candidate = new THREE.Vector3(candidatePosition[0], candidatePosition[1], candidatePosition[2])
+
+  let shortest = Infinity
+  const runtimeCenters = runtimeMeshes
+    .filter((mesh) => mesh?.isMesh)
+    .map((mesh) => getMeshBounds(mesh).center)
+  const candleCenters = visitorCandleMeshes.map((mesh) => mesh.position.clone())
+
+  ;[...runtimeCenters, ...candleCenters].forEach((center) => {
+    const distance = candidate.distanceTo(center)
+    shortest = Math.min(shortest, distance)
+  })
+
+  return shortest >= minDistance
+}
+
+function clampPlacement(position) {
+  return [
+    THREE.MathUtils.clamp(position[0], -24, 24),
+    THREE.MathUtils.clamp(position[1], 0.08, 20),
+    THREE.MathUtils.clamp(position[2], -24, 24)
+  ]
+}
+
+function pickCandlePlacement(style = 'Klassiek') {
+  const supportMeshes = getSupportMeshes()
+  const placementRadius = getCandleMeshRadius(style) + 0.65
+
+  if (!supportMeshes.length) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const fallbackPosition = clampPlacement([randomFrom(-8, 8), 0.14, randomFrom(-8, 8)])
+      if (findNearestBlockingDistance(fallbackPosition, placementRadius)) {
+        return {
+          worldPosition: fallbackPosition,
+          anchorObjectId: null
+        }
+      }
+    }
+
+    return {
+      worldPosition: [0, 0.14, 0],
+      anchorObjectId: null
+    }
+  }
+
+  const shuffledSupports = [...supportMeshes].sort(() => Math.random() - 0.5)
+
+  for (let supportIndex = 0; supportIndex < shuffledSupports.length; supportIndex += 1) {
+    const supportMesh = shuffledSupports[supportIndex]
+    const supportBounds = getMeshBounds(supportMesh)
+    const supportCenter = supportBounds.center
+    const placeOnTop = Math.random() < 0.35
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const candidate = placeOnTop
+        ? [
+            supportCenter.x + randomFrom(-0.25, 0.25),
+            supportBounds.max.y + 0.16,
+            supportCenter.z + randomFrom(-0.25, 0.25)
+          ]
+        : [
+            supportCenter.x + randomFrom(-1.8, 1.8),
+            0.14,
+            supportCenter.z + randomFrom(-1.8, 1.8)
+          ]
+
+      const clamped = clampPlacement(candidate)
+
+      if (findNearestBlockingDistance(clamped, placementRadius)) {
+        return {
+          worldPosition: clamped,
+          anchorObjectId: supportMesh.userData?.selectableId || null
+        }
+      }
+    }
+  }
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const randomSupport = shuffledSupports[Math.floor(Math.random() * shuffledSupports.length)]
+    const center = getMeshBounds(randomSupport).center
+    const fallbackNearObject = clampPlacement([
+      center.x + randomFrom(-2.2, 2.2),
+      0.14,
+      center.z + randomFrom(-2.2, 2.2)
+    ])
+
+    if (findNearestBlockingDistance(fallbackNearObject, placementRadius)) {
+      return {
+        worldPosition: fallbackNearObject,
+        anchorObjectId: randomSupport.userData?.selectableId || null
+      }
+    }
+  }
+
+  return {
+    worldPosition: [0, 0.14, 0],
+    anchorObjectId: null
+  }
+}
+
+function createVisitorCandleMesh(candleStyle) {
+  const candleGroup = new THREE.Group()
+
+  const style = typeof candleStyle === 'string' ? candleStyle : 'Klassiek'
+  const isWarm = style === 'Warm licht'
+  const isGold = style === 'Goud'
+
+  const waxColor = isGold ? '#d6b267' : isWarm ? '#f1e0c3' : '#efe9df'
+  const flameColor = isGold ? '#ffb347' : '#ffd06a'
+
+  const waxGeometry = new THREE.CylinderGeometry(0.16, 0.2, 0.32, 20)
+  const waxMaterial = new THREE.MeshStandardMaterial({
+    color: waxColor,
+    roughness: 0.72,
+    metalness: isGold ? 0.18 : 0.03
+  })
+
+  const waxMesh = new THREE.Mesh(waxGeometry, waxMaterial)
+  waxMesh.position.y = 0.16
+  candleGroup.add(waxMesh)
+
+  const flameGeometry = new THREE.SphereGeometry(0.06, 14, 10)
+  const flameMaterial = new THREE.MeshStandardMaterial({
+    color: flameColor,
+    emissive: flameColor,
+    emissiveIntensity: 0.78,
+    roughness: 0.24,
+    metalness: 0
+  })
+  const flameMesh = new THREE.Mesh(flameGeometry, flameMaterial)
+  flameMesh.position.y = 0.39
+  candleGroup.add(flameMesh)
+
+  candleGroup.userData.isVisitorCandle = true
+  candleGroup.userData.candleStyle = style
+
+  return candleGroup
+}
+
+function startCameraFocusTransition(targetPosition) {
+  if (!camera || !controls || !Array.isArray(targetPosition) || targetPosition.length !== 3) {
+    return
+  }
+
+  const targetVector = new THREE.Vector3(targetPosition[0], targetPosition[1], targetPosition[2])
+  const currentDistance = camera.position.distanceTo(controls.target)
+  const nextDistance = THREE.MathUtils.clamp(currentDistance * 0.65, 2.7, 9)
+
+  cameraFocusState.fromPosition.copy(camera.position)
+  cameraFocusState.fromTarget.copy(controls.target)
+  cameraFocusState.toTarget.copy(targetVector)
+  cameraFocusState.toPosition.set(
+    targetVector.x + 2.1,
+    targetVector.y + 1.9,
+    targetVector.z + nextDistance * 0.45
+  )
+  cameraFocusState.startTime = performance.now()
+  cameraFocusState.active = true
+}
+
+function updateCameraFocusTransition(now) {
+  if (!cameraFocusState.active || !camera || !controls) {
+    return
+  }
+
+  const elapsed = now - cameraFocusState.startTime
+  const rawProgress = Math.min(Math.max(elapsed / cameraFocusState.durationMs, 0), 1)
+  const easedProgress = 1 - Math.pow(1 - rawProgress, 3)
+
+  camera.position.lerpVectors(
+    cameraFocusState.fromPosition,
+    cameraFocusState.toPosition,
+    easedProgress
+  )
+  controls.target.lerpVectors(
+    cameraFocusState.fromTarget,
+    cameraFocusState.toTarget,
+    easedProgress
+  )
+
+  if (rawProgress >= 1) {
+    cameraFocusState.active = false
+  }
+}
+
+async function placeVisitorCandle({ candleStyle = 'Klassiek', candleModel = null } = {}) {
+  if (!scene) {
+    return null
+  }
+
+  const placement = pickCandlePlacement(candleStyle)
+
+  let candleMesh = null
+
+  if (typeof candleModel?.downloadUrl === 'string' && candleModel.downloadUrl.length) {
+    try {
+      candleMesh = await loadModelWrapper(candleModel.downloadUrl, `visitor-candle-${Date.now().toString(36)}`)
+    } catch (error) {
+      console.error('[ViewerSceneViewport] Failed to load candle model, using fallback candle mesh.', error)
+    }
+  }
+
+  if (!candleMesh) {
+    candleMesh = createVisitorCandleMesh(candleStyle)
+  }
+
+  candleMesh.position.set(placement.worldPosition[0], placement.worldPosition[1], placement.worldPosition[2])
+  candleMesh.userData.isVisitorCandle = true
+  candleMesh.userData.candleStyle = candleStyle
+  candleMesh.userData.candleModelId = candleModel?.id || null
+
+  scene.add(candleMesh)
+  visitorCandleMeshes.push(candleMesh)
+  applyCandleLightingEffects(candleMesh)
+
+  startCameraFocusTransition(placement.worldPosition)
+
+  return placement
 }
 
 function setupRendererAndScene() {
@@ -696,6 +1127,9 @@ function animate(time) {
   const deltaSeconds = Math.min((safeTime - lastFrameTime) / 1000, 0.1)
   lastFrameTime = safeTime
 
+  updateCandleFlickerAnimation(safeTime)
+  updateCameraFocusTransition(safeTime)
+
   if (props.activeMode === 'look-around' || props.activeMode === 'vr') {
     controls?.update()
   } else {
@@ -750,6 +1184,10 @@ onMounted(() => {
   frameId = requestAnimationFrame(animate)
 })
 
+defineExpose({
+  placeVisitorCandle
+})
+
 watch(
   () => props.sceneDocument,
   () => {
@@ -778,6 +1216,7 @@ onBeforeUnmount(() => {
   renderer?.dispose()
 
   clearRuntimeSceneObjects()
+  clearVisitorCandles()
 
   if (renderer?.domElement?.parentNode) {
     renderer.domElement.parentNode.removeChild(renderer.domElement)

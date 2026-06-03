@@ -82,13 +82,25 @@
       </template>
 
       <template v-else-if="activePanel === 'candle'">
-        <p>Kies een kaars en steek deze aan.</p>
-        <div class="viewer-left-panel__chips">
-          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Klassiek'">Klassiek</button>
-          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Warm licht'">Warm licht</button>
-          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Goud'">Goud</button>
+        <p>Kies een kaarsmodel en steek deze aan.</p>
+        <p v-if="isCandleModelsLoading" class="viewer-left-panel__contributions-empty">Kaarsmodellen laden...</p>
+        <p v-else-if="candleModelLoadError" class="viewer-left-panel__submit-error">{{ candleModelLoadError }}</p>
+        <div v-else class="viewer-left-panel__model-list" role="listbox" aria-label="Beschikbare kaarsmodellen">
+          <button
+            v-for="model in candleModels"
+            :key="model.id"
+            type="button"
+            class="viewer-left-panel__model-card"
+            :class="{ 'viewer-left-panel__model-card--active': candleForm.style === model.id }"
+            :aria-selected="candleForm.style === model.id"
+            @click="candleForm.style = model.id"
+          >
+            <img v-if="model.thumbnail" :src="model.thumbnail" :alt="model.label" class="viewer-left-panel__model-thumb" loading="lazy" />
+            <span class="viewer-left-panel__model-name">{{ model.label }}</span>
+            <span class="viewer-left-panel__model-copy">{{ model.description }}</span>
+          </button>
         </div>
-        <p class="viewer-left-panel__selection">Gekozen stijl: {{ candleForm.style }}</p>
+        <p class="viewer-left-panel__selection">Gekozen kaars: {{ selectedCandleLabel }}</p>
         <textarea
           v-model="candleForm.dedication"
           class="viewer-left-panel__textarea"
@@ -97,7 +109,7 @@
         <button
           type="button"
           class="viewer-left-panel__action"
-          :disabled="isSubmitting"
+          :disabled="isSubmitting || isCandleModelsLoading || !selectedCandleModel"
           @click="submitCandle"
         >
           {{ isSubmitting ? 'Bezig...' : 'Kaars aansteken' }}
@@ -151,7 +163,8 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { POLY_PIZZA_LISTS, POLY_PIZZA_LIST_CATEGORY } from '../../config/polypizza.js'
 
 const props = defineProps({
   activePanel: {
@@ -192,7 +205,7 @@ const messageForm = reactive({
 })
 
 const candleForm = reactive({
-  style: 'Klassiek',
+  style: '',
   dedication: ''
 })
 
@@ -203,12 +216,24 @@ const mediaForm = reactive({
   caption: ''
 })
 
+const candleModels = ref([])
+const isCandleModelsLoading = ref(false)
+const candleModelLoadError = ref('')
+
 const panelTitle = computed(() => {
   if (props.activePanel === 'add') return 'Bijdrage toevoegen'
   if (props.activePanel === 'message') return 'Bericht achterlaten'
   if (props.activePanel === 'candle') return 'Kaars aansteken'
   if (props.activePanel === 'element') return 'Element details'
   return 'Interactie'
+})
+
+const selectedCandleModel = computed(() => {
+  return candleModels.value.find((model) => model.id === candleForm.style) || null
+})
+
+const selectedCandleLabel = computed(() => {
+  return selectedCandleModel.value?.label || 'Geen'
 })
 
 const filteredContributions = computed(() => {
@@ -251,6 +276,79 @@ const filteredContributions = computed(() => {
   return filteredByKind.slice(0, 8)
 })
 
+async function fetchPolyPizzaList(listId) {
+  if (typeof listId !== 'string' || !listId.length) {
+    return []
+  }
+
+  const response = await fetch(`/api/polypizza/list/${encodeURIComponent(listId)}`)
+  if (!response.ok) {
+    throw new Error(`Kaarslijst "${listId}" kon niet worden geladen.`)
+  }
+
+  const data = await response.json()
+  return Array.isArray(data?.Models) ? data.Models : []
+}
+
+function mapCandleModel(model) {
+  const id = typeof model?.ID === 'string' && model.ID.length
+    ? model.ID
+    : `candle-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const creator = model?.Creator?.Username || ''
+
+  return {
+    id,
+    label: typeof model?.Title === 'string' && model.Title.trim().length ? model.Title.trim() : 'Kaarsmodel',
+    description: creator.length ? `Door ${creator}` : 'Poly Pizza kaarsmodel',
+    downloadUrl: typeof model?.Download === 'string' ? model.Download : '',
+    thumbnail: typeof model?.Thumbnail === 'string' ? model.Thumbnail : '',
+    attribution: typeof model?.Attribution === 'string' ? model.Attribution : '',
+    licence: typeof model?.Licence === 'string' ? model.Licence : '',
+    tags: Array.isArray(model?.Tags)
+      ? model.Tags.filter((tag) => typeof tag === 'string' && tag.trim().length).map((tag) => tag.trim())
+      : []
+  }
+}
+
+async function loadCandleModels() {
+  const candleListConfigs = POLY_PIZZA_LISTS.filter((entry) => entry?.category === POLY_PIZZA_LIST_CATEGORY.CANDLE)
+
+  if (!candleListConfigs.length) {
+    candleModelLoadError.value = 'Er is geen kaarslijst geconfigureerd.'
+    return
+  }
+
+  isCandleModelsLoading.value = true
+  candleModelLoadError.value = ''
+
+  try {
+    const listResults = await Promise.all(candleListConfigs.map((entry) => fetchPolyPizzaList(entry.id)))
+    const mergedModels = listResults.flat().map((model) => mapCandleModel(model))
+
+    const unique = []
+    const seen = new Set()
+    mergedModels.forEach((model) => {
+      if (seen.has(model.id)) {
+        return
+      }
+
+      seen.add(model.id)
+      unique.push(model)
+    })
+
+    candleModels.value = unique
+    candleForm.style = unique[0]?.id || ''
+  } catch (error) {
+    candleModelLoadError.value = error?.message || 'Kaarsmodellen konden niet worden geladen.'
+  } finally {
+    isCandleModelsLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadCandleModels()
+})
+
 function contributionTitle(entry) {
   const title = typeof entry?.title === 'string' ? entry.title.trim() : ''
   if (title.length) {
@@ -290,8 +388,13 @@ function submitMessage() {
 }
 
 function submitCandle() {
+  if (!selectedCandleModel.value) {
+    return
+  }
+
   emit('submit-candle', {
     candleStyle: candleForm.style,
+    candleModel: selectedCandleModel.value,
     dedication: candleForm.dedication
   })
 }
@@ -437,6 +540,47 @@ function submitMedia() {
 .viewer-left-panel__selection {
   margin: 0.6rem 0 0.2rem;
   color: rgba(236, 245, 255, 0.86);
+}
+
+.viewer-left-panel__model-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.viewer-left-panel__model-card {
+  border: 1px solid rgba(224, 238, 248, 0.18);
+  border-radius: 10px;
+  min-height: 3rem;
+  padding: 0.45rem 0.6rem;
+  background: rgba(12, 19, 28, 0.72);
+  color: #eff7ff;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.viewer-left-panel__model-thumb {
+  width: 100%;
+  max-height: 5.8rem;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(224, 238, 248, 0.16);
+}
+
+.viewer-left-panel__model-card--active {
+  border-color: rgba(212, 193, 126, 0.92);
+  box-shadow: 0 0 0 1px rgba(212, 193, 126, 0.6) inset;
+}
+
+.viewer-left-panel__model-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.viewer-left-panel__model-copy {
+  font-size: 0.78rem;
+  color: rgba(225, 240, 252, 0.8);
 }
 
 .viewer-left-panel__contributions {

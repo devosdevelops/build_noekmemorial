@@ -2,6 +2,7 @@
   <section class="viewer-space">
     <ViewerSceneViewport
       v-if="hasEnteredViewer"
+      ref="viewerViewportRef"
       :active-mode="activeMode"
       :scene-document="viewerSceneDocument"
       @element-selected="handleSceneElementSelection"
@@ -202,6 +203,7 @@ const roomName = computed(() => {
 })
 
 const isGuestNamePromptOpen = ref(false)
+const viewerViewportRef = ref(null)
 const pendingGuestName = ref('')
 const guestNameError = ref('')
 const submitSuccessMessage = ref('')
@@ -465,13 +467,33 @@ async function handleMessageSubmit(payload) {
 async function handleCandleSubmit(payload) {
   submitSuccessMessage.value = ''
 
+  let candleWorldPosition = pointerWorldPosition.value
+  let candleAnchorElementId = selectedElement.value?.id || null
+
+  const placement = viewerViewportRef.value?.placeVisitorCandle
+    ? viewerViewportRef.value.placeVisitorCandle({
+        candleStyle: payload?.candleStyle || 'Klassiek',
+        candleModel: payload?.candleModel || null
+      })
+    : null
+
+  const resolvedPlacement = placement && typeof placement.then === 'function'
+    ? await placement
+    : placement
+
+  if (resolvedPlacement?.worldPosition && Array.isArray(resolvedPlacement.worldPosition)) {
+    candleWorldPosition = resolvedPlacement.worldPosition
+    candleAnchorElementId = resolvedPlacement.anchorObjectId || null
+    setPointerWorldPosition(candleWorldPosition)
+  }
+
   const response = await submitCandle({
     slug: props.slug,
     dedication: payload?.dedication || '',
     candleStyle: payload?.candleStyle || 'Klassiek',
     guestName: isAuthenticated.value ? '' : guestName.value,
-    selectedElementId: selectedElement.value?.id || null,
-    worldPosition: pointerWorldPosition.value,
+    selectedElementId: candleAnchorElementId,
+    worldPosition: candleWorldPosition,
     accessToken: session.value?.access_token || '',
     accessPin: acceptedAccessPin.value
   })
