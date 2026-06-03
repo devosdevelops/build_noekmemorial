@@ -9,9 +9,6 @@
     [x] add icons
     [x] add hinting for toolbar
     [x] replace close buttons with x's and info icons 
-[] add other tables to supabase
-[] connect editors to accounts
-[] load screen when loading page
 [x] load screen and load holder for when models are loading
 [x] search bar for models
 [x] add textures
@@ -20,18 +17,21 @@
 [x] add texture size to 
     [x] blocks  
     [x] floor
-[] add colors to models
+[x] add colors to models
 [x] add missing textures
 [x] load models with loader wheel
 [x] add favicon
-[] deploy room
 [x] add ambient noise options
     [x] add sound files
     [x] sound ui
     [x] add sounds to scene
 [x] add lighting options
 [x] hide grid 
-[] add animation to anything that opens or closes
+[x] add animation to anything that opens or closes
+[] add other tables to supabase
+[] connect editors to accounts
+[] load screen when loading page
+[] deploy room
 [] add special pinboard and candle objects
 [] add templates
 

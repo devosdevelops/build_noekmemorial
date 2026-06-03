@@ -458,7 +458,7 @@ const diskHandleStyle = computed(() => {
 .color-picker__swatch {
   width: 1.2rem;
   height: 1.2rem;
-  border-radius: 999px;
+  border-radius: 0.32rem;
   border: 1px solid rgba(78, 91, 65, 0.2);
 }
 
