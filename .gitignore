@@ -149,3 +149,6 @@ vite.config.js.timestamp-*
 # Locally generated files
 .DS_Store
 Thumbs.db
+
+# Temporary Supabase patch migrations
+app/supabase/007_dashboard_patch_existing.sql
