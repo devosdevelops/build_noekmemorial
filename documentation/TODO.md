@@ -169,7 +169,7 @@
 
 ### Editor
 
-[] add clicky noises to editor
+[x] add clicky noises to editor
 [] mirror tool
 [] scale smoothly instead of snapping
 [] add color picker
