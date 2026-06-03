@@ -61,11 +61,20 @@ function handleSelectPreset(presetId) {
 <style scoped>
 .lighting-library {
   top: 28%;
-  left: calc(1.5rem + 10.2rem + 8px);
+  left: calc(14.2rem + 0.8rem);
   z-index: 3;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.9rem;
   border-radius: 0.9rem;
+}
+  
+@media (max-width: 900px) {
+  .lighting-library {
+    left: 1rem;
+    top: auto;
+    bottom: 12.4rem;
+    width: min(22rem, calc(100vw - 2rem));
+  }
 }
 
 .library-header {
