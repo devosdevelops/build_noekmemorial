@@ -36,6 +36,28 @@
         <button type="button" class="viewer-left-panel__action">Kaars aansteken</button>
       </template>
 
+      <template v-else-if="activePanel === 'element'">
+        <template v-if="selectedElement">
+          <p class="viewer-left-panel__element-kicker">Geselecteerd object</p>
+          <h3 class="viewer-left-panel__element-title">{{ selectedElement.title }}</h3>
+          <p class="viewer-left-panel__element-description">{{ selectedElement.description }}</p>
+
+          <div class="viewer-left-panel__chips">
+            <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'message')">
+              Laat bericht
+            </button>
+            <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'candle')">
+              Steek kaars aan
+            </button>
+            <button type="button" class="viewer-left-panel__chip" @click="$emit('quick-action', 'add')">
+              Voeg media toe
+            </button>
+          </div>
+        </template>
+
+        <p v-else>Geen object geselecteerd. Klik of tik in de scène om details te openen.</p>
+      </template>
+
       <template v-else>
         <p>Kies een actie onderaan om een bijdrage toe te voegen.</p>
       </template>
@@ -54,15 +76,20 @@ const props = defineProps({
   canPostMedia: {
     type: Boolean,
     default: false
+  },
+  selectedElement: {
+    type: Object,
+    default: null
   }
 })
 
-defineEmits(['close'])
+defineEmits(['close', 'quick-action'])
 
 const panelTitle = computed(() => {
   if (props.activePanel === 'add') return 'Bijdrage toevoegen'
   if (props.activePanel === 'message') return 'Bericht achterlaten'
   if (props.activePanel === 'candle') return 'Kaars aansteken'
+  if (props.activePanel === 'element') return 'Element details'
   return 'Interactie'
 })
 </script>
@@ -116,6 +143,25 @@ const panelTitle = computed(() => {
 
 .viewer-left-panel__content p {
   margin-top: 0;
+}
+
+.viewer-left-panel__element-kicker {
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 237, 254, 0.78);
+}
+
+.viewer-left-panel__element-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.viewer-left-panel__element-description {
+  margin-bottom: 0.7rem;
+  color: rgba(236, 245, 255, 0.86);
 }
 
 .viewer-left-panel__notice {
