@@ -95,13 +95,26 @@ function normalizePin(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function normalizeReactions(input) {
+  const source = input && typeof input === 'object' ? input : {}
+
+  return {
+    heart: Number.isFinite(source.heart) ? Math.max(0, Math.floor(source.heart)) : 0,
+    hug: Number.isFinite(source.hug) ? Math.max(0, Math.floor(source.hug)) : 0,
+    sad: Number.isFinite(source.sad) ? Math.max(0, Math.floor(source.sad)) : 0
+  }
+}
+
 function toContribution(row) {
+  const content = row?.content && typeof row.content === 'object' ? { ...row.content } : {}
+  content.reactions = normalizeReactions(content.reactions)
+
   return {
     id: row.id,
-    type: row.content?.kind || row.content_type || 'post',
+    type: content.kind || row.content_type || 'post',
     title: row.title,
     excerpt: row.excerpt,
-    content: row.content,
+    content,
     mediaUrl: row.media_url,
     mediaMimeType: row.media_mime_type,
     status: row.status,

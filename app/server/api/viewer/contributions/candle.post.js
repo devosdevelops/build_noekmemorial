@@ -105,7 +105,12 @@ export default defineEventHandler(async (event) => {
     dedication: dedication || null,
     guest_name: authorId ? null : guestName,
     element_id: elementId || null,
-    world_position: Array.isArray(body?.worldPosition) ? body.worldPosition : null
+    world_position: Array.isArray(body?.worldPosition) ? body.worldPosition : null,
+    reactions: {
+      heart: 0,
+      hug: 0,
+      sad: 0
+    }
   }
 
   const titleBase = authorId ? 'Kaars aangestoken' : `Kaars van ${guestName}`

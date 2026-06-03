@@ -169,6 +169,41 @@ export function useViewerContributions() {
     }
   }
 
+  async function submitReaction({
+    slug,
+    contributionId,
+    reactionType,
+    accessPin = '',
+    accessToken = ''
+  }) {
+    submitStatus.value = 'submitting'
+    submitError.value = ''
+
+    try {
+      const headers = accessToken.length
+        ? { authorization: `Bearer ${accessToken}` }
+        : undefined
+
+      const response = await $fetch('/api/viewer/contributions/reaction', {
+        method: 'POST',
+        headers,
+        body: {
+          slug,
+          contributionId,
+          reactionType,
+          accessPin
+        }
+      })
+
+      submitStatus.value = 'success'
+      return response
+    } catch (error) {
+      submitStatus.value = 'error'
+      submitError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Reactie versturen is mislukt.'
+      return null
+    }
+  }
+
   return {
     room,
     scene,
@@ -182,6 +217,7 @@ export function useViewerContributions() {
     loadRoomBySlug,
     submitMessage,
     submitCandle,
-    submitMedia
+    submitMedia,
+    submitReaction
   }
 }

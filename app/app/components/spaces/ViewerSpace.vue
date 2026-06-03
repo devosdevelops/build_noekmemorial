@@ -148,6 +148,21 @@
               </button>
               <p class="viewer-media-overlay__meta">Geplaatst door {{ posterNameFromContribution(activeCarouselItem) }}</p>
             </template>
+
+            <div class="viewer-media-overlay__reactions" role="group" aria-label="Reageer op bijdrage">
+              <button
+                v-for="reaction in REACTION_TYPES"
+                :key="reaction.id"
+                type="button"
+                class="viewer-media-overlay__reaction-button"
+                :disabled="activeReactionType === reaction.id"
+                :aria-label="`Reageer met ${reaction.label}`"
+                @click="handleContributionReaction(reaction.id)"
+              >
+                <img :src="reaction.icon" alt="" aria-hidden="true" class="viewer-media-overlay__reaction-icon" />
+                <span class="viewer-media-overlay__reaction-count">{{ reactionCountFor(activeCarouselItem, reaction.id) }}</span>
+              </button>
+            </div>
           </article>
 
           <article v-else class="viewer-media-overlay__empty">
@@ -246,8 +261,15 @@ const {
   loadRoomBySlug,
   submitMessage,
   submitCandle,
-  submitMedia
+  submitMedia,
+  submitReaction
 } = useViewerContributions()
+
+const REACTION_TYPES = [
+  { id: 'heart', label: 'Liefde', icon: '/icons/heart.svg' },
+  { id: 'hug', label: 'Knuffel', icon: '/icons/hug.svg' },
+  { id: 'sad', label: 'Medeleven', icon: '/icons/sad.svg' }
+]
 
 const viewerSceneDocument = computed(() => {
   const sceneRow = scene.value
@@ -296,6 +318,7 @@ const mediaCarouselKind = ref('')
 const mediaCarouselIndex = ref(0)
 const swipeStartX = ref(0)
 const swipeIsActive = ref(false)
+const activeReactionType = ref('')
 
 const { playClickSound } = useUiClickSound({
   containerRef: viewerSpaceRoot
@@ -783,6 +806,67 @@ function mediaUrlFromContribution(entry) {
   return voiceUrl
 }
 
+function normalizeReactions(rawReactions) {
+  const source = rawReactions && typeof rawReactions === 'object' ? rawReactions : {}
+
+  return {
+    heart: Number.isFinite(source.heart) ? Math.max(0, Math.floor(source.heart)) : 0,
+    hug: Number.isFinite(source.hug) ? Math.max(0, Math.floor(source.hug)) : 0,
+    sad: Number.isFinite(source.sad) ? Math.max(0, Math.floor(source.sad)) : 0
+  }
+}
+
+function reactionCountFor(entry, reactionType) {
+  const reactions = normalizeReactions(entry?.content?.reactions)
+  return reactions[reactionType] ?? 0
+}
+
+async function handleContributionReaction(reactionType) {
+  if (!activeCarouselItem.value || typeof activeCarouselItem.value.id !== 'string' || !activeCarouselItem.value.id.length) {
+    return
+  }
+
+  activeReactionType.value = reactionType
+
+  try {
+    const response = await submitReaction({
+      slug: props.slug,
+      contributionId: activeCarouselItem.value.id,
+      reactionType,
+      accessPin: acceptedAccessPin.value,
+      accessToken: session.value?.access_token || ''
+    })
+
+    if (!response?.ok || !response?.contributionId) {
+      return
+    }
+
+    const contributionIndex = contributions.value.findIndex((entry) => entry?.id === response.contributionId)
+    if (contributionIndex < 0) {
+      return
+    }
+
+    const existingContribution = contributions.value[contributionIndex]
+    const existingContent = existingContribution?.content && typeof existingContribution.content === 'object'
+      ? existingContribution.content
+      : {}
+
+    const nextContribution = {
+      ...existingContribution,
+      content: {
+        ...existingContent,
+        reactions: normalizeReactions(response.reactions)
+      }
+    }
+
+    const nextContributions = [...contributions.value]
+    nextContributions.splice(contributionIndex, 1, nextContribution)
+    contributions.value = nextContributions
+  } finally {
+    activeReactionType.value = ''
+  }
+}
+
 function toggleCarouselAudio() {
   const mediaUrl = mediaUrlFromContribution(activeCarouselItem.value)
   if (!mediaUrl.length || !process.client) {
@@ -1110,6 +1194,51 @@ async function handleMediaSubmit(payload) {
   margin: 0;
   font-size: 0.85rem;
   color: rgba(229, 242, 255, 0.85);
+}
+
+.viewer-media-overlay__reactions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.viewer-media-overlay__reaction-button {
+  border: 0;
+  border-radius: 999px;
+  min-height: 2.2rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(238, 245, 223, 0.94);
+  color: #25310f;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.viewer-media-overlay__reaction-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.viewer-media-overlay__reaction-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
+}
+
+.viewer-media-overlay__reaction-count {
+  min-width: 1.3rem;
+  min-height: 1.3rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #f9f1cf;
+  color: #3f3717;
 }
 
 .viewer-media-overlay__audio-toggle {

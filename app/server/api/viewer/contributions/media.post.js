@@ -129,7 +129,12 @@ export default defineEventHandler(async (event) => {
     media_type: mediaType,
     caption: caption || null,
     element_id: elementId || null,
-    world_position: Array.isArray(body?.worldPosition) ? body.worldPosition : null
+    world_position: Array.isArray(body?.worldPosition) ? body.worldPosition : null,
+    reactions: {
+      heart: 0,
+      hug: 0,
+      sad: 0
+    }
   }
 
   const finalTitle = title || `Media bijdrage (${mediaType})`
