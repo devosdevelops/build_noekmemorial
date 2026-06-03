@@ -17,29 +17,59 @@
       <p class="empty-message">Je hebt nog geen ruimte aangemaakt. Klik op de knop hieronder om te starten, of laat je toevoegen als samenwerker bij een bestaande ruimte.</p>
     </Card>
 
-    <div v-else class="rooms-list">
-      <Card v-for="room in rooms" :key="room.id" class="room-card">
-        <div class="room-header">
-          <h3>{{ room.title }}</h3>
-          <div class="room-meta">
-            <span class="meta-date">Laatst bewerkt: {{ formatDate(room.lastUpdated) }}</span>
-            <span v-if="room.pendingCount > 0" class="meta-status">
-              {{ room.pendingCount }} {{ room.pendingCount === 1 ? 'bericht' : 'berichten' }} in afwachting
-            </span>
-          </div>
-        </div>
+    <div v-else class="rooms-group-list">
+      <section v-if="ownedRooms.length > 0" class="rooms-group">
+        <h3 class="rooms-group-title">Jouw Herdenkingsruimtes</h3>
+        <div class="rooms-list">
+          <Card v-for="room in ownedRooms" :key="room.id" class="room-card">
+            <div class="room-header">
+              <h3>{{ room.title }}</h3>
+              <div class="room-meta">
+                <span class="meta-date">Laatst bewerkt: {{ formatDate(room.lastUpdated) }}</span>
+                <span v-if="room.pendingCount > 0" class="meta-status">
+                  {{ room.pendingCount }} {{ room.pendingCount === 1 ? 'bericht' : 'berichten' }} in afwachting
+                </span>
+              </div>
+            </div>
 
-        <div class="room-actions">
-          <NuxtLink class="btn-secondary" :to="`/dashboard/ruimte/${room.id}`">
-            <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
-            Bekijk Details
-          </NuxtLink>
-          <NuxtLink class="btn-primary" :to="`/editor?workspaceId=${room.id}`">
-            <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
-            Open in Editor
-          </NuxtLink>
+            <div class="room-actions">
+              <NuxtLink class="btn-secondary" :to="`/dashboard/ruimte/${room.id}`">
+                <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
+                Bekijk Details
+              </NuxtLink>
+              <NuxtLink class="btn-primary" :to="`/editor?workspaceId=${room.id}`">
+                <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
+                Open in Editor
+              </NuxtLink>
+            </div>
+          </Card>
         </div>
-      </Card>
+      </section>
+
+      <section v-if="collaboratorRooms.length > 0" class="rooms-group">
+        <h3 class="rooms-group-title">Ruimtes Waar Je Samenwerkt</h3>
+        <div class="rooms-list">
+          <Card v-for="room in collaboratorRooms" :key="room.id" class="room-card room-card-collaborator">
+            <div class="room-header">
+              <h3>{{ room.title }}</h3>
+              <div class="room-meta">
+                <span class="meta-date">Laatst bewerkt: {{ formatDate(room.lastUpdated) }}</span>
+              </div>
+            </div>
+
+            <div class="room-actions">
+              <NuxtLink class="btn-secondary" :to="`/dashboard/ruimte/${room.id}`">
+                <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
+                Bekijk Details
+              </NuxtLink>
+              <NuxtLink class="btn-primary" :to="`/editor?workspaceId=${room.id}`">
+                <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
+                Open in Editor
+              </NuxtLink>
+            </div>
+          </Card>
+        </div>
+      </section>
     </div>
 
     <!-- Action Button -->
@@ -53,7 +83,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import Card from '../ui/Card.vue'
 import AppLoadingScreen from '../ui/AppLoadingScreen.vue'
 import { useAuth } from '../../composables/useAuth'
@@ -61,6 +91,8 @@ import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces
 
 const { init } = useAuth()
 const { workspaces: rooms, isLoading, loadError, loadWorkspaces } = useDashboardWorkspaces()
+const ownedRooms = computed(() => rooms.value.filter((room) => room.isOwned))
+const collaboratorRooms = computed(() => rooms.value.filter((room) => !room.isOwned))
 
 onMounted(async () => {
   await init()
@@ -119,6 +151,30 @@ function formatDate(date) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.rooms-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.rooms-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.rooms-group-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2f3547;
+}
+
+.room-card-collaborator {
+  border: 1px solid #d7ddd1;
 }
 
 .room-card {

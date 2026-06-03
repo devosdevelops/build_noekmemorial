@@ -304,8 +304,18 @@
 
             <p v-if="saveError" class="helper-text">{{ saveError }}</p>
 
-            <button type="button" class="room-settings-save" :disabled="isSavingRoomSettings" @click="saveRoomSettings">
+            <button type="button" class="room-settings-save" :disabled="isSavingRoomSettings || isDeletingRoom" @click="saveRoomSettings">
               {{ isSavingRoomSettings ? 'Bezig...' : 'Veranderingen Opslaan' }}
+            </button>
+
+            <button
+              v-if="canManageRoom"
+              type="button"
+              class="room-settings-delete"
+              :disabled="isDeletingRoom || isSavingRoomSettings"
+              @click="deleteRoom"
+            >
+              {{ isDeletingRoom ? 'Ruimte verwijderen...' : 'Ruimte verwijderen' }}
             </button>
           </Card>
         </div>
@@ -498,7 +508,19 @@ const inviteToastMessage = ref('')
 const isCopyToastVisible = ref(false)
 const isSaveToastVisible = ref(false)
 const isSavingRoomSettings = ref(false)
+const isDeletingRoom = ref(false)
 const saveError = ref('')
+
+const canManageRoom = computed(() => {
+  const currentUserId = session.value?.user?.id
+  const ownerId = owner.value?.id
+
+  if (!currentUserId || !ownerId) {
+    return false
+  }
+
+  return currentUserId === ownerId
+})
 
 let copyToastTimer = null
 let saveToastTimer = null
@@ -733,6 +755,47 @@ async function saveRoomSettings() {
     saveError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Opslaan van de herdenkingsruimte is mislukt.'
   } finally {
     isSavingRoomSettings.value = false
+  }
+}
+
+async function deleteRoom() {
+  if (!workspaceId.value) return
+
+  if (!canManageRoom.value) {
+    saveError.value = 'Alleen de eigenaar kan deze werkruimte verwijderen.'
+    return
+  }
+
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    saveError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
+  const confirmed = typeof window === 'undefined'
+    ? true
+    : window.confirm('Ben je zeker dat je deze werkruimte wil verwijderen? Deze actie kan niet ongedaan worden gemaakt.')
+
+  if (!confirmed) {
+    return
+  }
+
+  saveError.value = ''
+  isDeletingRoom.value = true
+
+  try {
+    await $fetch(`/api/workspaces/${workspaceId.value}`, {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    })
+
+    await navigateTo('/dashboard')
+  } catch (error) {
+    saveError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Verwijderen van de werkruimte is mislukt.'
+  } finally {
+    isDeletingRoom.value = false
   }
 }
 
@@ -1678,6 +1741,25 @@ onUnmounted(() => {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 3px 10px rgba(98, 157, 58, 0.28);
+}
+
+.room-settings-delete {
+  margin-top: 0.7rem;
+  width: 100%;
+  border: 1px solid #d65941;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-family: var(--font-display);
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: #7a2418;
+  background: linear-gradient(180deg, #fee8e2 0%, #fbdad0 100%);
+  cursor: pointer;
+}
+
+.room-settings-delete:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
 }
 
 .room-settings-save:hover {
