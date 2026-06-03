@@ -37,10 +37,12 @@
     </div>
 
     <!-- Action Button -->
-    <button class="btn-primary btn-large btn-full-width btn-ok-gradient">
-      <span class="btn-icon">+</span>
-      {{ rooms.length === 0 ? 'Nieuwe Ruimte' : 'Nieuwe Ruimte Aankopen' }}
-    </button>
+    <div class="button-wrapper">
+      <NuxtLink class="btn-primary btn-large btn-ok-gradient create-room-link" to="/dashboard/new-room">
+        <span class="btn-icon">+</span>
+        {{ rooms.length === 0 ? 'Nieuwe Ruimte' : 'Nieuwe Ruimte Aankopen' }}
+      </NuxtLink>
+    </div>
   </div>
 </template>
 
@@ -65,6 +67,7 @@ function formatDate(date) {
     year: 'numeric'
   }).format(date)
 }
+
 </script>
 
 <style scoped>
@@ -205,7 +208,8 @@ function formatDate(date) {
 .btn-large {
   padding: 0.875rem 1.5rem;
   font-size: 0.95rem;
-  width: 100%;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
@@ -220,6 +224,16 @@ function formatDate(date) {
 }
 
 .btn-full-width {
+  width: 100%;
+}
+
+.button-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.create-room-link {
+  text-decoration: none;
   width: 100%;
 }
 
