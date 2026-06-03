@@ -5,7 +5,7 @@
 [] refactor ui to match figma design
     [x] refactor ui to stick to sides
     [x] reposition config ui to center
-    [] add logo
+    [x] add logo
     [] add icons
     [] add hinting for toolbar
     [] replace close buttons with x's

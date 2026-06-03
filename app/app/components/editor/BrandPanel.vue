@@ -1,10 +1,6 @@
 <template>
   <OverlayCard class="brand-card">
-    <div class="brand-mark">C</div>
-    <div>
-      <p class="brand-title">Columba</p>
-      <p class="brand-subtitle">Herinneringsstudio</p>
-    </div>
+    <img class="brand-logo" src="/logo.png" alt="Columba" />
   </OverlayCard>
 </template>
 
@@ -18,39 +14,19 @@ import OverlayCard from '../ui/OverlayCard.vue'
   left: 0;
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.7rem 1rem;
+  justify-content: center;
+  padding: 0.7rem 0.85rem;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-top-right-radius: 0.9rem;
   border-bottom-right-radius: 0.9rem;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(123, 138, 109, 0.34);
-  color: #6c7d59;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  background: rgba(247, 248, 242, 0.94);
-}
-
-.brand-title {
-  margin: 0;
-  color: #59664a;
-  font-family: 'Poppins', sans-serif;
-  font-size: 1.35rem;
-  line-height: 1.1;
-}
-
-.brand-subtitle {
-  margin: 0.18rem 0 0;
-  color: #758167;
-  font-size: 0.92rem;
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 3.1rem;
+  object-fit: contain;
 }
 
 @media (max-width: 900px) {
