@@ -418,12 +418,13 @@ function submitMedia() {
 <style scoped>
 .viewer-left-panel {
   position: absolute;
-  top: 0.85rem;
-  bottom: 0.85rem;
+  top: 4.1rem;
+  bottom: 4.25rem;
   left: 0.85rem;
   z-index: 24;
   width: clamp(18rem, 30vw, 22rem);
   max-width: calc(100% - 1.7rem);
+  max-height: calc(100vh - 8.35rem);
   border-radius: 16px;
   background: rgba(251, 252, 249, 0.93);
   border: 1px solid rgba(162, 174, 143, 0.35);
@@ -657,6 +658,7 @@ function submitMedia() {
   .viewer-left-panel {
     top: 3.9rem;
     bottom: 4.75rem;
+    max-height: calc(100vh - 8.65rem);
     width: calc(100% - 1.7rem);
   }
 }
