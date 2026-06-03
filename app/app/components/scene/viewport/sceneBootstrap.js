@@ -19,6 +19,37 @@ export function createSceneBootstrap({
   sceneObjects,
   initialLightingPreset = null
 }) {
+  function createGroundFadeTexture(THREE) {
+    const size = 512
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+
+    const context = canvas.getContext('2d')
+
+    if (!context) {
+      throw new Error('Could not create ground fade texture context')
+    }
+
+    const center = size / 2
+    const gradient = context.createRadialGradient(center, center, 0, center, center, center)
+
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+    gradient.addColorStop(0.42, 'rgba(255, 255, 255, 0.95)')
+    gradient.addColorStop(0.72, 'rgba(255, 255, 255, 0.45)')
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+
+    context.fillStyle = gradient
+    context.fillRect(0, 0, size, size)
+
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.wrapS = THREE.ClampToEdgeWrapping
+    texture.wrapT = THREE.ClampToEdgeWrapping
+    texture.needsUpdate = true
+
+    return texture
+  }
+
   function getObjectColor(objectId, fallbackColor) {
     const objectState = sceneObjects.find((item) => item.id === objectId)
 
@@ -108,10 +139,30 @@ export function createSceneBootstrap({
   applyLightingPreset(initialLightingPreset)
 
   const gridTexture = poolTexture(createRoundedGridTexture(THREE, gridConfig.groundSize, gridConfig.cellSize))
+  const groundFadeTexture = poolTexture(createGroundFadeTexture(THREE))
 
   if (renderer.capabilities) {
     gridTexture.anisotropy = renderer.capabilities.getMaxAnisotropy()
   }
+
+  const extendedGroundSize = Math.max(gridConfig.groundSize * 8, 1200)
+  const groundPlane = new THREE.Mesh(
+    poolGeometry(new THREE.PlaneGeometry(extendedGroundSize, extendedGroundSize)),
+    poolMaterial(
+      new THREE.MeshStandardMaterial({
+        color: '#cfd7c7',
+        roughness: 0.98,
+        metalness: 0,
+        transparent: true,
+        alphaMap: groundFadeTexture,
+        opacity: 0.82,
+        depthWrite: false
+      })
+    )
+  )
+  groundPlane.rotation.x = -Math.PI / 2
+  groundPlane.position.y = -0.2
+  scene.add(groundPlane)
 
   const gridPlane = new THREE.Mesh(
     poolGeometry(new THREE.PlaneGeometry(gridConfig.groundSize, gridConfig.groundSize)),
@@ -174,6 +225,7 @@ export function createSceneBootstrap({
     gizmoScene,
     gizmoRenderPass,
     outputPass,
+    groundPlane,
     gridTexture,
     gridPlane,
     applyLightingPreset,

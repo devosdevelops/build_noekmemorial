@@ -22,6 +22,17 @@ import brickWall028Roughness from '../assets/textures/Brick_Wall_028_SD/Brick_Wa
 import snow005Base from '../assets/textures/Snow_005_SD/Snow_005_basecolor.png'
 import snow005Normal from '../assets/textures/Snow_005_SD/Snow_005_normal.png'
 import snow005Roughness from '../assets/textures/Snow_005_SD/Snow_005_roughness.png'
+import cobblestoneIrregularFloor001Base from '../assets/textures/Cobblestone_Irregular_Floor_001_SD/Cobblestone_Irregular_Floor_001_basecolor.png'
+import cobblestoneIrregularFloor001Normal from '../assets/textures/Cobblestone_Irregular_Floor_001_SD/Cobblestone_Irregular_Floor_001_normal.png'
+import cobblestoneIrregularFloor001Roughness from '../assets/textures/Cobblestone_Irregular_Floor_001_SD/Cobblestone_Irregular_Floor_001_roughness.png'
+import grass001Base from '../assets/textures/Grass_001_SD/Grass_001_COLOR.jpg'
+import grass001Normal from '../assets/textures/Grass_001_SD/Grass_001_NORM.jpg'
+import grass001Roughness from '../assets/textures/Grass_001_SD/Grass_001_ROUGH.jpg'
+import groundForest003Base from '../assets/textures/Ground_Forest_003_SD/Ground_Forest_003_baseColor.jpg'
+import groundForest003Normal from '../assets/textures/Ground_Forest_003_SD/Ground_Forest_003_normal.jpg'
+import groundForest003Roughness from '../assets/textures/Ground_Forest_003_SD/Ground_Forest_003_ROUGH.jpg'
+import pebbles002Base from '../assets/textures/Pebbles 002/Pebbles_002_COLOR.jpg'
+import pebbles002Normal from '../assets/textures/Pebbles 002/Pebbles_002_NRM.jpg'
 
 export const FLOOR_TEXTURE_OPTIONS = [
   {
@@ -158,6 +169,70 @@ export const FLOOR_TEXTURE_OPTIONS = [
     },
     defaultTexture: {
       textureId: 'snow-005',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'cobblestone-irregular-floor-001',
+    label: 'Kasseien',
+    previewUrl: cobblestoneIrregularFloor001Base,
+    maps: {
+      colorUrl: cobblestoneIrregularFloor001Base,
+      normalUrl: cobblestoneIrregularFloor001Normal,
+      roughnessUrl: cobblestoneIrregularFloor001Roughness
+    },
+    defaultTexture: {
+      textureId: 'cobblestone-irregular-floor-001',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'grass-001',
+    label: 'Gras',
+    previewUrl: grass001Base,
+    maps: {
+      colorUrl: grass001Base,
+      normalUrl: grass001Normal,
+      roughnessUrl: grass001Roughness
+    },
+    defaultTexture: {
+      textureId: 'grass-001',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'ground-forest-003',
+    label: 'Bosgrond',
+    previewUrl: groundForest003Base,
+    maps: {
+      colorUrl: groundForest003Base,
+      normalUrl: groundForest003Normal,
+      roughnessUrl: groundForest003Roughness
+    },
+    defaultTexture: {
+      textureId: 'ground-forest-003',
+      uvScale: [2, 2],
+      rotation: 0,
+      intensity: 1
+    }
+  },
+  {
+    id: 'pebbles-002',
+    label: 'Kiezels',
+    previewUrl: pebbles002Base,
+    maps: {
+      colorUrl: pebbles002Base,
+      normalUrl: pebbles002Normal,
+      roughnessUrl: null
+    },
+    defaultTexture: {
+      textureId: 'pebbles-002',
       uvScale: [2, 2],
       rotation: 0,
       intensity: 1

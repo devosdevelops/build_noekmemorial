@@ -21,7 +21,7 @@
 [x] load models with loader wheel
 [x] add favicon
 [] deploy room
-[] add ambient noise options
+[x] add ambient noise options
     [x] add sound files
     [x] sound ui
     [] add sounds to scene
