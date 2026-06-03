@@ -447,7 +447,11 @@ const room = computed(() => {
   }
 })
 
-const roomUrl = computed(() => (room.value?.slug ? `https://${room.value.slug}` : '—'))
+const roomUrl = computed(() => {
+  if (!room.value?.slug) return '—'
+
+  return `https://my.noekmemorial.be/${room.value.slug}`
+})
 const collaborators = computed(() => roomResponse.value?.collaborators ?? [])
 const moderationPendingCount = computed(() => Number(moderation.value?.pendingCount) || 0)
 const moderationPendingLabel = computed(() => {
