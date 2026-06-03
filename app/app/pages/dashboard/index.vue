@@ -1,20 +1,14 @@
 <template>
-  <section class="space-screen">
-    <h1>Dashboard Space</h1>
-    <p>This route is reserved for account, workspace, and CMS flows.</p>
-  </section>
+  <DashboardLayout>
+    <MemorialRoomsSection />
+  </DashboardLayout>
 </template>
 
-<style scoped>
-.space-screen {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  color: #f3f8ff;
-}
+<script setup>
+import DashboardLayout from '../../components/dashboard/DashboardLayout.vue'
+import MemorialRoomsSection from '../../components/dashboard/MemorialRoomsSection.vue'
 
-.space-screen h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-}
-</style>
+definePageMeta({
+  layout: 'default'
+})
+</script>
