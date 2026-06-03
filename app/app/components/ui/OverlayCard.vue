@@ -12,5 +12,16 @@
   background: linear-gradient(165deg, rgba(243, 246, 238, 0.95), rgba(220, 228, 211, 0.9));
   box-shadow: 0 14px 32px rgba(73, 88, 60, 0.16);
   backdrop-filter: blur(4px);
+  animation: overlay-card-fade-in 500ms ease-out both;
+}
+
+@keyframes overlay-card-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 </style>
