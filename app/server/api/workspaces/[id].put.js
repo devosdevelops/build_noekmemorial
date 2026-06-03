@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
+import { requireAuthenticatedAppUser, requireWorkspaceAccess } from '../../utils/workspaceAccess.js'
 
 function formatName(firstName, lastName, fallback) {
   return [firstName, lastName].filter(Boolean).join(' ').trim() || fallback || 'Onbekend'
@@ -52,6 +53,21 @@ export default defineEventHandler(async (event) => {
   }
 
   const supabase = createSupabaseServerClient()
+  const { actorId, actor } = await requireAuthenticatedAppUser(event, supabase)
+  const targetWorkspace = await requireWorkspaceAccess({
+    supabase,
+    workspaceId,
+    actorId,
+    actorUserType: actor.user_type
+  })
+
+  const mayUpdateWorkspaceSettings = targetWorkspace.owner_id === actorId || actor.user_type === 'consultant'
+  if (!mayUpdateWorkspaceSettings) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Je hebt geen rechten om werkruimte-instellingen bij te werken.'
+    })
+  }
 
   const { data: updatedWorkspace, error: updateError } = await supabase
     .from('app_workspaces')

@@ -351,6 +351,8 @@ definePageMeta({
 const route = useRoute()
 const { init, session } = useAuth()
 
+await init()
+
 const workspaceId = computed(() => {
   const value = route.params.id
   return Array.isArray(value) ? value[0] : value
@@ -371,14 +373,24 @@ const {
       })
     }
 
-    return await $fetch(`/api/workspaces/${workspaceId.value}`)
+    const accessToken = session.value?.access_token
+    if (!accessToken) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Je sessie is verlopen. Log opnieuw in.'
+      })
+    }
+
+    return await $fetch(`/api/workspaces/${workspaceId.value}`, {
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    })
   },
   {
     watch: [workspaceId]
   }
 )
-
-await init()
 
 const roomErrorMessage = computed(() => {
   const error = roomError.value
@@ -686,12 +698,21 @@ async function removeCollaborator(person) {
 async function saveRoomSettings() {
   if (!workspaceId.value) return
 
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    saveError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
   saveError.value = ''
   isSavingRoomSettings.value = true
 
   try {
     const response = await $fetch(`/api/workspaces/${workspaceId.value}`, {
       method: 'PUT',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      },
       body: {
         name: roomSettingsName.value.trim(),
         deceasedFirstName: roomSettingsFirstName.value.trim(),

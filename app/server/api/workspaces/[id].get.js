@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
+import { requireAuthenticatedAppUser, requireWorkspaceAccess } from '../../utils/workspaceAccess.js'
 
 function formatName(firstName, lastName, fallback) {
   return [firstName, lastName].filter(Boolean).join(' ').trim() || fallback || 'Onbekend'
@@ -47,6 +48,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const supabase = createSupabaseServerClient()
+  const { actorId, actor } = await requireAuthenticatedAppUser(event, supabase)
+  await requireWorkspaceAccess({
+    supabase,
+    workspaceId,
+    actorId,
+    actorUserType: actor.user_type
+  })
 
   const { data: workspace, error: workspaceError } = await supabase
     .from('app_workspaces')
