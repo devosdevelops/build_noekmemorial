@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
@@ -14,6 +14,16 @@ const emit = defineEmits(['close', 'update-volume', 'remove-audio'])
 
 const activeAudio = ref(null)
 const isPreviewPlaying = ref(false)
+
+function getNormalizedVolume(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed)) {
+    return 0.6
+  }
+
+  return Math.min(1, Math.max(0, parsed))
+}
 
 const volumePercent = computed(() => {
   const volume = Number(props.selectedAudio?.defaultVolume)
@@ -37,7 +47,12 @@ function handleVolumeInput(event) {
     return
   }
 
-  emit('update-volume', Math.min(1, Math.max(0, nextValue / 100)))
+  const normalizedVolume = Math.min(1, Math.max(0, nextValue / 100))
+  emit('update-volume', normalizedVolume)
+
+  if (activeAudio.value) {
+    activeAudio.value.volume = normalizedVolume
+  }
 }
 
 function handleRemoveAudio() {
@@ -70,6 +85,7 @@ function handlePreviewToggle() {
   stopPreview()
 
   const audio = new Audio(props.selectedAudio.url)
+  audio.volume = getNormalizedVolume(props.selectedAudio?.defaultVolume)
   audio.onended = () => {
     activeAudio.value = null
     isPreviewPlaying.value = false
@@ -86,6 +102,22 @@ function handlePreviewToggle() {
 onBeforeUnmount(() => {
   stopPreview()
 })
+
+watch(
+  () => props.selectedAudio?.defaultVolume,
+  (nextVolume) => {
+    if (activeAudio.value) {
+      activeAudio.value.volume = getNormalizedVolume(nextVolume)
+    }
+  }
+)
+
+watch(
+  () => props.selectedAudio?.objectId,
+  () => {
+    stopPreview()
+  }
+)
 </script>
 
 <template>
