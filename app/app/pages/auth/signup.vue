@@ -178,13 +178,18 @@ async function submitSignup() {
   submitError.value = ''
   isSubmitting.value = true
   try {
-    await signUp({
+    const result = await signUp({
       email: email.value.trim(),
       password: password.value,
       firstName: firstName.value.trim(),
       lastName: lastName.value.trim()
     })
-    router.push('/dashboard')
+    if (result.session) {
+      router.push('/dashboard')
+      return
+    }
+
+    router.push('/auth/login?registered=1')
   } catch (err) {
     submitError.value = err.message || 'Er is een fout opgetreden. Probeer opnieuw.'
   } finally {
