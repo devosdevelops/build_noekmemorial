@@ -62,7 +62,8 @@
 [x] create account ui
 [x] login ui
 [] create account
-[] activate workspace
+[] login
+[] add workspace
 [] start room
 [] manage rooms
 [] manage collaborators
