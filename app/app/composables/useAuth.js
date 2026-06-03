@@ -92,6 +92,27 @@ export function useAuth() {
     return data
   }
 
+  async function updateEmail(newEmail) {
+    if (!session.value?.user?.id) {
+      throw new Error('Je moet aangemeld zijn om je e-mailadres bij te werken.')
+    }
+
+    const currentEmail = session.value.user.email || appUser.value?.email || ''
+    const nextEmail = newEmail.trim()
+
+    if (!nextEmail || nextEmail === currentEmail) {
+      return { emailUpdated: false, emailConfirmationRequired: false }
+    }
+
+    const { data, error } = await supabase.auth.updateUser({ email: nextEmail })
+    if (error) throw error
+
+    return {
+      emailUpdated: true,
+      emailConfirmationRequired: Boolean(data?.user && data.user.email !== nextEmail)
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     session.value = null
@@ -106,6 +127,7 @@ export function useAuth() {
     signUp,
     signIn,
     updateProfile,
+    updateEmail,
     signOut
   }
 }

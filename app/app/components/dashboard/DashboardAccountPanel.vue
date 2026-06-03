@@ -78,8 +78,10 @@
 
         <div class="account-modal-field">
           <label for="account-email">E-mail</label>
-          <input id="account-email" v-model="accountEmail" type="email" class="account-modal-input" readonly />
-          <p class="account-modal-help-text">Het inlogadres wordt beheerd via Supabase Auth en is hier alleen ter referentie zichtbaar.</p>
+          <input id="account-email" v-model="accountEmail" type="email" class="account-modal-input" />
+          <p class="account-modal-help-text">
+            Dit wijzigt je Supabase Auth login. Je kan een bevestigingsmail krijgen voordat de wijziging actief wordt.
+          </p>
         </div>
 
         <div class="account-modal-field">
@@ -137,7 +139,7 @@ import IconAccount from '../icons/IconAccount.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
-const { appUser, init, signOut, updateProfile } = useAuth()
+const { appUser, init, signOut, updateProfile, updateEmail } = useAuth()
 const { workspaces, loadWorkspaces } = useDashboardWorkspaces()
 const router = useRouter()
 
@@ -192,6 +194,12 @@ async function saveAccountSettings() {
   isSavingAccount.value = true
 
   try {
+    const emailChanged = accountEmail.value.trim() !== (appUser.value?.email ?? '')
+
+    if (emailChanged) {
+      await updateEmail(accountEmail.value)
+    }
+
     await updateProfile({
       firstName: accountFirstName.value.trim(),
       lastName: accountLastName.value.trim(),
