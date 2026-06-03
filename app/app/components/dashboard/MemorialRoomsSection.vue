@@ -14,7 +14,7 @@
     </Card>
 
     <Card v-else-if="rooms.length === 0" class="content-card">
-      <p class="empty-message">Je hebt nog geen ruimte aangemaakt. Klik de onderstaande knop om aan de slag te gaan.</p>
+      <p class="empty-message">Je hebt nog geen ruimte aangemaakt. Klik op de knop hieronder om te starten, of laat je toevoegen als samenwerker bij een bestaande ruimte.</p>
     </Card>
 
     <div v-else class="rooms-list">
