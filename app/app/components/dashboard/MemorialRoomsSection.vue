@@ -1,19 +1,15 @@
 <template>
   <div class="section">
-    <div class="section-header">
-      <div>
-        <h2>Herdenkingsruimtes</h2>
-        <p class="section-subtitle">Beheer de memorial pagina's die je hebt aangemaakt.</p>
-      </div>
-    </div>
+    <!-- Title Card -->
+    <Card class="title-card">
+      <h2>Herdenkingsruimtes</h2>
+      <p class="section-subtitle">Beheer de memorial pagina's die je hebt aangemaakt.</p>
+    </Card>
 
-    <div v-if="rooms.length === 0" class="empty-state">
+    <!-- Empty State or Rooms List Card -->
+    <Card v-if="rooms.length === 0" class="content-card">
       <p class="empty-message">Je hebt nog geen ruimte aangemaakt. Klik de onderstaande knop om aan de slag te gaan.</p>
-      <button class="btn-primary btn-large">
-        <span class="btn-icon">+</span>
-        Nieuwe Ruimte
-      </button>
-    </div>
+    </Card>
 
     <div v-else class="rooms-list">
       <Card v-for="room in rooms" :key="room.id" class="room-card">
@@ -38,12 +34,13 @@
           </button>
         </div>
       </Card>
-
-      <button class="btn-primary btn-large btn-full-width">
-        <span class="btn-icon">+</span>
-        Nieuwe Ruimte Aankopen
-      </button>
     </div>
+
+    <!-- Action Button -->
+    <button class="btn-primary btn-large btn-full-width">
+      <span class="btn-icon">+</span>
+      {{ rooms.length === 0 ? 'Nieuwe Ruimte' : 'Nieuwe Ruimte Aankopen' }}
+    </button>
   </div>
 </template>
 
@@ -75,18 +72,18 @@ function formatDate(date) {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  font-family: var(--font-sans);
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.title-card {
+  padding: 1.5rem;
 }
 
-.section-header h2 {
+.title-card h2 {
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
   font-weight: 600;
+  font-family: var(--font-display);
   color: #1a1a1a;
 }
 
@@ -96,22 +93,15 @@ function formatDate(date) {
   color: #666;
 }
 
-.empty-state {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.content-card {
+  padding: 1.5rem;
+  text-align: left;
 }
 
 .empty-message {
   margin: 0;
   font-size: 0.95rem;
   color: #666;
-  max-width: 400px;
   line-height: 1.5;
 }
 
@@ -122,6 +112,7 @@ function formatDate(date) {
 }
 
 .room-card {
+  padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -188,14 +179,15 @@ function formatDate(date) {
 }
 
 .btn-primary {
-  background: #7a9b7e;
+  background: linear-gradient(135deg, #7a9b7e 0%, #6b8a6f 100%);
   color: white;
+  box-shadow: 0 2px 4px rgba(122, 155, 126, 0.3);
 }
 
 .btn-primary:hover {
-  background: #6b8a6f;
+  background: linear-gradient(135deg, #6b8a6f 0%, #5d7a60 100%);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(122, 155, 126, 0.3);
+  box-shadow: 0 4px 12px rgba(122, 155, 126, 0.4);
 }
 
 .btn-secondary {

@@ -1,51 +1,58 @@
 <template>
-  <Card class="account-panel">
-    <div class="panel-header">
-      <IconAccount class="panel-icon" />
-      <h2>Accountoverzicht</h2>
-    </div>
-    <p class="panel-subtitle">Welkom terug,</p>
+  <div class="account-section">
+    <!-- Account Overview Card -->
+    <Card class="overview-card">
+      <div class="overview-header">
+        <div class="overview-icon">
+          <IconAccount />
+        </div>
+        <div class="overview-text">
+          <h2>Accountoverzicht</h2>
+          <p class="overview-subtitle">Welkom terug,</p>
+        </div>
+      </div>
 
-    <div class="account-info">
-      <div class="info-row">
-        <span class="info-label">Naam</span>
-        <span class="info-value">{{ userName }}</span>
+      <div class="account-info">
+        <div class="info-row">
+          <span class="info-label">Naam</span>
+          <span class="info-value">{{ userName }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">E-mail</span>
+          <span class="info-value">{{ userEmail }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Onderhoud</span>
+          <span class="info-value">{{ subscriptionPrice }}/jaar</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Ruimtes</span>
+          <span class="info-value">{{ roomsUsed }} van de {{ roomsLimit }}</span>
+        </div>
       </div>
-      <div class="info-row">
-        <span class="info-label">E-mail</span>
-        <span class="info-value">{{ userEmail }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Onderhoud</span>
-        <span class="info-value">{{ subscriptionPrice }}/jaar</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Ruimtes</span>
-        <span class="info-value">{{ roomsUsed }} van de {{ roomsLimit }}</span>
-      </div>
-    </div>
+    </Card>
 
-    <nav class="account-nav">
-      <button class="nav-button">
-        <IconSettings class="nav-icon" />
+    <!-- Settings Card -->
+    <Card class="settings-card">
+      <button class="settings-button">
+        <img src="/icons/SettingsInline.svg" alt="Settings" class="settings-icon" />
         Accountinstellingen
       </button>
-      <button class="nav-button">
-        <IconService class="nav-icon" />
+      <button class="settings-button">
+        <img src="/icons/Support.svg" alt="Support" class="settings-icon" />
         Klantenservice
       </button>
-    </nav>
+    </Card>
 
+    <!-- Logout Button -->
     <button class="logout-button">Logout</button>
-  </Card>
+  </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import Card from '../ui/Card.vue'
 import IconAccount from '../icons/IconAccount.vue'
-import IconSettings from '../icons/IconSettings.vue'
-import IconService from '../icons/IconService.vue'
 
 const userName = ref('Jan Jansen')
 const userEmail = ref('jan.jansen@voorbeeld.nl')
@@ -55,108 +62,137 @@ const roomsLimit = ref(1)
 </script>
 
 <style scoped>
-.account-panel {
+.account-section {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.panel-header {
+.overview-card {
+  padding: 1.5rem;
+}
+
+.overview-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.overview-icon {
+  width: 56px;
+  height: 56px;
+  background: #f0f4f8;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  justify-content: center;
+  color: #5a7c8e;
+  flex-shrink: 0;
 }
 
-.panel-icon {
-  width: 24px;
-  height: 24px;
-  color: #7a9b7e;
+.overview-icon :deep(svg) {
+  width: 28px;
+  height: 28px;
 }
 
-.panel-header h2 {
+.overview-text {
+  flex: 1;
+}
+
+.overview-text h2 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: var(--font-display);
   color: #1a1a1a;
 }
 
-.panel-subtitle {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #666;
+.overview-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #999;
+  font-weight: 400;
 }
 
 .account-info {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem 0;
-  border-top: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
+  gap: 1rem;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 1rem;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.875rem;
 }
 
 .info-label {
-  color: #666;
+  color: #999;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
 .info-value {
   color: #1a1a1a;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
-.account-nav {
+.settings-card {
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.nav-button {
+.settings-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
+  gap: 0.35rem;
+  padding: 1rem;
   background: transparent;
   border: none;
   border-radius: 6px;
   color: #666;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  justify-content: flex-start;
 }
 
-.nav-button:hover {
-  background: #f0f0f0;
+.settings-button:hover {
+  background: #f9f9f9;
   color: #1a1a1a;
 }
 
-.nav-icon {
-  width: 18px;
-  height: 18px;
+.settings-icon {
+  width: 20px;
+  height: 20px;
+  color: #7a9b7e;
+  flex-shrink: 0;
 }
 
 .logout-button {
-  padding: 0.75rem 1rem;
-  background: #d32f2f;
+  padding: 1rem;
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+  width: 100%;
 }
 
 .logout-button:hover {
-  background: #b71c1c;
+  background: linear-gradient(135deg, #b71c1c 0%, #9a1515 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(211, 47, 47, 0.4);
 }
 </style>

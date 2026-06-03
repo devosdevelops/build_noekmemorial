@@ -1,6 +1,7 @@
 # TODO
 
-[] split codebase into the 3 products
+[x] split codebase into the 3 products
+[] add mobile error screen
 
 ## Editor
 
@@ -55,6 +56,9 @@
 
 ## Dashboard
 
+[] main ui
+[] manage workspace ui
+[] new room ui
 [] create account
 [] activate workspace
 [] start room

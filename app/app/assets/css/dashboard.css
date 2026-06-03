@@ -1,0 +1,19 @@
+:root {
+  --font-sans: 'Nunito Sans', sans-serif;
+  --font-display: 'Poppins', sans-serif;
+}
+
+/* Dashboard global styles */
+.dashboard-layout {
+  font-family: var(--font-sans);
+}
+
+.dashboard-layout h1,
+.dashboard-layout h2,
+.dashboard-layout h3 {
+  font-family: var(--font-display);
+}
+
+button {
+  font-family: var(--font-sans);
+}
