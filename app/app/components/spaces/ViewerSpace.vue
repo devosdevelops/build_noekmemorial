@@ -1,5 +1,5 @@
 <template>
-  <section class="viewer-space">
+  <section ref="viewerSpaceRoot" class="viewer-space">
     <ViewerSceneViewport
       v-if="hasEnteredViewer"
       ref="viewerViewportRef"
@@ -121,6 +121,7 @@ import { useViewerUiState } from '../../composables/useViewerUiState'
 import { useViewerAuthGate } from '../../composables/useViewerAuthGate'
 import { useViewerInteraction } from '../../composables/useViewerInteraction'
 import { useViewerContributions } from '../../composables/useViewerContributions'
+import { useUiClickSound } from '../../composables/useUiClickSound.js'
 
 const props = defineProps({
   slug: {
@@ -203,6 +204,7 @@ const roomName = computed(() => {
 })
 
 const isGuestNamePromptOpen = ref(false)
+const viewerSpaceRoot = ref(null)
 const viewerViewportRef = ref(null)
 const pendingGuestName = ref('')
 const guestNameError = ref('')
@@ -215,6 +217,10 @@ const pendingAccessPin = ref('')
 const acceptedAccessPin = ref('')
 const pinError = ref('')
 const isSubmittingPin = ref(false)
+
+useUiClickSound({
+  containerRef: viewerSpaceRoot
+})
 
 const showEntryGate = computed(() => {
   return !hasEnteredViewer.value && !hasFatalRoomAccessError.value && !isPinPromptOpen.value && !roomLoading.value

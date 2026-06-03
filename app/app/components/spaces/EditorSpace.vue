@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div ref="editorSpaceRoot" class="app-shell">
     <NuxtRouteAnnouncer />
     <EditorSceneViewport
       class="scene-layer"
@@ -209,7 +209,7 @@
               title="Kopieer pincode"
               @click="copyWorkspaceSettingsPin"
             >
-              <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+              <img src="/icons/Copy Black.svg" alt="" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -244,6 +244,7 @@ import TopActionBar from '../editor/TopActionBar.vue'
 import EditorSceneViewport from '../scene/EditorSceneViewport.client.vue'
 import { useScenePersistence } from '../../composables/useScenePersistence.js'
 import { useAuth } from '../../composables/useAuth'
+import { useUiClickSound } from '../../composables/useUiClickSound.js'
 import { AUDIO_TRACKS } from '../../config/audioLibrary.js'
 import { DEFAULT_LIGHTING_PRESET_ID } from '../../config/lightingPresets.js'
 
@@ -254,9 +255,14 @@ const DEFAULT_AUDIO_VOLUME = 0.6
 
 const activeInteractionMode = ref('select')
 const activeEditTool = ref('move')
+const editorSpaceRoot = ref(null)
 const historyAction = ref({
   type: null,
   sequence: 0
+})
+
+useUiClickSound({
+  containerRef: editorSpaceRoot
 })
 const isBlocksLibraryVisible = ref(false)
 const isFloorLibraryVisible = ref(false)

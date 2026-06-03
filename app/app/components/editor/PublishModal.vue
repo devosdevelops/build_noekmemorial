@@ -90,7 +90,7 @@
             title="Kopieer pincode"
             @click="handleCopyPin"
           >
-            <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+            <img src="/icons/Copy Black.svg" alt="" aria-hidden="true" />
           </button>
         </div>
       </div>

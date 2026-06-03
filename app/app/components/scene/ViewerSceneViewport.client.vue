@@ -39,6 +39,7 @@ const visitorCandleMeshes = []
 const visitorCandleGlowLights = new Set()
 let activeSelectionMesh = null
 const CANDLE_LIGHT_USERDATA_KEY = '__viewerCandleGlowLight'
+const VIEWER_CANDLE_TARGET_DIAGONAL = 0.34
 
 const gltfLoader = new GLTFLoader()
 
@@ -179,7 +180,7 @@ function clearVisitorCandles() {
   visitorCandleGlowLights.clear()
 }
 
-function buildModelWrapper(modelId, gltfScene) {
+function buildModelWrapper(modelId, gltfScene, targetDiagonal = 1.2) {
   gltfScene.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(gltfScene)
   const center = new THREE.Vector3()
@@ -187,7 +188,7 @@ function buildModelWrapper(modelId, gltfScene) {
   box.getCenter(center)
   box.getSize(size)
 
-  const uniformScale = size.length() > 0.0001 ? (1.2 / size.length()) : 1
+  const uniformScale = size.length() > 0.0001 ? (targetDiagonal / size.length()) : 1
   const wrapper = new THREE.Group()
   wrapper.name = `${modelId}-wrapper`
 
@@ -202,13 +203,17 @@ function buildModelWrapper(modelId, gltfScene) {
   return wrapper
 }
 
-function loadModelWrapper(downloadUrl, modelId) {
+function loadModelWrapper(downloadUrl, modelId, options = {}) {
+  const targetDiagonal = Number.isFinite(options?.targetDiagonal)
+    ? Math.max(0.05, Number(options.targetDiagonal))
+    : 1.2
+
   return new Promise((resolve, reject) => {
     gltfLoader.load(
       downloadUrl,
       (gltf) => {
         try {
-          resolve(buildModelWrapper(modelId, gltf.scene))
+          resolve(buildModelWrapper(modelId, gltf.scene, targetDiagonal))
         } catch (error) {
           reject(error)
         }
@@ -587,9 +592,9 @@ function getMeshBounds(mesh) {
 }
 
 function getCandleMeshRadius(style) {
-  if (style === 'Goud') return 0.32
-  if (style === 'Warm licht') return 0.3
-  return 0.28
+  if (style === 'Goud') return 0.13
+  if (style === 'Warm licht') return 0.12
+  return 0.11
 }
 
 function findNearestBlockingDistance(candidatePosition, minDistance) {
@@ -612,7 +617,7 @@ function findNearestBlockingDistance(candidatePosition, minDistance) {
 function clampPlacement(position) {
   return [
     THREE.MathUtils.clamp(position[0], -24, 24),
-    THREE.MathUtils.clamp(position[1], 0.08, 20),
+    THREE.MathUtils.clamp(position[1], 0.04, 20),
     THREE.MathUtils.clamp(position[2], -24, 24)
   ]
 }
@@ -623,7 +628,7 @@ function pickCandlePlacement(style = 'Klassiek') {
 
   if (!supportMeshes.length) {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const fallbackPosition = clampPlacement([randomFrom(-8, 8), 0.14, randomFrom(-8, 8)])
+      const fallbackPosition = clampPlacement([randomFrom(-8, 8), 0.06, randomFrom(-8, 8)])
       if (findNearestBlockingDistance(fallbackPosition, placementRadius)) {
         return {
           worldPosition: fallbackPosition,
@@ -633,7 +638,7 @@ function pickCandlePlacement(style = 'Klassiek') {
     }
 
     return {
-      worldPosition: [0, 0.14, 0],
+      worldPosition: [0, 0.06, 0],
       anchorObjectId: null
     }
   }
@@ -650,12 +655,12 @@ function pickCandlePlacement(style = 'Klassiek') {
       const candidate = placeOnTop
         ? [
             supportCenter.x + randomFrom(-0.25, 0.25),
-            supportBounds.max.y + 0.16,
+            supportBounds.max.y + 0.08,
             supportCenter.z + randomFrom(-0.25, 0.25)
           ]
         : [
             supportCenter.x + randomFrom(-1.8, 1.8),
-            0.14,
+            0.06,
             supportCenter.z + randomFrom(-1.8, 1.8)
           ]
 
@@ -675,7 +680,7 @@ function pickCandlePlacement(style = 'Klassiek') {
     const center = getMeshBounds(randomSupport).center
     const fallbackNearObject = clampPlacement([
       center.x + randomFrom(-2.2, 2.2),
-      0.14,
+      0.06,
       center.z + randomFrom(-2.2, 2.2)
     ])
 
@@ -688,7 +693,7 @@ function pickCandlePlacement(style = 'Klassiek') {
   }
 
   return {
-    worldPosition: [0, 0.14, 0],
+    worldPosition: [0, 0.06, 0],
     anchorObjectId: null
   }
 }
@@ -703,7 +708,7 @@ function createVisitorCandleMesh(candleStyle) {
   const waxColor = isGold ? '#d6b267' : isWarm ? '#f1e0c3' : '#efe9df'
   const flameColor = isGold ? '#ffb347' : '#ffd06a'
 
-  const waxGeometry = new THREE.CylinderGeometry(0.16, 0.2, 0.32, 20)
+  const waxGeometry = new THREE.CylinderGeometry(0.07, 0.085, 0.16, 20)
   const waxMaterial = new THREE.MeshStandardMaterial({
     color: waxColor,
     roughness: 0.72,
@@ -711,10 +716,10 @@ function createVisitorCandleMesh(candleStyle) {
   })
 
   const waxMesh = new THREE.Mesh(waxGeometry, waxMaterial)
-  waxMesh.position.y = 0.16
+  waxMesh.position.y = 0.08
   candleGroup.add(waxMesh)
 
-  const flameGeometry = new THREE.SphereGeometry(0.06, 14, 10)
+  const flameGeometry = new THREE.SphereGeometry(0.03, 14, 10)
   const flameMaterial = new THREE.MeshStandardMaterial({
     color: flameColor,
     emissive: flameColor,
@@ -723,7 +728,7 @@ function createVisitorCandleMesh(candleStyle) {
     metalness: 0
   })
   const flameMesh = new THREE.Mesh(flameGeometry, flameMaterial)
-  flameMesh.position.y = 0.39
+  flameMesh.position.y = 0.2
   candleGroup.add(flameMesh)
 
   candleGroup.userData.isVisitorCandle = true
@@ -789,7 +794,11 @@ async function placeVisitorCandle({ candleStyle = 'Klassiek', candleModel = null
 
   if (typeof candleModel?.downloadUrl === 'string' && candleModel.downloadUrl.length) {
     try {
-      candleMesh = await loadModelWrapper(candleModel.downloadUrl, `visitor-candle-${Date.now().toString(36)}`)
+      candleMesh = await loadModelWrapper(
+        candleModel.downloadUrl,
+        `visitor-candle-${Date.now().toString(36)}`,
+        { targetDiagonal: VIEWER_CANDLE_TARGET_DIAGONAL }
+      )
     } catch (error) {
       console.error('[ViewerSceneViewport] Failed to load candle model, using fallback candle mesh.', error)
     }
