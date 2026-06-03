@@ -34,9 +34,10 @@ export function useViewerContributions() {
 
       return response
     } catch (error) {
-      roomError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Ruimte laden is mislukt.'
-      roomErrorStatusCode.value = Number(error?.statusCode || error?.status || 0)
-      roomRequiresPin.value = Boolean(error?.data?.requiresPin)
+      const payload = error?.data && typeof error.data === 'object' ? error.data : null
+      roomError.value = payload?.statusMessage || error?.statusMessage || error?.message || 'Ruimte laden is mislukt.'
+      roomErrorStatusCode.value = Number(payload?.statusCode || error?.statusCode || error?.status || 0)
+      roomRequiresPin.value = Boolean(payload?.requiresPin || payload?.data?.requiresPin)
       return null
     } finally {
       roomLoading.value = false

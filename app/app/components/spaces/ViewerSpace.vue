@@ -443,9 +443,7 @@ async function resolveRoomAccess(accessPin = '') {
   }
 
   if (roomRequiresPin.value) {
-    if (isAuthenticated.value) {
-      isPinPromptOpen.value = true
-    }
+    isPinPromptOpen.value = true
     return
   }
 
@@ -457,6 +455,17 @@ async function resolveRoomAccess(accessPin = '') {
   }
 
   if (roomErrorStatusCode.value === 403) {
+    const errorCopy = String(roomError.value || '').toLowerCase()
+    const looksLikePrivateRoom = roomRequiresPin.value || errorCopy.includes('toegangscode') || errorCopy.includes('pincode')
+
+    if (looksLikePrivateRoom) {
+      hasFatalRoomAccessError.value = false
+      accessErrorTitle.value = ''
+      accessErrorMessage.value = ''
+      isPinPromptOpen.value = true
+      return
+    }
+
     hasFatalRoomAccessError.value = true
     accessErrorTitle.value = 'Ruimte offline'
     accessErrorMessage.value = roomError.value || 'Deze ruimte is offline gehaald door de eigenaar of nog niet gepubliceerd.'
