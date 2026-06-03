@@ -111,6 +111,16 @@ const props = defineProps({
       sequence: 0
     })
   },
+  modelAppearanceAction: {
+    type: Object,
+    default: () => ({
+      type: null,
+      objectId: null,
+      color: null,
+      materialName: null,
+      sequence: 0
+    })
+  },
   modelAction: {
     type: Object,
     default: () => ({
@@ -196,6 +206,7 @@ const interactionState = {
 
 const selectableRoots = []
 const meshById = new Map()
+const selectedModelMaterialTargetByObjectId = new Map()
 const raycaster = new THREE.Raycaster()
 const pointerNdc = new THREE.Vector2()
 const highlightManager = createSelectionHighlightManager(THREE)
@@ -213,6 +224,7 @@ const FLOOR_ROTATION_SNAP_RADIANS = THREE.MathUtils.degToRad(90)
 const MODEL_SQUARE_RATIO_TOLERANCE = 0.12
 const MODEL_GRID_SEARCH_PADDING_CELLS = 2
 const MODEL_GRID_MAX_SEARCH_CELLS = 24
+const MODEL_ALL_MATERIAL_TARGET = 'all-materials'
 
 let createdShapeCount = 0
 let isApplyingHydration = false
@@ -261,6 +273,7 @@ function removeSelectedObject() {
   }
 
   meshById.delete(objectId)
+  selectedModelMaterialTargetByObjectId.delete(objectId)
   sceneObjects.splice(objectIndex, 1)
   setSelectedObjectId(null)
 }
@@ -320,6 +333,7 @@ function removeSelectableRootById(objectId) {
   }
 
   meshById.delete(objectId)
+  selectedModelMaterialTargetByObjectId.delete(objectId)
 }
 
 function removeDynamicObjectsFromScene() {
@@ -434,6 +448,7 @@ function applyHydratedSceneDocument(sceneDocument) {
     nextModelObjects.forEach((objectState) => {
       loadModelWrapper(objectState.assetRef, objectState.id)
         .then((wrapper) => {
+          applyModelAppearance(wrapper, objectState.appearance)
           wrapper.position.set(...objectState.position)
           wrapper.rotation.set(...objectState.rotation)
           wrapper.scale.set(...objectState.scale)
@@ -915,6 +930,207 @@ function applyShapeAppearance(mesh, appearance) {
   })
 }
 
+function toModelMaterialTargetId(mesh, material, materialIndex) {
+  const materialName = typeof material?.name === 'string' ? material.name.trim() : ''
+
+  if (materialName.length) {
+    return `material:${materialName}`
+  }
+
+  const meshName = typeof mesh?.name === 'string' ? mesh.name.trim() : ''
+  const fallbackMeshName = meshName.length ? meshName : 'mesh'
+
+  return `slot:${fallbackMeshName}:${materialIndex}`
+}
+
+function toModelMaterialTargetLabel(targetId) {
+  if (typeof targetId !== 'string' || !targetId.length) {
+    return 'Materiaal'
+  }
+
+  if (targetId.startsWith('material:')) {
+    return targetId.slice('material:'.length)
+  }
+
+  if (!targetId.startsWith('slot:')) {
+    return targetId
+  }
+
+  const parts = targetId.split(':')
+  const meshName = parts[1] || 'Mesh'
+  const materialIndex = Number.parseInt(parts[2] || '0', 10)
+  const indexLabel = Number.isFinite(materialIndex) ? materialIndex + 1 : 1
+
+  return `${meshName} #${indexLabel}`
+}
+
+function listModelMaterialTargets(modelRoot) {
+  if (!modelRoot) {
+    return []
+  }
+
+  const targets = []
+  const seenTargets = new Set()
+
+  modelRoot.traverse((child) => {
+    if (!child?.isMesh) {
+      return
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+    materials.forEach((material, materialIndex) => {
+      if (!material || !material.color?.getHexString) {
+        return
+      }
+
+      const targetId = toModelMaterialTargetId(child, material, materialIndex)
+
+      if (seenTargets.has(targetId)) {
+        return
+      }
+
+      seenTargets.add(targetId)
+      targets.push({
+        id: targetId,
+        label: toModelMaterialTargetLabel(targetId),
+        color: `#${material.color.getHexString()}`
+      })
+    })
+  })
+
+  return targets
+}
+
+function resolveModelMaterialTargetFromHit(hit) {
+  if (!hit?.object?.isMesh) {
+    return null
+  }
+
+  const mesh = hit.object
+  const material = mesh.material
+
+  if (!material) {
+    return null
+  }
+
+  if (!Array.isArray(material)) {
+    return toModelMaterialTargetId(mesh, material, 0)
+  }
+
+  const materialIndex = typeof hit.face?.materialIndex === 'number' ? hit.face.materialIndex : 0
+  const selectedMaterial = material[materialIndex]
+
+  if (!selectedMaterial) {
+    return null
+  }
+
+  return toModelMaterialTargetId(mesh, selectedMaterial, materialIndex)
+}
+
+function applyModelAppearance(modelRoot, appearance) {
+  if (!modelRoot) {
+    return
+  }
+
+  const overrides = Array.isArray(appearance?.materialOverrides)
+    ? appearance.materialOverrides.filter((entry) => {
+        return entry
+          && typeof entry.materialName === 'string'
+          && entry.materialName.length
+          && typeof entry.color === 'string'
+          && entry.color.length
+      })
+    : []
+  const overrideColorByMaterial = new Map(
+    overrides.map((entry) => [entry.materialName, entry.color])
+  )
+  const globalOverrideColor = overrideColorByMaterial.get(MODEL_ALL_MATERIAL_TARGET) ?? null
+
+  modelRoot.traverse((child) => {
+    if (!child?.isMesh) {
+      return
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+    materials.forEach((material, materialIndex) => {
+      if (!material || !material.color?.set || !material.color?.getHexString) {
+        return
+      }
+
+      if (!material.userData) {
+        material.userData = {}
+      }
+
+      if (typeof material.userData.baseColor !== 'string' || !material.userData.baseColor.length) {
+        material.userData.baseColor = `#${material.color.getHexString()}`
+      }
+
+      const targetId = toModelMaterialTargetId(child, material, materialIndex)
+      const targetOverrideColor = overrideColorByMaterial.get(targetId) ?? null
+      const nextColor = targetOverrideColor || globalOverrideColor || material.userData.baseColor
+
+      material.color.set(nextColor)
+      material.needsUpdate = true
+    })
+  })
+}
+
+function applyModelColor(objectId, color, materialName) {
+  if (typeof objectId !== 'string' || !objectId.length || typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.MODEL)
+
+  if (!objectState) {
+    return
+  }
+
+  const targetMaterialName = typeof materialName === 'string' && materialName.length
+    ? materialName
+    : MODEL_ALL_MATERIAL_TARGET
+  const currentOverrides = Array.isArray(objectState.appearance?.materialOverrides)
+    ? [...objectState.appearance.materialOverrides]
+    : []
+  const overrideIndex = currentOverrides.findIndex((entry) => entry?.materialName === targetMaterialName)
+
+  if (overrideIndex >= 0) {
+    currentOverrides[overrideIndex] = {
+      ...currentOverrides[overrideIndex],
+      materialName: targetMaterialName,
+      color,
+      textureId: null
+    }
+  } else {
+    currentOverrides.push({
+      materialName: targetMaterialName,
+      color,
+      textureId: null
+    })
+  }
+
+  objectState.appearance = {
+    ...objectState.appearance,
+    color: targetMaterialName === MODEL_ALL_MATERIAL_TARGET
+      ? color
+      : objectState.appearance?.color || '#f5b8ca',
+    materialOverrides: currentOverrides
+  }
+
+  const mesh = meshById.get(objectId)
+  if (mesh) {
+    applyModelAppearance(mesh, objectState.appearance)
+  }
+
+  selectedModelMaterialTargetByObjectId.set(objectId, targetMaterialName)
+
+  if (selectedObjectId.value === objectId) {
+    emitSelectionChanged()
+  }
+}
+
 function applyFloorTextureById(textureId) {
   if (typeof textureId !== 'string' || !textureId.length) {
     return
@@ -973,12 +1189,51 @@ function emitSelectionChanged() {
     return
   }
 
-  emit('selection-changed', {
+  const selectionPayload = {
     objectId: objectState.id,
     kind: objectState.kind,
     assetRef: objectState.assetRef,
     appearance: objectState.appearance
-  })
+  }
+
+  if (objectState.kind === SCENE_KIND.MODEL) {
+    const selectedModelRoot = meshById.get(objectState.id)
+    const materialTargets = listModelMaterialTargets(selectedModelRoot)
+    const targetIds = new Set(materialTargets.map((target) => target.id))
+    const storedTargetId = selectedModelMaterialTargetByObjectId.get(objectState.id)
+    const selectedMaterialTarget = typeof storedTargetId === 'string'
+      && storedTargetId.length
+      && (storedTargetId === MODEL_ALL_MATERIAL_TARGET || targetIds.has(storedTargetId))
+      ? storedTargetId
+      : MODEL_ALL_MATERIAL_TARGET
+
+    if (selectedMaterialTarget !== storedTargetId) {
+      selectedModelMaterialTargetByObjectId.set(objectState.id, selectedMaterialTarget)
+    }
+
+    let selectedColor = objectState.appearance?.color
+
+    if (selectedMaterialTarget !== MODEL_ALL_MATERIAL_TARGET) {
+      const targetColor = materialTargets.find((target) => target.id === selectedMaterialTarget)?.color
+      if (typeof targetColor === 'string' && targetColor.length) {
+        selectedColor = targetColor
+      }
+    }
+
+    selectionPayload.materialTargets = materialTargets.map((target) => ({
+      id: target.id,
+      label: target.label
+    }))
+    selectionPayload.selectedMaterialTarget = selectedMaterialTarget
+    selectionPayload.appearance = {
+      ...selectionPayload.appearance,
+      color: typeof selectedColor === 'string' && selectedColor.length
+        ? selectedColor
+        : '#f5b8ca'
+    }
+  }
+
+  emit('selection-changed', selectionPayload)
 }
 
 function applyBlockColor(objectId, color) {
@@ -1222,6 +1477,11 @@ function addModelToScene(downloadUrl) {
         scale: [wrapper.scale.x, wrapper.scale.y, wrapper.scale.z],
         appearance: getDefaultAppearance(SCENE_KIND.MODEL)
       })
+
+      const modelState = sceneObjects.find((item) => item.id === modelId)
+      if (modelState) {
+        applyModelAppearance(wrapper, modelState.appearance)
+      }
 
       setSelectedObjectId(modelId)
       historyRuntime?.clearHistory()
@@ -1498,6 +1758,21 @@ watch(
 )
 
 watch(
+  () => props.modelAppearanceAction.sequence,
+  () => {
+    if (props.modelAppearanceAction?.type !== 'update-model-color') {
+      return
+    }
+
+    applyModelColor(
+      props.modelAppearanceAction.objectId,
+      props.modelAppearanceAction.color,
+      props.modelAppearanceAction.materialName
+    )
+  }
+)
+
+watch(
   () => props.modelAction.sequence,
   () => {
     if (props.modelAction?.type !== 'add-model') {
@@ -1644,6 +1919,23 @@ function handlePointerUp(event) {
   const objectId = selectedRoot?.userData?.objectId
 
   if (typeof objectId === 'string') {
+    const objectState = sceneObjects.find((item) => item.id === objectId)
+    const hitModelMaterialTarget = objectState?.kind === SCENE_KIND.MODEL
+      ? resolveModelMaterialTargetFromHit(hits[0])
+      : null
+
+    if (objectState?.kind === SCENE_KIND.MODEL && hitModelMaterialTarget) {
+      const currentTarget = selectedModelMaterialTargetByObjectId.get(objectId)
+
+      if (selectedObjectId.value === objectId && currentTarget !== hitModelMaterialTarget) {
+        selectedModelMaterialTargetByObjectId.set(objectId, hitModelMaterialTarget)
+        emitSelectionChanged()
+        return
+      }
+
+      selectedModelMaterialTargetByObjectId.set(objectId, hitModelMaterialTarget)
+    }
+
     if (selectedObjectId.value === objectId) {
       setSelectedObjectId(null)
       return

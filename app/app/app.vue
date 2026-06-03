@@ -10,6 +10,7 @@
       :block-action="blockAction"
       :block-appearance-action="blockAppearanceAction"
       :floor-appearance-action="floorAppearanceAction"
+      :model-appearance-action="modelAppearanceAction"
       :floor-action="floorAction"
       :model-action="modelAction"
       :lighting-action="lightingAction"
@@ -73,6 +74,13 @@
       @update-texture="handleFloorTextureChange"
       @update-texture-scale="handleFloorTextureScaleChange"
       :default-tab="'texture'"
+    />
+    <AssetConfigurationPanel
+      v-if="selectedAsset?.assetType === 'model'"
+      :selected-asset="selectedAsset"
+      @close="handleAssetConfigurationClose"
+      @update-color="handleModelColorChange"
+      @update-color-target="handleModelColorTargetChange"
     />
     <TopActionBar
       :persistence-status="persistenceStatus"
@@ -142,6 +150,13 @@ const floorAppearanceAction = ref({
   color: null,
   textureId: null,
   textureScale: null,
+  sequence: 0
+})
+const modelAppearanceAction = ref({
+  type: null,
+  objectId: null,
+  color: null,
+  materialName: null,
   sequence: 0
 })
 const floorAction = ref({
@@ -671,6 +686,34 @@ function handleSelectionChanged(selection) {
     return
   }
 
+  if (selection.kind === 'model') {
+    const materialTargets = Array.isArray(selection.materialTargets)
+      ? selection.materialTargets.filter((target) => {
+          return target
+            && typeof target.id === 'string'
+            && target.id.length
+            && typeof target.label === 'string'
+            && target.label.length
+        })
+      : []
+    const selectedMaterialTarget = typeof selection.selectedMaterialTarget === 'string'
+      && selection.selectedMaterialTarget.length
+      ? selection.selectedMaterialTarget
+      : 'all-materials'
+
+    selectedAsset.value = {
+      assetType: 'model',
+      objectId: selection.objectId,
+      label: '3D-model',
+      materialTargets,
+      selectedMaterialTarget,
+      color: typeof selection.appearance?.color === 'string' && selection.appearance.color.length
+        ? selection.appearance.color
+        : '#f5b8ca'
+    }
+    return
+  }
+
   selectedAsset.value = null
 }
 
@@ -784,6 +827,50 @@ function handleFloorTextureScaleChange(textureScale) {
   selectedAsset.value = {
     ...selectedAsset.value,
     textureScale
+  }
+  isSceneDirty.value = true
+}
+
+function handleModelColorTargetChange(materialTargetId) {
+  if (selectedAsset.value?.assetType !== 'model') {
+    return
+  }
+
+  if (typeof materialTargetId !== 'string' || !materialTargetId.length) {
+    return
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    selectedMaterialTarget: materialTargetId
+  }
+}
+
+function handleModelColorChange(color) {
+  if (selectedAsset.value?.assetType !== 'model' || !selectedAsset.value.objectId) {
+    return
+  }
+
+  if (typeof color !== 'string' || !color.length) {
+    return
+  }
+
+  const targetId = typeof selectedAsset.value.selectedMaterialTarget === 'string'
+    && selectedAsset.value.selectedMaterialTarget.length
+    ? selectedAsset.value.selectedMaterialTarget
+    : 'all-materials'
+
+  modelAppearanceAction.value = {
+    type: 'update-model-color',
+    objectId: selectedAsset.value.objectId,
+    color,
+    materialName: targetId,
+    sequence: modelAppearanceAction.value.sequence + 1
+  }
+
+  selectedAsset.value = {
+    ...selectedAsset.value,
+    color
   }
   isSceneDirty.value = true
 }

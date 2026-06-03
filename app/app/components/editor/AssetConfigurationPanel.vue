@@ -16,12 +16,13 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'update-color', 'update-texture', 'update-texture-scale'])
+const emit = defineEmits(['close', 'update-color', 'update-color-target', 'update-texture', 'update-texture-scale'])
 
 const currentColor = ref('#b4c9a6')
 const activeMaterialTab = ref('color')
 const selectedTexturePreviewId = ref('no-texture')
 const textureScale = ref(1)
+const selectedColorTarget = ref('all-materials')
 
 const texturePreviewOptions = FLOOR_TEXTURE_OPTIONS.map((option) => ({
   id: option.id,
@@ -55,7 +56,28 @@ const panelTitle = computed(() => {
 
 const isAssetWithMaterials = computed(() => {
   const type = props.selectedAsset?.assetType
+  return type === 'block' || type === 'floor' || type === 'model'
+})
+const hasTextureControls = computed(() => {
+  const type = props.selectedAsset?.assetType
   return type === 'block' || type === 'floor'
+})
+const modelMaterialTargets = computed(() => {
+  if (props.selectedAsset?.assetType !== 'model') {
+    return []
+  }
+
+  const targets = Array.isArray(props.selectedAsset.materialTargets)
+    ? props.selectedAsset.materialTargets.filter((target) => {
+        return target
+          && typeof target.id === 'string'
+          && target.id.length
+          && typeof target.label === 'string'
+          && target.label.length
+      })
+    : []
+
+  return [{ id: 'all-materials', label: 'Alle materialen' }, ...targets]
 })
 const hasActiveTexture = computed(() => selectedTexturePreviewId.value !== 'no-texture')
 
@@ -71,8 +93,27 @@ watch(
 watch(
   () => props.selectedAsset?.objectId,
   () => {
-    activeMaterialTab.value = props.defaultTab || (props.selectedAsset?.assetType === 'floor' ? 'texture' : 'color')
+    if (hasTextureControls.value) {
+      activeMaterialTab.value = props.defaultTab || (props.selectedAsset?.assetType === 'floor' ? 'texture' : 'color')
+    } else {
+      activeMaterialTab.value = 'color'
+    }
+
     selectedTexturePreviewId.value = props.selectedAsset?.textureId || 'no-texture'
+    selectedColorTarget.value = typeof props.selectedAsset?.selectedMaterialTarget === 'string'
+      && props.selectedAsset.selectedMaterialTarget.length
+      ? props.selectedAsset.selectedMaterialTarget
+      : 'all-materials'
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.selectedAsset?.selectedMaterialTarget,
+  (nextTarget) => {
+    selectedColorTarget.value = typeof nextTarget === 'string' && nextTarget.length
+      ? nextTarget
+      : 'all-materials'
   },
   { immediate: true }
 )
@@ -137,6 +178,15 @@ function handleTextureScaleInput(event) {
   textureScale.value = nextScale
   emit('update-texture-scale', nextScale)
 }
+
+function handleColorTargetChange(event) {
+  const nextTarget = typeof event?.target?.value === 'string' && event.target.value.length
+    ? event.target.value
+    : 'all-materials'
+
+  selectedColorTarget.value = nextTarget
+  emit('update-color-target', nextTarget)
+}
 </script>
 
 <template>
@@ -147,7 +197,7 @@ function handleTextureScaleInput(event) {
     </header>
 
     <section v-if="isAssetWithMaterials" class="material-controls" aria-label="Materiaalconfiguratie">
-      <div class="material-tabs" role="tablist" aria-label="Materiaal tabs">
+      <div v-if="hasTextureControls" class="material-tabs" role="tablist" aria-label="Materiaal tabs">
         <button
           type="button"
           role="tab"
@@ -185,10 +235,22 @@ function handleTextureScaleInput(event) {
             data-tooltip="Pas de blokkleur direct aan met de kleurenschijf."
           />
         </div>
+        <label v-if="selectedAsset?.assetType === 'model'" class="color-target-field">
+          <span class="color-target-field__label">Doelmateriaal</span>
+          <select class="color-target-field__select" :value="selectedColorTarget" @change="handleColorTargetChange">
+            <option
+              v-for="target in modelMaterialTargets"
+              :key="target.id"
+              :value="target.id"
+            >
+              {{ target.label }}
+            </option>
+          </select>
+        </label>
         <ColorDiskPicker :model-value="currentColor" @update:model-value="handleColorChange" />
       </div>
 
-      <div v-else class="material-panel" role="tabpanel" aria-label="Materiaal tab">
+      <div v-else-if="hasTextureControls" class="material-panel" role="tabpanel" aria-label="Materiaal tab">
         <h3 class="section-title">Materiaalstijl</h3>
         <p class="section-copy">Scroll door materialen en kies er een.</p>
 
@@ -530,6 +592,28 @@ function handleTextureScaleInput(event) {
 .texture-scale__slider {
   width: 100%;
   margin-top: 0.4rem;
+}
+
+.color-target-field {
+  display: grid;
+  gap: 0.26rem;
+}
+
+.color-target-field__label {
+  color: rgba(69, 71, 91, 0.9);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.color-target-field__select {
+  border: 1px solid rgba(92, 98, 123, 0.35);
+  border-radius: 0.52rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(248, 250, 255, 0.92);
+  color: #40465d;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {
