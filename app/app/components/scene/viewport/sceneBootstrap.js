@@ -150,7 +150,7 @@ export function createSceneBootstrap({
     poolGeometry(new THREE.PlaneGeometry(extendedGroundSize, extendedGroundSize)),
     poolMaterial(
       new THREE.MeshStandardMaterial({
-        color: '#cfd7c7',
+        color: '#f8f6f1',
         roughness: 0.98,
         metalness: 0,
         transparent: true,
@@ -163,6 +163,7 @@ export function createSceneBootstrap({
   groundPlane.rotation.x = -Math.PI / 2
   groundPlane.position.y = -0.2
   scene.add(groundPlane)
+  registerSelectableRoot(THREE, selectableRoots, meshById, 'ground', groundPlane)
 
   const gridPlane = new THREE.Mesh(
     poolGeometry(new THREE.PlaneGeometry(gridConfig.groundSize, gridConfig.groundSize)),

@@ -161,6 +161,8 @@ const MAX_HISTORY_ENTRIES = 50
 const CAMERA_CENTER_TRANSITION_MS = 1000
 const GRID_BASE_OPACITY = 0.9
 const GRID_FADE_LERP = 0.12
+const GROUND_OBJECT_ID = 'ground'
+const GROUND_DEFAULT_COLOR = '#f8f6f1'
 
 const selectedObjectId = ref(null)
 const currentLightingPresetId = ref(DEFAULT_LIGHTING_PRESET_ID)
@@ -181,6 +183,7 @@ let frameId = 0
 let sceneBootstrap = null
 let gridTexture = null
 let gridPlane = null
+let groundPlane = null
 let historyRuntime = null
 let cameraNavigationRuntime = null
 let gridOpacity = GRID_BASE_OPACITY
@@ -214,6 +217,11 @@ const MODEL_GRID_MAX_SEARCH_CELLS = 24
 let createdShapeCount = 0
 let isApplyingHydration = false
 let isSceneReady = false
+let groundAppearance = {
+  ...getDefaultAppearance(SCENE_KIND.FLOOR),
+  color: GROUND_DEFAULT_COLOR,
+  texture: null
+}
 
 function handleEditorAction(actionType) {
   if (actionType === 'center') {
@@ -232,7 +240,7 @@ function handleEditorAction(actionType) {
 function removeSelectedObject() {
   const objectId = selectedObjectId.value
 
-  if (!objectId || objectId === 'floor') {
+  if (!objectId || objectId === 'floor' || objectId === GROUND_OBJECT_ID) {
     return
   }
 
@@ -619,6 +627,23 @@ function applyFloorColor(objectId, color) {
     return
   }
 
+  if (objectId === GROUND_OBJECT_ID) {
+    groundAppearance = {
+      ...groundAppearance,
+      color
+    }
+
+    if (groundPlane) {
+      applyFloorAppearance(groundPlane, groundAppearance)
+    }
+
+    if (selectedObjectId.value === objectId) {
+      emitSelectionChanged()
+    }
+
+    return
+  }
+
   const objectState = sceneObjects.find((item) => item.id === objectId && item.kind === SCENE_KIND.FLOOR)
 
   if (!objectState) {
@@ -642,6 +667,33 @@ function applyFloorColor(objectId, color) {
 
 function updateFloorTextureById(objectId, textureId) {
   if (typeof objectId !== 'string' || !objectId.length || typeof textureId !== 'string' || !textureId.length) {
+    return
+  }
+
+  if (objectId === GROUND_OBJECT_ID) {
+    const textureConfig = FLOOR_TEXTURE_BY_ID[textureId]
+
+    groundAppearance = {
+      ...groundAppearance,
+      color: textureConfig ? '#ffffff' : GROUND_DEFAULT_COLOR,
+      texture: textureConfig
+        ? {
+            textureId,
+            uvScale: textureConfig.defaultTexture?.uvScale || [2, 2],
+            rotation: textureConfig.defaultTexture?.rotation || 0,
+            intensity: textureConfig.defaultTexture?.intensity || 1
+          }
+        : null
+    }
+
+    if (groundPlane) {
+      applyFloorAppearance(groundPlane, groundAppearance)
+    }
+
+    if (selectedObjectId.value === objectId) {
+      emitSelectionChanged()
+    }
+
     return
   }
 
@@ -678,6 +730,32 @@ function updateFloorTextureById(objectId, textureId) {
 
 function applyFloorTextureScale(objectId, textureScale) {
   if (typeof objectId !== 'string' || !objectId.length || typeof textureScale !== 'number' || !Number.isFinite(textureScale)) {
+    return
+  }
+
+  if (objectId === GROUND_OBJECT_ID) {
+    if (!groundAppearance.texture) {
+      return
+    }
+
+    const clampedScale = Math.min(4, Math.max(0.5, textureScale))
+
+    groundAppearance = {
+      ...groundAppearance,
+      texture: {
+        ...groundAppearance.texture,
+        uvScale: [clampedScale, clampedScale]
+      }
+    }
+
+    if (groundPlane) {
+      applyFloorAppearance(groundPlane, groundAppearance)
+    }
+
+    if (selectedObjectId.value === objectId) {
+      emitSelectionChanged()
+    }
+
     return
   }
 
@@ -875,6 +953,16 @@ function emitSelectionChanged() {
 
   if (!objectId) {
     emit('selection-changed', null)
+    return
+  }
+
+  if (objectId === GROUND_OBJECT_ID) {
+    emit('selection-changed', {
+      objectId: GROUND_OBJECT_ID,
+      kind: SCENE_KIND.FLOOR,
+      assetRef: 'ground-plane',
+      appearance: groundAppearance
+    })
     return
   }
 
@@ -1188,10 +1276,11 @@ function syncTransformControlsState() {
   const isMoveActive = props.activeEditTool === 'move'
   const isRotateActive = props.activeEditTool === 'rotate'
   const isScaleActive = props.activeEditTool === 'scale'
+  const isGroundSelection = selectedObjectId.value === GROUND_OBJECT_ID
   const scaleProfile = getScaleProfileForObject(sceneObjects, selectedObjectId.value ?? '')
   const isFloorSelection = scaleProfile === 'floor'
 
-  if (!selectedMesh || !isSelectionMode || (!isMoveActive && !isRotateActive && !isScaleActive)) {
+  if (!selectedMesh || !isSelectionMode || (!isMoveActive && !isRotateActive && !isScaleActive) || isGroundSelection) {
     transformControls.detach()
     transformControls.enabled = false
     transformControls.visible = false
@@ -1637,6 +1726,10 @@ onMounted(() => {
   outputPass = bootstrap.outputPass
   gridTexture = bootstrap.gridTexture
   gridPlane = bootstrap.gridPlane
+  groundPlane = bootstrap.groundPlane
+  if (groundPlane) {
+    applyFloorAppearance(groundPlane, groundAppearance)
+  }
   gridOpacity = props.showGrid ? GRID_BASE_OPACITY : 0
   gridOpacityTarget = gridOpacity
   if (gridPlane?.material) {

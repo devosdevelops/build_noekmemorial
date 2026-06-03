@@ -39,7 +39,11 @@ const panelTitle = computed(() => {
   }
 
   if (props.selectedAsset.assetType === 'floor') {
-    return 'Vloer configureren'
+    const label = typeof props.selectedAsset.label === 'string' && props.selectedAsset.label.length
+      ? props.selectedAsset.label
+      : 'Vloer'
+
+    return `${label} configureren`
   }
 
   if (props.selectedAsset.assetType === 'model') {

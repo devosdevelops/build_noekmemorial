@@ -651,10 +651,12 @@ function handleSelectionChanged(selection) {
   }
 
   if (selection.kind === 'floor') {
+    const floorLabel = selection.assetRef === 'ground-plane' ? 'Ondergrond' : 'Vloer'
+
     selectedAsset.value = {
       assetType: 'floor',
       objectId: selection.objectId,
-      label: 'Vloer',
+      label: floorLabel,
       textureId: typeof selection.appearance?.texture?.textureId === 'string' && selection.appearance.texture.textureId.length
         ? selection.appearance.texture.textureId
         : 'no-texture',

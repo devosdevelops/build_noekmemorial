@@ -24,7 +24,7 @@
 [x] add ambient noise options
     [x] add sound files
     [x] sound ui
-    [] add sounds to scene
+    [x] add sounds to scene
 [x] add lighting options
 [x] hide grid 
 [] add special pinboard and candle objects
@@ -45,6 +45,7 @@
     [x] square object
     [x] intermediate sizes
     [x] rect object
+[] click a selected object to deselect it
 [] color textures better
 [] round the scroll bar containers
 
