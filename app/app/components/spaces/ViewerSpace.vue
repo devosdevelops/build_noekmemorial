@@ -3,6 +3,7 @@
     <ViewerSceneViewport
       v-if="hasEnteredViewer"
       :active-mode="activeMode"
+      :scene-document="viewerSceneDocument"
       @element-selected="handleSceneElementSelection"
     />
 
@@ -66,6 +67,7 @@
         :active-panel="activePanel"
         :can-post-media="canPostMedia"
         :selected-element="selectedElement"
+        :contributions="contributions"
         :is-submitting="submitStatus === 'submitting'"
         :submit-error="submitError"
         :submit-success-message="submitSuccessMessage"
@@ -159,6 +161,8 @@ const {
 
 const {
   room,
+  scene,
+  contributions,
   submitStatus,
   submitError,
   roomLoading,
@@ -170,6 +174,20 @@ const {
   submitCandle,
   submitMedia
 } = useViewerContributions()
+
+const viewerSceneDocument = computed(() => {
+  const sceneRow = scene.value
+
+  if (!sceneRow || typeof sceneRow !== 'object') {
+    return null
+  }
+
+  if (!sceneRow.scene_data || typeof sceneRow.scene_data !== 'object') {
+    return null
+  }
+
+  return sceneRow.scene_data
+})
 
 const roomName = computed(() => {
   if (room.value?.name) {
