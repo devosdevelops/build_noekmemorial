@@ -136,6 +136,7 @@ const props = defineProps({
       attribution: '',
       licence: '',
       libraryCategory: 'model',
+      tags: [],
       sequence: 0
     })
   },
@@ -217,6 +218,7 @@ const interactionState = {
 const selectableRoots = []
 const meshById = new Map()
 const selectedModelMaterialTargetByObjectId = new Map()
+const candleGlowLights = new Set()
 const raycaster = new THREE.Raycaster()
 const pointerNdc = new THREE.Vector2()
 const highlightManager = createSelectionHighlightManager(THREE)
@@ -235,6 +237,8 @@ const MODEL_SQUARE_RATIO_TOLERANCE = 0.12
 const MODEL_GRID_SEARCH_PADDING_CELLS = 2
 const MODEL_GRID_MAX_SEARCH_CELLS = 24
 const MODEL_ALL_MATERIAL_TARGET = 'all-materials'
+const CANDLE_TITLE_PATTERN = /\b(candle|candles|kaars|kaarsen|flame|wick)\b/i
+const CANDLE_LIGHT_USERDATA_KEY = '__candleGlowLight'
 
 let createdShapeCount = 0
 let isApplyingHydration = false
@@ -459,6 +463,7 @@ function applyHydratedSceneDocument(sceneDocument) {
       loadModelWrapper(objectState.assetRef, objectState.id)
         .then((wrapper) => {
           applyModelAppearance(wrapper, objectState.appearance)
+          applyCandleLightingEffects(wrapper, objectState)
           wrapper.position.set(...objectState.position)
           wrapper.rotation.set(...objectState.rotation)
           wrapper.scale.set(...objectState.scale)
@@ -1087,6 +1092,174 @@ function applyModelAppearance(modelRoot, appearance) {
   })
 }
 
+function normalizeModelTags(tags) {
+  if (!Array.isArray(tags)) {
+    return []
+  }
+
+  return tags
+    .filter((tag) => typeof tag === 'string' && tag.trim().length)
+    .map((tag) => tag.trim())
+}
+
+function isCandleModel(objectState) {
+  const metadata = objectState?.metadata && typeof objectState.metadata === 'object'
+    ? objectState.metadata
+    : null
+
+  if (metadata?.isCandle === true) {
+    return true
+  }
+
+  const sourceCategory = typeof metadata?.sourceCategory === 'string'
+    ? metadata.sourceCategory
+    : ''
+  if (sourceCategory === 'candle') {
+    return true
+  }
+
+  const title = typeof metadata?.title === 'string' ? metadata.title : ''
+  if (CANDLE_TITLE_PATTERN.test(title)) {
+    return true
+  }
+
+  const tags = normalizeModelTags(metadata?.tags)
+  return tags.some((tag) => CANDLE_TITLE_PATTERN.test(tag))
+}
+
+function removeCandlePointLight(modelRoot) {
+  if (!modelRoot) {
+    return
+  }
+
+  const removableLights = []
+  modelRoot.traverse((child) => {
+    if (child?.isPointLight && child.userData?.[CANDLE_LIGHT_USERDATA_KEY] === true) {
+      removableLights.push(child)
+    }
+  })
+
+  removableLights.forEach((light) => {
+    candleGlowLights.delete(light)
+    light.parent?.remove(light)
+  })
+}
+
+function applyCandleGlowToMaterials(modelRoot, shouldApply) {
+  if (!modelRoot) {
+    return
+  }
+
+  modelRoot.traverse((child) => {
+    if (!child?.isMesh) {
+      return
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+    materials.forEach((material) => {
+      if (!material || !('emissive' in material)) {
+        return
+      }
+
+      if (!material.userData) {
+        material.userData = {}
+      }
+
+      if (typeof material.userData.baseEmissiveHex !== 'number') {
+        material.userData.baseEmissiveHex = material.emissive.getHex()
+      }
+
+      if (typeof material.userData.baseEmissiveIntensity !== 'number') {
+        material.userData.baseEmissiveIntensity =
+          typeof material.emissiveIntensity === 'number' ? material.emissiveIntensity : 1
+      }
+
+      if (shouldApply) {
+        material.emissive.set('#ff8c2f')
+        if (typeof material.emissiveIntensity === 'number') {
+          material.emissiveIntensity = Math.max(material.userData.baseEmissiveIntensity, 0.3)
+        }
+        material.userData.candleGlowApplied = true
+        material.needsUpdate = true
+        return
+      }
+
+      if (material.userData.candleGlowApplied) {
+        material.emissive.setHex(material.userData.baseEmissiveHex)
+        if (typeof material.emissiveIntensity === 'number') {
+          material.emissiveIntensity = material.userData.baseEmissiveIntensity
+        }
+        material.userData.candleGlowApplied = false
+        material.needsUpdate = true
+      }
+    })
+  })
+}
+
+function applyCandleLightingEffects(modelRoot, objectState) {
+  const shouldApplyCandleGlow = isCandleModel(objectState)
+
+  removeCandlePointLight(modelRoot)
+  applyCandleGlowToMaterials(modelRoot, shouldApplyCandleGlow)
+
+  if (!shouldApplyCandleGlow) {
+    return
+  }
+
+  modelRoot.updateMatrixWorld(true)
+  const bounds = new THREE.Box3().setFromObject(modelRoot)
+  const center = new THREE.Vector3()
+  const size = new THREE.Vector3()
+  bounds.getCenter(center)
+  bounds.getSize(size)
+
+  const light = new THREE.PointLight('#ffb057', 0.95, Math.max(2.5, size.length() * 0.8), 1.8)
+  light.userData[CANDLE_LIGHT_USERDATA_KEY] = true
+  light.userData.baseIntensity = light.intensity
+  light.userData.baseDistance = light.distance
+  light.userData.flickerPhase = Math.random() * Math.PI * 2
+  light.position.set(
+    center.x,
+    bounds.max.y + Math.max(0.08, size.y * 0.08),
+    center.z
+  )
+  modelRoot.add(light)
+  candleGlowLights.add(light)
+}
+
+function updateCandleFlickerAnimation(timeMs) {
+  if (!candleGlowLights.size) {
+    return
+  }
+
+  const staleLights = []
+
+  candleGlowLights.forEach((light) => {
+    if (!light?.parent) {
+      staleLights.push(light)
+      return
+    }
+
+    const baseIntensity = Number(light.userData?.baseIntensity) || 0.95
+    const baseDistance = Number(light.userData?.baseDistance) || 3
+    const phase = Number(light.userData?.flickerPhase) || 0
+    const t = (Number.isFinite(timeMs) ? timeMs : performance.now()) / 1000
+
+    const waveA = Math.sin((t * 11.5) + phase)
+    const waveB = Math.sin((t * 23.7) + phase * 0.37)
+    const intensityFactor = 0.9 + (waveA * 0.08) + (waveB * 0.04)
+    const distanceFactor = 0.97 + (waveB * 0.03)
+
+    light.intensity = Math.max(0.05, baseIntensity * intensityFactor)
+    light.distance = Math.max(0.5, baseDistance * distanceFactor)
+  })
+
+  staleLights.forEach((light) => {
+    candleGlowLights.delete(light)
+  })
+}
+
 function applyModelColor(objectId, color, materialName) {
   if (typeof objectId !== 'string' || !objectId.length || typeof color !== 'string' || !color.length) {
     return
@@ -1516,7 +1689,17 @@ function addModelToScene(downloadUrl, metadata = {}) {
         metadata: {
           title: typeof metadata.title === 'string' ? metadata.title : '',
           attribution: typeof metadata.attribution === 'string' ? metadata.attribution : '',
-          licence: typeof metadata.licence === 'string' ? metadata.licence : ''
+          licence: typeof metadata.licence === 'string' ? metadata.licence : '',
+          sourceCategory: typeof metadata.libraryCategory === 'string' ? metadata.libraryCategory : 'model',
+          tags: normalizeModelTags(metadata.tags),
+          isCandle: (() => {
+            const tags = normalizeModelTags(metadata.tags)
+            const title = typeof metadata.title === 'string' ? metadata.title : ''
+
+            return metadata.libraryCategory === 'candle'
+              || CANDLE_TITLE_PATTERN.test(title)
+              || tags.some((tag) => CANDLE_TITLE_PATTERN.test(tag))
+          })()
         },
         interaction: toMediaInteractionFromLibraryCategory(metadata.libraryCategory)
       })
@@ -1524,6 +1707,7 @@ function addModelToScene(downloadUrl, metadata = {}) {
       const modelState = sceneObjects.find((item) => item.id === modelId)
       if (modelState) {
         applyModelAppearance(wrapper, modelState.appearance)
+        applyCandleLightingEffects(wrapper, modelState)
       }
 
       setSelectedObjectId(modelId)
@@ -1830,7 +2014,8 @@ watch(
       title: props.modelAction.title,
       attribution: props.modelAction.attribution,
       licence: props.modelAction.licence,
-      libraryCategory: props.modelAction.libraryCategory
+      libraryCategory: props.modelAction.libraryCategory,
+      tags: props.modelAction.tags
     })
   }
 )
@@ -2013,7 +2198,7 @@ function resizeRenderer() {
   outlinePass?.setSize(clientWidth, clientHeight)
 }
 
-function animate() {
+function animate(timeMs) {
   if (!renderer || !scene || !camera || !controls) {
     return
   }
@@ -2021,6 +2206,7 @@ function animate() {
   frameId = window.requestAnimationFrame(animate)
   cameraNavigationRuntime?.updateCameraTransition()
   controls.update()
+  updateCandleFlickerAnimation(timeMs)
   updateGridFadeAnimation()
   if (composer) {
     composer.render()
@@ -2194,6 +2380,7 @@ onBeforeUnmount(() => {
   texturePool.forEach((texture) => texture.dispose())
   materialPool.forEach((material) => material.dispose())
   geometryPool.forEach((geometry) => geometry.dispose())
+  candleGlowLights.clear()
 
   if (renderer) {
     renderer.domElement.removeEventListener('pointerdown', handlePointerDown)

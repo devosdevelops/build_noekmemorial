@@ -86,7 +86,14 @@ function toSceneObjectDocument(objectState) {
     ? {
         title: typeof objectState.metadata.title === 'string' ? objectState.metadata.title : '',
         attribution: typeof objectState.metadata.attribution === 'string' ? objectState.metadata.attribution : '',
-        licence: typeof objectState.metadata.licence === 'string' ? objectState.metadata.licence : ''
+        licence: typeof objectState.metadata.licence === 'string' ? objectState.metadata.licence : '',
+        sourceCategory: typeof objectState.metadata.sourceCategory === 'string'
+          ? objectState.metadata.sourceCategory
+          : 'model',
+        tags: Array.isArray(objectState.metadata.tags)
+          ? objectState.metadata.tags.filter((tag) => typeof tag === 'string' && tag.length)
+          : [],
+        isCandle: objectState.metadata.isCandle === true
       }
     : null
   const interaction = objectState?.interaction && typeof objectState.interaction === 'object'

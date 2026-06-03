@@ -303,6 +303,7 @@ const modelAction = ref({
   attribution: '',
   licence: '',
   libraryCategory: 'model',
+  tags: [],
   sequence: 0
 })
 const lightingAction = ref({
@@ -739,7 +740,7 @@ function handleAssetConfigurationClose() {
   }
 }
 
-function handleSelectModel({ downloadUrl, title, attribution, licence, libraryCategory }) {
+function handleSelectModel({ downloadUrl, title, attribution, licence, libraryCategory, tags }) {
   isModelsLibraryVisible.value = false
   modelAction.value = {
     type: 'add-model',
@@ -750,6 +751,7 @@ function handleSelectModel({ downloadUrl, title, attribution, licence, libraryCa
     libraryCategory: typeof libraryCategory === 'string' && libraryCategory.length
       ? libraryCategory
       : 'model',
+    tags: Array.isArray(tags) ? tags : [],
     sequence: modelAction.value.sequence + 1
   }
 }

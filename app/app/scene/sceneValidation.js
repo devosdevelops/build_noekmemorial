@@ -123,15 +123,25 @@ function normalizeMetadata(metadataInput) {
   const title = typeof metadataInput.title === 'string' ? metadataInput.title.trim() : ''
   const attribution = typeof metadataInput.attribution === 'string' ? metadataInput.attribution.trim() : ''
   const licence = typeof metadataInput.licence === 'string' ? metadataInput.licence.trim() : ''
+  const sourceCategory = typeof metadataInput.sourceCategory === 'string' ? metadataInput.sourceCategory.trim() : 'model'
+  const tags = Array.isArray(metadataInput.tags)
+    ? metadataInput.tags
+      .filter((tag) => typeof tag === 'string' && tag.trim().length)
+      .map((tag) => tag.trim())
+    : []
+  const isCandle = metadataInput.isCandle === true
 
-  if (!title.length && !attribution.length && !licence.length) {
+  if (!title.length && !attribution.length && !licence.length && !tags.length && !isCandle) {
     return null
   }
 
   return {
     title,
     attribution,
-    licence
+    licence,
+    sourceCategory,
+    tags,
+    isCandle
   }
 }
 

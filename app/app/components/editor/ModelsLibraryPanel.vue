@@ -128,6 +128,13 @@ function handleSelectModel(model) {
   const category = typeof model?.libraryCategory === 'string' && model.libraryCategory.length
     ? model.libraryCategory
     : POLY_PIZZA_LIST_CATEGORY.MODEL
+  const tags = Array.isArray(model?.Tags)
+    ? model.Tags.filter((tag) => typeof tag === 'string' && tag.trim().length).map((tag) => tag.trim())
+    : []
+  const isSpecialMediaObject =
+    category === POLY_PIZZA_LIST_CATEGORY.MESSAGE
+    || category === POLY_PIZZA_LIST_CATEGORY.IMAGE_VIDEO
+    || category === POLY_PIZZA_LIST_CATEGORY.AUDIO
 
   emit('select-model', {
     id: model.ID,
@@ -136,7 +143,8 @@ function handleSelectModel(model) {
     attribution: model.Attribution ?? '',
     licence: model.Licence ?? '',
     libraryCategory: category,
-    isSpecialMediaObject: category !== POLY_PIZZA_LIST_CATEGORY.MODEL
+    tags,
+    isSpecialMediaObject
   })
 }
 </script>
