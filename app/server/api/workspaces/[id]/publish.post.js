@@ -5,6 +5,11 @@ function parsePublishVisibility(value) {
   return value === 'private' ? 'private' : value === 'public' ? 'public' : null
 }
 
+function normalizeAccessPin(value) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
 function generateAccessPin() {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
@@ -13,6 +18,7 @@ export default defineEventHandler(async (event) => {
   const workspaceId = getRouterParam(event, 'id')
   const body = await readBody(event)
   const requestedVisibility = parsePublishVisibility(body?.visibility)
+  const requestedAccessPin = normalizeAccessPin(body?.accessPin)
 
   if (!workspaceId || !workspaceId.length) {
     throw createError({
@@ -53,8 +59,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (requestedVisibility === 'private' && requestedAccessPin.length && !/^\d{6}$/.test(requestedAccessPin)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'PIN moet exact 6 cijfers bevatten.'
+    })
+  }
+
   const nextAccessPin = requestedVisibility === 'private'
-    ? targetWorkspace.access_pin || generateAccessPin()
+    ? requestedAccessPin || targetWorkspace.access_pin || generateAccessPin()
     : null
 
   const { data: publishedWorkspace, error: publishError } = await supabase
