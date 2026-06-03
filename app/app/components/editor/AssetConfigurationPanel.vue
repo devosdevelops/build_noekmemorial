@@ -223,6 +223,7 @@ function handleColorTargetChange(event) {
       <div
         v-if="activeMaterialTab === 'color'"
         class="material-panel material-panel--color"
+        :class="{ 'material-panel--standalone': !hasTextureControls }"
         role="tabpanel"
         aria-label="Kleur tab"
       >
@@ -235,7 +236,8 @@ function handleColorTargetChange(event) {
             data-tooltip="Pas de blokkleur direct aan met de kleurenschijf."
           />
         </div>
-        <label v-if="selectedAsset?.assetType === 'model'" class="color-target-field">
+        <ColorDiskPicker :model-value="currentColor" @update:model-value="handleColorChange" />
+        <label v-if="selectedAsset?.assetType === 'model'" class="color-target-field color-target-field--bottom">
           <span class="color-target-field__label">Doelmateriaal</span>
           <select class="color-target-field__select" :value="selectedColorTarget" @change="handleColorTargetChange">
             <option
@@ -247,7 +249,6 @@ function handleColorTargetChange(event) {
             </option>
           </select>
         </label>
-        <ColorDiskPicker :model-value="currentColor" @update:model-value="handleColorChange" />
       </div>
 
       <div v-else-if="hasTextureControls" class="material-panel" role="tabpanel" aria-label="Materiaal tab">
@@ -358,7 +359,7 @@ function handleColorTargetChange(event) {
   border: 0;
   border-radius: 0;
   padding: 0.72rem 0.64rem 0.7rem;
-  color: #737399;
+  color: #6a7384;
   background: #f7f8f3;
   font-size: 1.05rem;
   font-weight: 800;
@@ -368,8 +369,8 @@ function handleColorTargetChange(event) {
 }
 
 .material-tab--active {
-  background: #c2c6d8;
-  color: #1f2132;
+  background: #dde2eb;
+  color: #202733;
 }
 
 .material-tab:first-child {
@@ -384,7 +385,7 @@ function handleColorTargetChange(event) {
   display: grid;
   gap: 0.44rem;
   padding: 0.78rem 0.78rem 0.72rem;
-  background: #c2c6d8;
+  background: #dde2eb;
   border-bottom-left-radius: 0.9rem;
   border-bottom-right-radius: 0;
 }
@@ -393,9 +394,13 @@ function handleColorTargetChange(event) {
   place-items: stretch;
 }
 
+.material-panel--standalone {
+  border-top-left-radius: 0.9rem;
+}
+
 .section-title {
   margin: 0;
-  color: #4f5068;
+  color: #4a5667;
   font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -597,6 +602,10 @@ function handleColorTargetChange(event) {
 .color-target-field {
   display: grid;
   gap: 0.26rem;
+}
+
+.color-target-field--bottom {
+  margin-top: 0.62rem;
 }
 
 .color-target-field__label {
