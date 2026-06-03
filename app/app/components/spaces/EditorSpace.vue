@@ -137,14 +137,21 @@
           <label class="workspace-settings-section-title">Zichtbaarheid</label>
           <div class="workspace-settings-radio-row">
             <label class="workspace-settings-radio-item">
-              <input v-model="workspaceSettingsVisibility" type="radio" value="public" :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings" />
+              <input v-model="workspaceSettingsVisibility" type="radio" value="offline" disabled />
+              <span>Offline</span>
+            </label>
+            <label class="workspace-settings-radio-item">
+              <input v-model="workspaceSettingsVisibility" type="radio" value="public" :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings || isWorkspaceOffline" />
               <span>Publiek</span>
             </label>
             <label class="workspace-settings-radio-item">
-              <input v-model="workspaceSettingsVisibility" type="radio" value="private" :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings" />
+              <input v-model="workspaceSettingsVisibility" type="radio" value="private" :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings || isWorkspaceOffline" />
               <span>Afgeschermd</span>
             </label>
           </div>
+          <p v-if="isWorkspaceOffline" class="workspace-settings-offline-note">
+            Deze ruimte is nog offline. Gebruik eerst Publiceer in de editor om publiek of afgeschermd te activeren.
+          </p>
         </div>
 
         <div class="workspace-settings-field">
@@ -278,11 +285,12 @@ const isWorkspaceSettingsOpen = ref(false)
 const workspaceSettingsName = ref('')
 const workspaceSettingsFirstName = ref('')
 const workspaceSettingsLastName = ref('')
-const workspaceSettingsVisibility = ref('public')
+const workspaceSettingsVisibility = ref('offline')
 const workspaceSettingsApprovalMode = ref('manual')
 const workspaceSettingsError = ref('')
 const isSavingWorkspaceSettings = ref(false)
 const isWorkspaceOwner = ref(false)
+const currentWorkspaceVisibility = ref('offline')
 const isEditorWarningVisible = ref(false)
 const editorWarningMessage = ref('')
 let editorWarningTimer = null
@@ -342,6 +350,8 @@ const sceneAudioTrackIds = computed(() => sceneAudioItems.value.map((item) => it
 const selectedSceneAudioTrackId = computed(() => {
   return selectedSceneAudioItem.value?.trackId ?? null
 })
+
+const isWorkspaceOffline = computed(() => currentWorkspaceVisibility.value === 'offline')
 
 function normalizeAudioVolume(volume) {
   if (!Number.isFinite(volume)) {
@@ -1006,6 +1016,11 @@ function handleTopActionClick(actionId) {
     return
   }
 
+  if (actionId === 'publish') {
+    publishWorkspaceFromEditor()
+    return
+  }
+
   if (actionId === 'toggle-grid') {
     isGridVisible.value = !isGridVisible.value
     return
@@ -1023,6 +1038,40 @@ function handleTopActionClick(actionId) {
   persistenceAction.value = {
     type: 'prepare-save',
     sequence: persistenceAction.value.sequence + 1
+  }
+}
+
+async function publishWorkspaceFromEditor() {
+  if (!workspaceId.value || !workspaceId.value.length) {
+    triggerEditorWarning('Open de editor vanuit een bestaande werkruimte om te publiceren.')
+    return
+  }
+
+  await initAuth()
+  const accessToken = session.value?.access_token
+
+  if (!accessToken) {
+    triggerEditorWarning('Je sessie is verlopen. Log opnieuw in.')
+    return
+  }
+
+  try {
+    const response = await $fetch(`/api/workspaces/${workspaceId.value}/publish`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    })
+
+    const nextVisibility = response?.workspace?.visibility
+    if (nextVisibility === 'public' || nextVisibility === 'private' || nextVisibility === 'offline') {
+      currentWorkspaceVisibility.value = nextVisibility
+      workspaceSettingsVisibility.value = nextVisibility
+    }
+
+    triggerEditorWarning(response?.alreadyPublished ? 'Deze ruimte is al gepubliceerd.' : 'Ruimte is gepubliceerd en staat nu publiek.')
+  } catch (error) {
+    triggerEditorWarning(error?.data?.statusMessage || error?.statusMessage || error?.message || 'Publiceren is mislukt.')
   }
 }
 
@@ -1055,7 +1104,10 @@ async function openWorkspaceSettings() {
     workspaceSettingsName.value = workspace?.name || ''
     workspaceSettingsFirstName.value = workspace?.deceased_first_name || ''
     workspaceSettingsLastName.value = workspace?.deceased_last_name || ''
-    workspaceSettingsVisibility.value = workspace?.visibility === 'private' ? 'private' : 'public'
+    currentWorkspaceVisibility.value = workspace?.visibility === 'public' || workspace?.visibility === 'private'
+      ? workspace.visibility
+      : 'offline'
+    workspaceSettingsVisibility.value = currentWorkspaceVisibility.value
     workspaceSettingsApprovalMode.value = workspace?.approval_mode === 'automatic' ? 'automatic' : 'manual'
     isWorkspaceOwner.value = Boolean(owner?.id && owner.id === session.value?.user?.id)
     isWorkspaceSettingsOpen.value = true
@@ -1104,6 +1156,8 @@ async function saveWorkspaceSettings() {
         approvalMode: workspaceSettingsApprovalMode.value
       }
     })
+
+    currentWorkspaceVisibility.value = workspaceSettingsVisibility.value
 
     closeWorkspaceSettings()
     triggerEditorWarning('Ruimte-instellingen opgeslagen.')
@@ -1365,6 +1419,17 @@ function handleSceneReady() {
   gap: 0.35rem;
   font-size: 0.86rem;
   color: #2b3142;
+}
+
+.workspace-settings-radio-item input:disabled {
+  opacity: 0.58;
+}
+
+.workspace-settings-offline-note {
+  margin: 0.48rem 0 0;
+  color: #70511e;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .workspace-settings-error {

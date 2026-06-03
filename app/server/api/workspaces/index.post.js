@@ -45,16 +45,12 @@ async function createUniqueWorkspaceSlug(supabase, name) {
   return `${base}-${Date.now().toString(36)}`
 }
 
-function generateAccessPin() {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
-
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const deceasedFirstName = typeof body?.deceasedFirstName === 'string' ? body.deceasedFirstName.trim() : ''
   const deceasedLastName = typeof body?.deceasedLastName === 'string' ? body.deceasedLastName.trim() : ''
-  const visibility = body?.visibility === 'private' ? 'private' : 'public'
+  const visibility = 'offline'
   const approvalMode = body?.approvalMode === 'automatic' ? 'automatic' : 'manual'
 
   if (!name) {
@@ -78,7 +74,7 @@ export default defineEventHandler(async (event) => {
       deceased_last_name: deceasedLastName || null,
       visibility,
       approval_mode: approvalMode,
-      access_pin: visibility === 'private' ? generateAccessPin() : null
+      access_pin: null
     })
     .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, created_at, updated_at')
     .single()

@@ -72,17 +72,20 @@
           <h4 class="section-title">Zichtbaarheids Instellingen</h4>
           <div class="radio-row">
             <label class="radio-item">
-              <input v-model="visibility" type="radio" value="public" />
+              <input v-model="visibility" type="radio" value="offline" disabled />
+              <span>Offline</span>
+            </label>
+            <label class="radio-item">
+              <input v-model="visibility" type="radio" value="public" disabled />
               <span>Publiek</span>
             </label>
             <label class="radio-item">
-              <input v-model="visibility" type="radio" value="private" />
+              <input v-model="visibility" type="radio" value="private" disabled />
               <span>Afgeschermd</span>
             </label>
           </div>
           <p class="help-text">
-            Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft.
-            Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
+            Nieuwe ruimtes starten standaard offline. Publiceer eerst vanuit de editor om publiek of afgeschermd te kiezen.
           </p>
         </Card>
 
@@ -128,7 +131,7 @@ const selectedTemplate = ref('empty')
 const roomName = ref('')
 const firstName = ref('')
 const lastName = ref('')
-const visibility = ref('public')
+const visibility = ref('offline')
 const approvalMode = ref('manual')
 const isSubmitting = ref(false)
 const submitError = ref('')
