@@ -19,6 +19,48 @@ create table if not exists public.app_users (
 
 create index if not exists app_users_user_type_idx on public.app_users (user_type);
 
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_first_name text := nullif(trim(new.raw_user_meta_data->>'first_name'), '');
+  new_last_name text := nullif(trim(new.raw_user_meta_data->>'last_name'), '');
+  new_display_name text := nullif(trim(coalesce(new.raw_user_meta_data->>'display_name', concat_ws(' ', new_first_name, new_last_name))), '');
+begin
+  insert into public.app_users (
+    id,
+    email,
+    first_name,
+    last_name,
+    display_name
+  )
+  values (
+    new.id,
+    coalesce(new.email, ''),
+    new_first_name,
+    new_last_name,
+    coalesce(new_display_name, new.email)
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    first_name = coalesce(excluded.first_name, public.app_users.first_name),
+    last_name = coalesce(excluded.last_name, public.app_users.last_name),
+    display_name = coalesce(excluded.display_name, public.app_users.display_name);
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row
+execute function public.handle_new_auth_user();
+
 -- SECURITY DEFINER is required so RLS policies can reliably check consultant status.
 create or replace function public.is_consultant(target_user_id uuid)
 returns boolean

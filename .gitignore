@@ -152,3 +152,4 @@ Thumbs.db
 
 # Temporary Supabase patch migrations
 app/supabase/007_dashboard_patch_existing.sql
+app/supabase/008_supabase_patch_existing.sql
