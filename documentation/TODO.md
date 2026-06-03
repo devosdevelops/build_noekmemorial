@@ -1,5 +1,7 @@
 # TODO
 
+## Editor
+
 [x] delete object
 [x] recolor object
 [x] refactor ui to match figma design
@@ -28,15 +30,27 @@
 [x] add lighting options
 [x] hide grid 
 [x] add animation to anything that opens or closes
+[] generate SQL files
 [] add other tables to supabase
 [] connect editors to accounts
 [] load screen when loading page
+[] dashboard integration
 [] deploy room
 [] add special pinboard and candle objects
 [] add templates
 
+## Dashboard
+
+[] start room
+[] manage rooms
+[] manage collaborators
+[] 
+
+
 
 ## Fixes
+
+### Editor
 
 [x] Auto deselect any other object
 [x] change texture names
@@ -57,8 +71,9 @@
 
 ## Nice to have
 
+### Editor
+
 [] add clicky noises to editor
-[] add sound effects to viewer
 [] mirror tool
 [] scale smoothly instead of snapping
 [] add color picker
@@ -70,3 +85,8 @@
 [] translation of models
 [] add shortcuts to editor
 [] upload your own ambient sound
+
+### Viewer
+
+[] VR Mode
+[] add sound effects to viewer
