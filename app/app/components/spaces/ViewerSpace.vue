@@ -1,7 +1,7 @@
 <template>
   <section ref="viewerSpaceRoot" class="viewer-space">
     <ViewerSceneViewport
-      v-if="hasEnteredViewer"
+      v-if="hasEnteredViewer && viewerSceneDocument"
       ref="viewerViewportRef"
       :active-mode="activeMode"
       :scene-document="viewerSceneDocument"

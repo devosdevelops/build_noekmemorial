@@ -1,7 +1,7 @@
 <template>
   <header class="viewer-topbar">
     <div class="viewer-topbar__logo-wrap">
-      <img src="/logo-white.png" alt="Columba" class="viewer-topbar__logo" />
+      <img src="/logo.png" alt="Columba" class="viewer-topbar__logo" />
     </div>
 
     <div class="viewer-topbar__user">

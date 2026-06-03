@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { SCENE_KIND } from '../../scene/sceneContract.js'
 import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
+import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
 import { setCameraStartPosition } from './viewport/sceneMath.js'
 
 const props = defineProps({
@@ -46,6 +47,8 @@ const CANDLE_LIGHT_USERDATA_KEY = '__viewerCandleGlowLight'
 const VIEWER_CANDLE_TARGET_DIAGONAL = 0.34
 
 const gltfLoader = new GLTFLoader()
+const textureLoader = new THREE.TextureLoader()
+const loadedTextureCache = new Map()
 
 let hemiLight = null
 let sunLight = null
@@ -255,6 +258,172 @@ function applyModelAppearance(modelRoot, appearance) {
   })
 }
 
+function createBlockGeometry(shapeType) {
+  if (shapeType === 'sphere') {
+    return new THREE.SphereGeometry(1, 24, 18)
+  }
+
+  if (shapeType === 'cylinder') {
+    return new THREE.CylinderGeometry(1, 1, 2, 28)
+  }
+
+  if (shapeType === 'cone') {
+    return new THREE.ConeGeometry(1, 2, 28)
+  }
+
+  if (shapeType === 'triangle') {
+    const geometry = new THREE.BufferGeometry()
+    const vertices = new Float32Array([
+      -1, -1, 1,
+      1, -1, 1,
+      -1, -1, -1,
+      1, -1, -1,
+      -1, 1, -1,
+      1, 1, -1
+    ])
+    const indices = new Uint32Array([
+      0, 1, 5,
+      0, 5, 4,
+      2, 3, 1,
+      2, 1, 0,
+      0, 4, 2,
+      1, 3, 5,
+      4, 5, 3,
+      4, 3, 2
+    ])
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+    geometry.computeVertexNormals()
+    return geometry
+  }
+
+  return new THREE.BoxGeometry(2, 2, 2)
+}
+
+function getTextureByUrl(textureUrl, { isColorTexture = false } = {}) {
+  if (typeof textureUrl !== 'string' || !textureUrl.length) {
+    return null
+  }
+
+  let texture = loadedTextureCache.get(textureUrl)
+
+  if (!texture) {
+    texture = textureLoader.load(textureUrl)
+    loadedTextureCache.set(textureUrl, texture)
+  }
+
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+
+  if (isColorTexture) {
+    texture.colorSpace = THREE.SRGBColorSpace
+  }
+
+  return texture
+}
+
+function applyTextureTransform(texture, textureAppearance) {
+  if (!texture) {
+    return
+  }
+
+  const uvScale = Array.isArray(textureAppearance?.uvScale) ? textureAppearance.uvScale : [1, 1]
+
+  texture.repeat.set(uvScale[0] ?? 1, uvScale[1] ?? 1)
+  texture.center.set(0.5, 0.5)
+  texture.rotation = typeof textureAppearance?.rotation === 'number' ? textureAppearance.rotation : 0
+  texture.needsUpdate = true
+}
+
+function applyFloorAppearance(mesh, appearance) {
+  if (!mesh || !mesh.material) {
+    return
+  }
+
+  const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
+  const textureAppearance = appearance?.texture
+  const textureConfig = textureAppearance?.textureId
+    ? FLOOR_TEXTURE_BY_ID[textureAppearance.textureId] ?? null
+    : null
+
+  material.color.set(textureConfig ? '#ffffff' : appearance?.color || '#7a8fa0')
+  material.metalness = appearance?.finish?.metalness ?? 0.03
+
+  if (!textureConfig) {
+    material.map = null
+    material.normalMap = null
+    material.roughnessMap = null
+    material.roughness = appearance?.finish?.roughness ?? 0.86
+    material.needsUpdate = true
+    return
+  }
+
+  const colorTexture = getTextureByUrl(textureConfig.maps.colorUrl, { isColorTexture: true })
+  const normalTexture = getTextureByUrl(textureConfig.maps.normalUrl)
+  const roughnessTexture = getTextureByUrl(textureConfig.maps.roughnessUrl)
+  const textureIntensity = typeof textureAppearance?.intensity === 'number' ? textureAppearance.intensity : 1
+
+  applyTextureTransform(colorTexture, textureAppearance)
+  applyTextureTransform(normalTexture, textureAppearance)
+  applyTextureTransform(roughnessTexture, textureAppearance)
+
+  material.map = colorTexture
+  material.normalMap = normalTexture
+  material.roughnessMap = roughnessTexture
+  material.roughness = 1
+  material.normalScale.set(textureIntensity, textureIntensity)
+  material.needsUpdate = true
+}
+
+function applyShapeAppearance(mesh, appearance) {
+  if (!mesh || !mesh.material) {
+    return
+  }
+
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  const textureAppearance = appearance?.texture
+  const textureConfig = textureAppearance?.textureId
+    ? FLOOR_TEXTURE_BY_ID[textureAppearance.textureId] ?? null
+    : null
+
+  materials.forEach((material) => {
+    if (!material) {
+      return
+    }
+
+    if (material.color?.set) {
+      material.color.set(appearance?.color || '#b4c9a6')
+    }
+
+    material.metalness = appearance?.finish?.metalness ?? 0.03
+
+    if (!textureConfig) {
+      material.map = null
+      material.normalMap = null
+      material.roughnessMap = null
+      material.roughness = appearance?.finish?.roughness ?? 0.56
+      material.needsUpdate = true
+      return
+    }
+
+    const colorTexture = getTextureByUrl(textureConfig.maps.colorUrl, { isColorTexture: true })
+    const normalTexture = getTextureByUrl(textureConfig.maps.normalUrl)
+    const roughnessTexture = getTextureByUrl(textureConfig.maps.roughnessUrl)
+    const textureIntensity = typeof textureAppearance?.intensity === 'number' ? textureAppearance.intensity : 1
+
+    applyTextureTransform(colorTexture, textureAppearance)
+    applyTextureTransform(normalTexture, textureAppearance)
+    applyTextureTransform(roughnessTexture, textureAppearance)
+
+    material.map = colorTexture
+    material.normalMap = normalTexture
+    material.roughnessMap = roughnessTexture
+    material.roughness = 1
+    material.normalScale.set(textureIntensity, textureIntensity)
+    material.needsUpdate = true
+  })
+}
+
 function clearVisitorCandles() {
   visitorCandleMeshes.forEach((mesh) => {
     if (scene) {
@@ -423,27 +592,11 @@ function geometryForObjectState(objectState) {
   const assetRef = objectState?.assetRef || 'square'
 
   if (kind === 'floor') {
-    return new THREE.BoxGeometry(1, 0.08, 1)
+    return new THREE.BoxGeometry(1, 0.1, 1)
   }
 
   if (kind === 'shape') {
-    if (assetRef === 'sphere') {
-      return new THREE.SphereGeometry(0.62, 24, 18)
-    }
-
-    if (assetRef === 'cylinder') {
-      return new THREE.CylinderGeometry(0.52, 0.52, 1.05, 22)
-    }
-
-    if (assetRef === 'cone') {
-      return new THREE.ConeGeometry(0.62, 1.15, 22)
-    }
-
-    if (assetRef === 'triangle') {
-      return new THREE.ConeGeometry(0.66, 1.2, 3)
-    }
-
-    return new THREE.BoxGeometry(1, 1, 1)
+    return createBlockGeometry(assetRef)
   }
 
   if (kind === 'light') {
@@ -485,7 +638,7 @@ function materialForObjectState(objectState) {
   if (kind === 'floor') {
     return new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.9,
+      roughness: 0.86,
       metalness: 0.02
     })
   }
@@ -518,23 +671,28 @@ function descriptionForObjectState(objectState) {
 
 function createFloor() {
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(120, 120),
+    new THREE.BoxGeometry(1, 0.1, 1),
     new THREE.MeshStandardMaterial({
-      color: '#30445c',
-      roughness: 0.95,
-      metalness: 0.02
+      color: '#7a8fa0',
+      roughness: 0.86,
+      metalness: 0.03
     })
   )
 
-  floor.rotation.x = -Math.PI / 2
-  floor.position.y = -0.02
+  floor.position.set(0, -0.07, 0)
+  floor.scale.set(10, 1, 10)
+  floor.userData.sourceKind = 'floor'
+  floor.userData.selectableId = 'floor'
+  selectableMeshes.push(floor)
+  meshMetaById.set('floor', {
+    id: 'floor',
+    kind: 'floor',
+    title: 'Vloer',
+    description: 'Vloeroppervlak van de herdenkingsruimte.',
+    interaction: null
+  })
   scene.add(floor)
-
-  const grid = new THREE.GridHelper(120, 120, '#90a3b7', '#4b6176')
-  grid.position.y = 0
-  grid.material.opacity = 0.28
-  grid.material.transparent = true
-  scene.add(grid)
+  runtimeSceneObjects.push(floor)
 }
 
 function createMemorialObjects() {
@@ -608,7 +766,6 @@ function createObjectsFromSceneDocument() {
 
   if (!sceneObjects.length) {
     createFloor()
-    createMemorialObjects()
     return Promise.resolve()
   }
 
@@ -660,6 +817,12 @@ function createObjectsFromSceneDocument() {
     rootObject.position.set(position[0], position[1], position[2])
     rootObject.rotation.set(rotation[0], rotation[1], rotation[2])
     rootObject.scale.set(scale[0], scale[1], scale[2])
+
+    if (objectState.kind === SCENE_KIND.FLOOR) {
+      applyFloorAppearance(rootObject, objectState.appearance)
+    } else if (objectState.kind === SCENE_KIND.SHAPE) {
+      applyShapeAppearance(rootObject, objectState.appearance)
+    }
 
     runtimeSceneObjects.push(rootObject)
 
