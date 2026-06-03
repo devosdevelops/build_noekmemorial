@@ -297,7 +297,7 @@ const mediaCarouselIndex = ref(0)
 const swipeStartX = ref(0)
 const swipeIsActive = ref(false)
 
-useUiClickSound({
+const { playClickSound } = useUiClickSound({
   containerRef: viewerSpaceRoot
 })
 
@@ -603,6 +603,13 @@ function handleSceneElementSelection(element) {
     }
     closeMediaCarousel()
     return
+  }
+
+  const elementId = typeof element.id === 'string' ? element.id : ''
+  const isGroundPlane = elementId === 'ground' || elementId === 'ground-plane'
+
+  if (!isGroundPlane) {
+    playClickSound()
   }
 
   const worldPosition = Array.isArray(element.worldPosition) ? element.worldPosition : null

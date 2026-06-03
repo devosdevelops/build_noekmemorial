@@ -209,7 +209,7 @@
               title="Kopieer pincode"
               @click="copyWorkspaceSettingsPin"
             >
-              <img src="/icons/Copy Black.svg" alt="" aria-hidden="true" />
+              <img src="/icons/copy.svg" alt="" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -261,7 +261,7 @@ const historyAction = ref({
   sequence: 0
 })
 
-useUiClickSound({
+const { playClickSound } = useUiClickSound({
   containerRef: editorSpaceRoot
 })
 const isBlocksLibraryVisible = ref(false)
@@ -908,6 +908,12 @@ function handleSelectionChanged(selection) {
   }
 
   if (selection.kind === 'shape') {
+    const isGroundPlane = selection.objectId === 'ground' || selection.assetRef === 'ground-plane'
+
+    if (!isGroundPlane) {
+      playClickSound()
+    }
+
     const assetId = typeof selection.assetRef === 'string' ? selection.assetRef : 'square'
 
     selectedAsset.value = {
@@ -951,6 +957,8 @@ function handleSelectionChanged(selection) {
   }
 
   if (selection.kind === 'model') {
+    playClickSound()
+
     const materialTargets = Array.isArray(selection.materialTargets)
       ? selection.materialTargets.filter((target) => {
           return target

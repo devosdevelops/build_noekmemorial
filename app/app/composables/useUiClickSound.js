@@ -3,6 +3,17 @@ import { onBeforeUnmount, onMounted, unref } from 'vue'
 const CLICK_SOUND_URL = '/audio/sound_effects/click.mp3'
 const DEFAULT_CLICK_VOLUME = 0.16
 const MIN_PLAYBACK_INTERVAL_MS = 45
+const CLICKABLE_SELECTOR = [
+  'button',
+  'a[href]',
+  'summary',
+  'input[type="button"]',
+  'input[type="submit"]',
+  'input[type="checkbox"]',
+  'input[type="radio"]',
+  '[role="button"]',
+  '[data-click-sound="true"]'
+].join(',')
 
 let lastPlaybackTime = 0
 let sharedClickAudio = null
@@ -35,6 +46,26 @@ function isEventInsideContainer(event, containerRef) {
   }
 
   return container.contains(event.target)
+}
+
+function getEventTargetElement(event) {
+  const candidate = event?.target
+
+  if (!candidate || typeof candidate.closest !== 'function') {
+    return null
+  }
+
+  return candidate
+}
+
+function isUiControlClick(event) {
+  const target = getEventTargetElement(event)
+
+  if (!target) {
+    return false
+  }
+
+  return Boolean(target.closest(CLICKABLE_SELECTOR))
 }
 
 export function useUiClickSound(options = {}) {
@@ -72,6 +103,10 @@ export function useUiClickSound(options = {}) {
     }
 
     if (!isEventInsideContainer(event, containerRef)) {
+      return
+    }
+
+    if (!isUiControlClick(event)) {
       return
     }
 
