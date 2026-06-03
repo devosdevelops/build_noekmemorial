@@ -101,7 +101,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { SCENE_KIND } from '../../scene/sceneContract.js'
 import AssetConfigurationPanel from '../editor/AssetConfigurationPanel.vue'
 import AudioConfigurationPanel from '../editor/AudioConfigurationPanel.vue'
@@ -202,9 +203,21 @@ const {
   persistenceStatus,
   persistenceError,
   lastSavedSceneId,
+  workspaceId,
   saveSceneDocument,
   loadSceneDocument
 } = useScenePersistence()
+
+const route = useRoute()
+
+onMounted(() => {
+  const workspaceQueryParam = route.query.workspaceId
+  const resolvedWorkspaceId = Array.isArray(workspaceQueryParam)
+    ? workspaceQueryParam[0]
+    : workspaceQueryParam
+
+  workspaceId.value = typeof resolvedWorkspaceId === 'string' ? resolvedWorkspaceId : ''
+})
 
 const blockLabelByType = {
   square: 'Vierkant',
@@ -945,6 +958,11 @@ async function handleSceneDocumentPrepared(payload) {
 }
 
 async function loadSceneIntoEditor() {
+  if (!workspaceId.value || !workspaceId.value.length) {
+    console.warn('Workspace context ontbreekt voor deze editor sessie.')
+    return
+  }
+
   const response = await loadSceneDocument(lastSavedSceneId.value)
 
   if (!response?.ok || !response.scene?.scene_data) {

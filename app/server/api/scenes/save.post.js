@@ -1,5 +1,6 @@
 import { normalizeAndValidateSceneDocument } from '~/scene/sceneValidation.js'
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
+import { requireAuthenticatedAppUser, requireWorkspaceAccess } from '../../utils/workspaceAccess.js'
 
 const SCENES_TABLE = 'app_scenes'
 
@@ -25,6 +26,39 @@ export default defineEventHandler(async (event) => {
   }
 
   const supabase = createSupabaseServerClient()
+  const { actorId, actor } = await requireAuthenticatedAppUser(event, supabase)
+  await requireWorkspaceAccess({
+    supabase,
+    workspaceId,
+    actorId,
+    actorUserType: actor.user_type
+  })
+
+  if (sceneId) {
+    const { data: existingScene, error: existingSceneError } = await supabase
+      .from(SCENES_TABLE)
+      .select('id, workspace_id')
+      .eq('id', sceneId)
+      .maybeSingle()
+
+    if (existingSceneError) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Bestaande scène kon niet worden gecontroleerd.',
+        data: {
+          supabaseError: existingSceneError.message
+        }
+      })
+    }
+
+    if (existingScene && existingScene.workspace_id !== workspaceId) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Deze scène hoort bij een andere werkruimte.'
+      })
+    }
+  }
+
   const now = new Date().toISOString()
 
   const row = {

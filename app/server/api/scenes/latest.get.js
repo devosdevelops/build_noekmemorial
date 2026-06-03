@@ -1,20 +1,36 @@
 import { createSupabaseServerClient } from '../../utils/supabaseServerClient.js'
+import { requireAuthenticatedAppUser, requireWorkspaceAccess } from '../../utils/workspaceAccess.js'
 
 const SCENES_TABLE = 'app_scenes'
 
 export default defineEventHandler(async (event) => {
-  const workspaceId = getQuery(event)?.workspaceId
+  const workspaceId = typeof getQuery(event)?.workspaceId === 'string'
+    ? getQuery(event).workspaceId
+    : ''
+
+  if (!workspaceId.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Werkruimte-ID is verplicht om een scène te laden.'
+    })
+  }
 
   const supabase = createSupabaseServerClient()
+  const { actorId, actor } = await requireAuthenticatedAppUser(event, supabase)
+  await requireWorkspaceAccess({
+    supabase,
+    workspaceId,
+    actorId,
+    actorUserType: actor.user_type
+  })
+
   let query = supabase
     .from(SCENES_TABLE)
     .select('id, workspace_id, name, schema_version, scene_data, created_at, updated_at')
     .order('updated_at', { ascending: false })
     .limit(1)
 
-  if (typeof workspaceId === 'string' && workspaceId.length) {
-    query = query.eq('workspace_id', workspaceId)
-  }
+  query = query.eq('workspace_id', workspaceId)
 
   const { data, error } = await query
 

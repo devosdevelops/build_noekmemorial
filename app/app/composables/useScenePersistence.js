@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { useAuth } from './useAuth'
 
 export function useScenePersistence() {
   const persistenceStatus = ref('idle')
@@ -7,17 +8,38 @@ export function useScenePersistence() {
   const latestLoadedScene = ref(null)
   const workspaceId = ref('')
 
+  async function buildAuthHeaders() {
+    const { init, session } = useAuth()
+    await init()
+
+    const token = session.value?.access_token
+    if (!token) {
+      throw new Error('Je sessie is verlopen. Log opnieuw in om de editor op te slaan.')
+    }
+
+    return {
+      authorization: `Bearer ${token}`
+    }
+  }
+
   async function saveSceneDocument(sceneDocument) {
     persistenceStatus.value = 'saving'
     persistenceError.value = ''
 
     try {
+      if (!workspaceId.value || !workspaceId.value.length) {
+        throw new Error('Werkruimte-ID ontbreekt. Open de editor vanuit een ruimte in je dashboard.')
+      }
+
+      const headers = await buildAuthHeaders()
+
       const response = await $fetch('/api/scenes/save', {
         method: 'POST',
+        headers,
         body: {
           sceneDocument,
           sceneId: lastSavedSceneId.value || null,
-          workspaceId: workspaceId.value || null
+          workspaceId: workspaceId.value
         }
       })
 
@@ -40,15 +62,21 @@ export function useScenePersistence() {
     persistenceError.value = ''
 
     try {
+      if (!workspaceId.value || !workspaceId.value.length) {
+        throw new Error('Werkruimte-ID ontbreekt. Open de editor vanuit een ruimte in je dashboard.')
+      }
+
+      const headers = await buildAuthHeaders()
+
       const endpoint = sceneId && sceneId.length
         ? `/api/scenes/${encodeURIComponent(sceneId)}`
         : '/api/scenes/latest'
 
-      const query = workspaceId.value && workspaceId.value.length
-        ? { workspaceId: workspaceId.value }
-        : undefined
+      const query = sceneId && sceneId.length
+        ? undefined
+        : { workspaceId: workspaceId.value }
 
-      const response = await $fetch(endpoint, { query })
+      const response = await $fetch(endpoint, { headers, query })
       latestLoadedScene.value = response?.scene?.scene_data ?? null
 
       if (typeof response?.scene?.id === 'string') {
