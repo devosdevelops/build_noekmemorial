@@ -27,6 +27,8 @@ defineProps({
 
 <style scoped>
 .alert-toast {
+  display: block;
+  margin: 0.85rem 0;
   border-radius: 16px;
   border: 4px solid #e95038;
   background: #f2dada;
