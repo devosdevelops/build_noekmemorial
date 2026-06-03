@@ -1,11 +1,12 @@
 <template>
   <section class="viewer-space">
-    <div class="viewer-space__canvas" role="img" :aria-label="`Viewer canvas voor ${roomName}`">
-      <div class="viewer-space__canvas-badge">
-        <p>{{ modeLabel }}</p>
-        <p>{{ roomName }}</p>
-      </div>
-    </div>
+    <ViewerSceneViewport
+      v-if="hasEnteredViewer"
+      :active-mode="activeMode"
+      @element-selected="handleSceneElementSelection"
+    />
+
+    <div v-else class="viewer-space__canvas" role="img" :aria-label="`Viewer canvas voor ${roomName}`" />
 
     <ViewerEntryGate
       v-if="!hasEnteredViewer"
@@ -32,7 +33,9 @@
         v-if="!isUiHidden && isPanelOpen"
         :active-panel="activePanel"
         :can-post-media="canPostMedia"
+        :selected-element="selectedElement"
         @close="closePanel"
+        @quick-action="handlePanelQuickAction"
       />
 
       <ViewerBottomDock
@@ -66,6 +69,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import ViewerSceneViewport from '../scene/ViewerSceneViewport.client.vue'
 import ViewerEntryGate from '../viewer/ViewerEntryGate.vue'
 import ViewerTopBar from '../viewer/ViewerTopBar.vue'
 import ViewerBottomDock from '../viewer/ViewerBottomDock.vue'
@@ -74,6 +78,7 @@ import ViewerLeftPanel from '../viewer/ViewerLeftPanel.vue'
 import { useViewerSession } from '../../composables/useViewerSession'
 import { useViewerUiState } from '../../composables/useViewerUiState'
 import { useViewerAuthGate } from '../../composables/useViewerAuthGate'
+import { useViewerInteraction } from '../../composables/useViewerInteraction'
 
 const props = defineProps({
   slug: {
@@ -104,6 +109,7 @@ const {
 } = useViewerUiState()
 
 const { hasEnteredViewer, enterViewer } = useViewerAuthGate()
+const { selectedElement, setSelectedElement, setPointerWorldPosition, clearSelection } = useViewerInteraction()
 
 const roomName = computed(() => {
   if (!props.slug || !props.slug.length) {
@@ -136,12 +142,14 @@ function goToSignup() {
 }
 
 function continueAsAuthenticated() {
+  clearSelection()
   enterViewer()
 }
 
 function continueAsGuest(name) {
   setGuestName(name)
   pendingGuestName.value = name
+  clearSelection()
   enterViewer()
 }
 
@@ -160,6 +168,7 @@ async function handleSignOut() {
   hasEnteredViewer.value = false
   closePanel()
   isGuestNamePromptOpen.value = false
+  clearSelection()
 }
 
 function submitGuestName() {
@@ -172,6 +181,41 @@ function submitGuestName() {
 
   guestNameError.value = ''
   isGuestNamePromptOpen.value = false
+}
+
+function handleSceneElementSelection(element) {
+  if (!element) {
+    clearSelection()
+    if (activePanel.value === 'element') {
+      closePanel()
+    }
+    return
+  }
+
+  const worldPosition = Array.isArray(element.worldPosition) ? element.worldPosition : null
+  setSelectedElement({
+    id: element.id,
+    title: element.title || 'Scene element',
+    description: element.description || ''
+  })
+  setPointerWorldPosition(worldPosition)
+  openPanel('element')
+}
+
+function handlePanelQuickAction(action) {
+  if (action === 'message') {
+    openPanel('message')
+    return
+  }
+
+  if (action === 'candle') {
+    openPanel('candle')
+    return
+  }
+
+  if (action === 'add') {
+    openPanel('add')
+  }
 }
 </script>
 
@@ -191,22 +235,6 @@ function submitGuestName() {
     radial-gradient(circle at 12% 18%, rgba(222, 181, 113, 0.19), transparent 30%),
     radial-gradient(circle at 82% 78%, rgba(163, 177, 138, 0.22), transparent 30%),
     linear-gradient(180deg, #1a2433 0%, #0a1118 65%, #05080d 100%);
-}
-
-.viewer-space__canvas-badge {
-  position: absolute;
-  left: 0.9rem;
-  bottom: 0.85rem;
-  border-radius: 12px;
-  padding: 0.45rem 0.6rem;
-  background: rgba(6, 12, 18, 0.62);
-  border: 1px solid rgba(224, 238, 248, 0.16);
-  color: #dbefff;
-  font-size: 0.76rem;
-}
-
-.viewer-space__canvas-badge p {
-  margin: 0;
 }
 
 .viewer-space__prompt-backdrop {
@@ -270,8 +298,5 @@ function submitGuestName() {
 }
 
 @media (max-width: 700px) {
-  .viewer-space__canvas-badge {
-    display: none;
-  }
 }
 </style>
