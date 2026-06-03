@@ -1,360 +1,438 @@
 <template>
   <DashboardLayout :showSidebar="false" :showBackButton="true" backTo="/dashboard" backLabel="Ga terug">
     <div class="room-details-page">
-      <section class="top-actions">
-        <div class="top-actions-left">
-          <NuxtLink class="action-btn action-btn-primary" to="/editor">
-            <img src="/icons/edit.svg" alt="" class="btn-icon" aria-hidden="true" />
-            Open Ruimte in Editor
-          </NuxtLink>
+      <Card v-if="isLoading" class="details-card room-state-card">
+        <p class="room-state-title">Herdenkingsruimte laden...</p>
+        <p class="room-state-text">Even geduld terwijl we de workspace uit Supabase ophalen.</p>
+      </Card>
 
-          <button class="action-btn-segmented" type="button" @click="isRoomSettingsOpen = true">
+      <Card v-else-if="roomErrorMessage" class="details-card room-state-card">
+        <p class="room-state-title">Kon de herdenkingsruimte niet laden</p>
+        <p class="room-state-text">{{ roomErrorMessage }}</p>
+        <button type="button" class="share-btn room-state-action" @click="refreshRoom">Opnieuw proberen</button>
+      </Card>
+
+      <Card v-else-if="!room" class="details-card room-state-card">
+        <p class="room-state-title">Herdenkingsruimte niet gevonden</p>
+        <p class="room-state-text">Deze ruimte bestaat niet of je hebt er geen toegang toe.</p>
+        <NuxtLink class="share-btn room-state-action room-state-link" to="/dashboard">Terug naar dashboard</NuxtLink>
+      </Card>
+
+      <template v-else>
+        <section class="top-actions">
+          <div class="top-actions-left">
+            <NuxtLink class="action-btn action-btn-primary" :to="`/editor?workspaceId=${room.id}`">
+              <img src="/icons/edit.svg" alt="" class="btn-icon" aria-hidden="true" />
+              Open Ruimte in Editor
+            </NuxtLink>
+
+            <button class="action-btn-segmented" type="button" @click="openRoomSettings">
+              <span class="action-segment-icon" aria-hidden="true">
+                <img src="/icons/settings_white.svg" alt="" class="btn-icon" />
+              </span>
+              <span class="action-segment-text">Instelling van Herdenkingsruimte Aanpassen</span>
+            </button>
+          </div>
+
+          <button class="action-btn-segmented action-btn-url" type="button" @click="copyRoomUrl">
             <span class="action-segment-icon" aria-hidden="true">
-              <img src="/icons/settings_white.svg" alt="" class="btn-icon" />
+              <img src="/icons/copy.svg" alt="" class="btn-icon" />
             </span>
-            <span class="action-segment-text">Instelling van Herdenkingsruimte Aanpassen</span>
+            <span class="action-segment-text">{{ roomUrl }}</span>
           </button>
-        </div>
-
-        <button class="action-btn-segmented action-btn-url" type="button" @click="copyRoomUrl">
-          <span class="action-segment-icon" aria-hidden="true">
-            <img src="/icons/copy.svg" alt="" class="btn-icon" />
-          </span>
-          <span class="action-segment-text">{{ roomUrl }}</span>
-        </button>
-      </section>
-
-      <div class="details-grid">
-        <section class="left-column">
-          <Card class="details-card">
-            <h2 class="card-title">Ruimte Informatie</h2>
-            <div class="info-grid">
-              <div>
-                <p class="label">Naam van ruimte</p>
-                <p class="value">{{ room.title }}</p>
-              </div>
-              <div>
-                <p class="label">Naam overledene</p>
-                <p class="value">{{ room.deceasedName }}</p>
-              </div>
-              <div>
-                <p class="label">Beheerd door</p>
-                <p class="value">{{ room.owner }}</p>
-              </div>
-              <div>
-                <p class="label">Zichtbaarheid</p>
-                <p class="status-chip">Publiek</p>
-              </div>
-            </div>
-            <div class="updated-row">
-              <p class="label">Laatst bewerkt</p>
-              <p class="value">12 oktober 2025 om 14:30 door {{ room.owner }}</p>
-            </div>
-          </Card>
-
-          <Card class="details-card moderation-card">
-            <div class="card-title-row">
-              <h2 class="card-title">Inhoudsmoderatie</h2>
-              <span class="pending-chip">4 wachtend</span>
-            </div>
-
-            <div class="moderation-list">
-              <article v-for="item in moderationItems" :key="item.id" class="moderation-item">
-                <div class="item-left">
-                  <span class="item-icon" :class="`item-icon-${item.type}`">{{ item.icon }}</span>
-                  <div>
-                    <p class="item-name">{{ item.name }}</p>
-                    <p class="item-meta">{{ item.content }}</p>
-                    <p class="item-time">{{ item.time }}</p>
-                  </div>
-                </div>
-                <div class="item-actions">
-                  <button type="button" class="mini-btn mini-btn-ok">✓</button>
-                  <button type="button" class="mini-btn mini-btn-cancel">×</button>
-                </div>
-              </article>
-            </div>
-
-            <div class="approval-settings">
-              <h3>Goedkeuringsinstellingen</h3>
-              <label>
-                <input v-model="approvalMode" type="radio" value="manual" />
-                Handmatige goedkeuring (aanbevolen)
-              </label>
-              <label>
-                <input v-model="approvalMode" type="radio" value="automatic" />
-                Automatische goedkeuring
-              </label>
-            </div>
-          </Card>
         </section>
 
-        <aside class="right-column">
-          <Card class="details-card">
-            <div class="card-title-row">
-              <h2 class="card-title">Samenwerkers</h2>
-              <button type="button" class="link-action" @click="isCollaboratorModalOpen = true">+ Toevoegen</button>
-            </div>
-            <div class="collaborators-list">
-              <div class="collaborator-item" v-for="person in collaborators" :key="person.id">
-                <div class="avatar">{{ person.initials }}</div>
+        <div class="details-grid">
+          <section class="left-column">
+            <Card class="details-card">
+              <h2 class="card-title">Ruimte Informatie</h2>
+              <div class="info-grid">
                 <div>
-                  <p class="item-name">{{ person.name }}</p>
-                  <p class="item-time">{{ person.role }}</p>
+                  <p class="label">Naam van ruimte</p>
+                  <p class="value">{{ room.title }}</p>
+                </div>
+                <div>
+                  <p class="label">Naam overledene</p>
+                  <p class="value">{{ room.deceasedName }}</p>
+                </div>
+                <div>
+                  <p class="label">Beheerd door</p>
+                  <p class="value">{{ room.owner }}</p>
+                </div>
+                <div>
+                  <p class="label">Zichtbaarheid</p>
+                  <p class="status-chip">{{ room.visibilityLabel }}</p>
                 </div>
               </div>
-            </div>
-          </Card>
+              <div class="updated-row">
+                <p class="label">Laatst bewerkt</p>
+                <p class="value">{{ room.updatedAtLabel }} door {{ room.owner }}</p>
+              </div>
+            </Card>
 
-          <Card class="details-card">
-            <h2 class="card-title">Delen & Zichtbaarheid</h2>
-            <div class="visibility-row">
-              <label><input v-model="visibility" type="radio" value="public" /> Publiek</label>
-              <label><input v-model="visibility" type="radio" value="private" /> Afgeschermd</label>
-            </div>
-            <p class="helper-text">
-              Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft.
-              Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
-            </p>
-            <button class="share-btn" type="button" @click="copyRoomUrl">Kopieer link</button>
-            <button class="share-btn" type="button">Stuur via e-mail</button>
-            <div v-if="visibility === 'private'" class="pin-field">
-              <input
-                v-model="roomPinCode"
-                :type="isPinHidden ? 'password' : 'text'"
-                class="pin-input"
-                readonly
-                aria-label="Pincode"
-              />
+            <Card class="details-card moderation-card">
+              <div class="card-title-row">
+                <h2 class="card-title">Inhoudsmoderatie</h2>
+                <span class="pending-chip">0 wachtend</span>
+              </div>
+
+              <p class="empty-message empty-message-compact">Er staan nog geen bijdragen klaar voor moderatie.</p>
+
+              <div class="approval-settings">
+                <h3>Goedkeuringsinstellingen</h3>
+                <label>
+                  <input v-model="approvalMode" type="radio" value="manual" />
+                  Handmatige goedkeuring (aanbevolen)
+                </label>
+                <label>
+                  <input v-model="approvalMode" type="radio" value="automatic" />
+                  Automatische goedkeuring
+                </label>
+              </div>
+            </Card>
+          </section>
+
+          <aside class="right-column">
+            <Card class="details-card">
+              <div class="card-title-row">
+                <h2 class="card-title">Samenwerkers</h2>
+                <button type="button" class="link-action" @click="isCollaboratorModalOpen = true">+ Toevoegen</button>
+              </div>
+
+              <p v-if="collaborators.length === 0" class="empty-message empty-message-compact">
+                Er zijn nog geen samenwerkers toegevoegd.
+              </p>
+
+              <div v-else class="collaborators-list">
+                <div class="collaborator-item" v-for="person in collaborators" :key="person.id">
+                  <div class="avatar">{{ person.initials }}</div>
+                  <div>
+                    <p class="item-name">{{ person.name }}</p>
+                    <p class="item-time">{{ person.role }}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card class="details-card">
+              <h2 class="card-title">Delen & Zichtbaarheid</h2>
+              <div class="visibility-row">
+                <label><input v-model="visibility" type="radio" value="public" /> Publiek</label>
+                <label><input v-model="visibility" type="radio" value="private" /> Afgeschermd</label>
+              </div>
+              <p class="helper-text">
+                Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft.
+                Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken.
+              </p>
+              <button class="share-btn" type="button" @click="copyRoomUrl">Kopieer link</button>
+              <button class="share-btn" type="button">Stuur via e-mail</button>
+              <div v-if="visibility === 'private'" class="pin-field">
+                <input
+                  v-model="roomPinCode"
+                  :type="isPinHidden ? 'password' : 'text'"
+                  class="pin-input"
+                  readonly
+                  aria-label="Pincode"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :aria-label="isPinHidden ? 'Toon pincode' : 'Verberg pincode'"
+                  @click="isPinHidden = !isPinHidden"
+                >
+                  <img :src="isPinHidden ? '/icons/eye_hide.svg' : '/icons/eye.svg'" alt="" aria-hidden="true" />
+                </button>
+              </div>
+              <div class="qr-box" aria-hidden="true">
+                <div class="qr-grid"></div>
+              </div>
+              <button class="download-btn" type="button">Download QR Code</button>
+            </Card>
+
+            <Card class="details-card">
+              <h2 class="card-title">Recente Activiteit</h2>
+              <p class="empty-message empty-message-compact">Er is nog geen recente activiteit beschikbaar.</p>
+            </Card>
+          </aside>
+        </div>
+
+        <div
+          v-if="isCollaboratorModalOpen"
+          class="collaborator-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="collaborator-modal-title"
+          @click.self="closeCollaboratorModal"
+        >
+          <Card class="collaborator-modal-card">
+            <div class="collaborator-modal-header">
+              <h2 id="collaborator-modal-title">Collaborator Toevoegen</h2>
               <button
                 type="button"
-                class="pin-toggle"
-                :aria-label="isPinHidden ? 'Toon pincode' : 'Verberg pincode'"
-                @click="isPinHidden = !isPinHidden"
+                class="collaborator-modal-close"
+                aria-label="Sluiten"
+                @click="closeCollaboratorModal"
               >
-                <img :src="isPinHidden ? '/icons/eye_hide.svg' : '/icons/eye.svg'" alt="" aria-hidden="true" />
+                ×
               </button>
             </div>
-            <div class="qr-box" aria-hidden="true">
-              <div class="qr-grid"></div>
-            </div>
-            <button class="download-btn" type="button">Download QR Code</button>
-          </Card>
 
-          <Card class="details-card">
-            <h2 class="card-title">Recente Activiteit</h2>
-            <div class="activity-list">
-              <article v-for="item in recentActivityItems" :key="item.id" class="activity-item">
-                <span class="activity-icon" :class="`activity-icon--${item.variant}`" aria-hidden="true"></span>
-                <div class="activity-copy">
-                  <p class="activity-title">{{ item.title }}</p>
-                  <p class="activity-time">{{ item.time }}</p>
-                </div>
-              </article>
+            <div class="collaborator-modal-field">
+              <label for="collaborator-email">E-mail</label>
+              <input
+                id="collaborator-email"
+                v-model="collaboratorEmail"
+                type="email"
+                class="collaborator-modal-input"
+                placeholder="naam@mail.com"
+              />
             </div>
-          </Card>
-        </aside>
-      </div>
 
-      <div
-        v-if="isCollaboratorModalOpen"
-        class="collaborator-modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="collaborator-modal-title"
-        @click.self="closeCollaboratorModal"
-      >
-        <Card class="collaborator-modal-card">
-          <div class="collaborator-modal-header">
-            <h2 id="collaborator-modal-title">Collaborator Toevoegen</h2>
-            <button
-              type="button"
-              class="collaborator-modal-close"
-              aria-label="Sluiten"
-              @click="closeCollaboratorModal"
-            >
-              ×
+            <button type="button" class="collaborator-modal-submit" @click="sendCollaboratorInvite">
+              Verzend Uitnodiging
             </button>
-          </div>
+          </Card>
+        </div>
 
-          <div class="collaborator-modal-field">
-            <label for="collaborator-email">E-mail</label>
-            <input
-              id="collaborator-email"
-              v-model="collaboratorEmail"
-              type="email"
-              class="collaborator-modal-input"
-              placeholder="naam@mail.com"
-            />
-          </div>
+        <div
+          v-if="isRoomSettingsOpen"
+          class="room-settings-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="room-settings-title"
+          @click.self="closeRoomSettings"
+        >
+          <Card class="room-settings-card">
+            <div class="room-settings-header">
+              <h2 id="room-settings-title">Ruimte Instellingen</h2>
+              <button
+                type="button"
+                class="room-settings-close"
+                aria-label="Sluiten"
+                @click="closeRoomSettings"
+              >
+                ×
+              </button>
+            </div>
 
-          <button type="button" class="collaborator-modal-submit" @click="sendCollaboratorInvite">
-            Verzend Uitnodiging
-          </button>
-        </Card>
-      </div>
+            <div class="room-settings-field">
+              <label for="room-settings-name">Naam van Ruimte</label>
+              <input id="room-settings-name" v-model="roomSettingsName" type="text" class="room-settings-input" />
+            </div>
 
-      <div
-        v-if="isRoomSettingsOpen"
-        class="room-settings-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="room-settings-title"
-        @click.self="closeRoomSettings"
-      >
-        <Card class="room-settings-card">
-          <div class="room-settings-header">
-            <h2 id="room-settings-title">Ruimte Intellingen</h2>
-            <button
-              type="button"
-              class="room-settings-close"
-              aria-label="Sluiten"
-              @click="closeRoomSettings"
-            >
-              ×
+            <div class="room-settings-field">
+              <label>Naam Overledene</label>
+              <div class="room-settings-name-row">
+                <input v-model="roomSettingsFirstName" type="text" class="room-settings-input" />
+                <input v-model="roomSettingsLastName" type="text" class="room-settings-input" />
+              </div>
+            </div>
+
+            <div class="room-settings-field">
+              <label class="room-settings-section-title">Zichtbaarheids Instellingen</label>
+              <div class="room-settings-radio-row">
+                <label class="room-settings-radio-item">
+                  <input v-model="roomSettingsVisibility" type="radio" value="public" />
+                  <span>Publiek</span>
+                </label>
+                <label class="room-settings-radio-item">
+                  <input v-model="roomSettingsVisibility" type="radio" value="private" />
+                  <span>Afgeschermd</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="room-settings-field">
+              <label class="room-settings-section-title">Bijdrage goedkeuringsinstellingen</label>
+              <div class="room-settings-radio-stack">
+                <label class="room-settings-radio-item">
+                  <input v-model="roomSettingsApprovalMode" type="radio" value="manual" />
+                  <span>Handmatige goedkeuring (aanbevolen)</span>
+                </label>
+                <label class="room-settings-radio-item">
+                  <input v-model="roomSettingsApprovalMode" type="radio" value="automatic" />
+                  <span>Automatische goedkeuring</span>
+                </label>
+              </div>
+            </div>
+
+            <p v-if="saveError" class="helper-text">{{ saveError }}</p>
+
+            <button type="button" class="room-settings-save" :disabled="isSavingRoomSettings" @click="saveRoomSettings">
+              {{ isSavingRoomSettings ? 'Bezig...' : 'Veranderingen Opslaan' }}
             </button>
-          </div>
-
-          <div class="room-settings-field">
-            <label for="room-settings-name">Naam van Ruimte</label>
-            <input
-              id="room-settings-name"
-              v-model="roomSettingsName"
-              type="text"
-              class="room-settings-input"
-            />
-          </div>
-
-          <div class="room-settings-field">
-            <label>Naam Overledene</label>
-            <div class="room-settings-name-row">
-              <input v-model="roomSettingsFirstName" type="text" class="room-settings-input" />
-              <input v-model="roomSettingsLastName" type="text" class="room-settings-input" />
-            </div>
-          </div>
-
-          <div class="room-settings-field">
-            <label class="room-settings-section-title">Zichtbaarheids Instellingen</label>
-            <div class="room-settings-radio-row">
-              <label class="room-settings-radio-item">
-                <input v-model="roomSettingsVisibility" type="radio" value="public" />
-                <span>Publiek</span>
-              </label>
-              <label class="room-settings-radio-item">
-                <input v-model="roomSettingsVisibility" type="radio" value="private" />
-                <span>Afgeschermd</span>
-              </label>
-            </div>
-            <p class="room-settings-help-text">
-              Als hij publiek is, kan iedereen de herdenkingsruimte bezoeken die de link heeft. Als hij afgeschermd is, kunnen enkel mensen met de pincode of speciale QR code hem bezoeken
-            </p>
-          </div>
-
-          <div class="room-settings-field">
-            <label class="room-settings-section-title">Bijdrage goedkeuringsinstellingen</label>
-            <div class="room-settings-radio-stack">
-              <label class="room-settings-radio-item">
-                <input v-model="roomSettingsApprovalMode" type="radio" value="manual" />
-                <span>Handmatige goedkeuring (aanbevolen)</span>
-              </label>
-              <label class="room-settings-radio-item">
-                <input v-model="roomSettingsApprovalMode" type="radio" value="automatic" />
-                <span>Automatische goedkeuring</span>
-              </label>
-            </div>
-          </div>
-
-          <button type="button" class="room-settings-save" @click="saveRoomSettings">
-            Veranderingen Opslaan
-          </button>
-        </Card>
-      </div>
-
-      <transition name="copy-toast">
-        <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
-          <span class="copy-toast-icon" aria-hidden="true">✓</span>
-          <span>Link gekopieerd naar klipbord</span>
+          </Card>
         </div>
-      </transition>
 
-      <transition name="save-toast">
-        <div v-if="isSaveToastVisible" class="save-toast" role="status" aria-live="polite">
-          <span class="save-toast-icon" aria-hidden="true">✓</span>
-          <span>Veranderingen opgeslagen</span>
-        </div>
-      </transition>
+        <transition name="copy-toast">
+          <div v-if="isCopyToastVisible" class="copy-toast" role="status" aria-live="polite">
+            <span class="copy-toast-icon" aria-hidden="true">✓</span>
+            <span>Link gekopieerd naar klipbord</span>
+          </div>
+        </transition>
+
+        <transition name="save-toast">
+          <div v-if="isSaveToastVisible" class="save-toast" role="status" aria-live="polite">
+            <span class="save-toast-icon" aria-hidden="true">✓</span>
+            <span>Veranderingen opgeslagen</span>
+          </div>
+        </transition>
+      </template>
     </div>
   </DashboardLayout>
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import DashboardLayout from '../../../components/dashboard/DashboardLayout.vue'
 import Card from '../../../components/ui/Card.vue'
+import { useAuth } from '../../../composables/useAuth'
 
 definePageMeta({
-  layout: false
+  layout: false,
+  middleware: ['auth']
 })
 
 const route = useRoute()
+const { init } = useAuth()
 
-const roomMap = {
-  'room-1': {
-    title: 'In liefdevolle herinnering aan Maria de Vries',
-    deceasedName: 'Maria de Vries',
-    owner: 'Jan Jansen',
-    slug: 'jane-doe-herdenking.noek.be'
+const workspaceId = computed(() => {
+  const value = route.params.id
+  return Array.isArray(value) ? value[0] : value
+})
+
+const {
+  data: roomResponse,
+  pending: isLoading,
+  error: roomError,
+  refresh: refreshRoom
+} = await useAsyncData(
+  () => `workspace-detail-${workspaceId.value || 'missing'}`,
+  async () => {
+    if (!workspaceId.value) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Werkruimte-ID ontbreekt.'
+      })
+    }
+
+    return await $fetch(`/api/workspaces/${workspaceId.value}`)
   },
-  'room-2': {
-    title: 'In liefdevolle herinnering aan Johannes Bakker',
-    deceasedName: 'Johannes Bakker',
-    owner: 'Jan Jansen',
-    slug: 'johannes-bakker-herdenking.noek.be'
+  {
+    watch: [workspaceId]
   }
+)
+
+await init()
+
+const roomErrorMessage = computed(() => {
+  const error = roomError.value
+
+  if (!error) return ''
+  if (error?.statusCode === 404 || error?.status === 404) {
+    return 'Deze herdenkingsruimte kon niet worden gevonden.'
+  }
+
+  return error?.data?.statusMessage || error?.statusMessage || error?.message || 'De herdenkingsruimte kon niet worden geladen.'
+})
+
+const workspace = computed(() => roomResponse.value?.workspace ?? null)
+const owner = computed(() => roomResponse.value?.owner ?? null)
+
+function formatDisplayName(firstName, lastName, fallback = 'Onbekend') {
+  return [firstName, lastName].filter(Boolean).join(' ').trim() || fallback
 }
 
-const room = computed(() => roomMap[route.params.id] || roomMap['room-1'])
-const roomUrl = computed(() => `https://${room.value.slug}`)
+function formatDateTime(dateValue) {
+  if (!dateValue) return 'Onbekend'
+
+  return new Intl.DateTimeFormat('nl-NL', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(dateValue))
+}
+
+const room = computed(() => {
+  if (!workspace.value) return null
+
+  const deceasedName = formatDisplayName(
+    workspace.value.deceased_first_name,
+    workspace.value.deceased_last_name,
+    workspace.value.name
+  )
+
+  return {
+    id: workspace.value.id,
+    title: workspace.value.name || `In liefdevolle herinnering aan ${deceasedName}`,
+    deceasedName,
+    owner: formatDisplayName(owner.value?.first_name, owner.value?.last_name, owner.value?.email),
+    slug: workspace.value.slug,
+    visibility: workspace.value.visibility,
+    visibilityLabel: workspace.value.visibility === 'private' ? 'Afgeschermd' : 'Publiek',
+    approvalMode: workspace.value.approval_mode,
+    accessPin: workspace.value.access_pin,
+    updatedAtLabel: formatDateTime(workspace.value.updated_at)
+  }
+})
+
+const roomUrl = computed(() => (room.value?.slug ? `https://${room.value.slug}` : '—'))
+const collaborators = computed(() => roomResponse.value?.collaborators ?? [])
 
 const visibility = ref('public')
 const approvalMode = ref('manual')
 const isRoomSettingsOpen = ref(false)
-const roomSettingsName = ref(room.value.title)
-const roomSettingsFirstName = ref(room.value.deceasedName.split(' ')[0] || '')
-const roomSettingsLastName = ref(room.value.deceasedName.split(' ').slice(1).join(' ') || '')
+const roomSettingsName = ref('')
+const roomSettingsFirstName = ref('')
+const roomSettingsLastName = ref('')
 const roomSettingsVisibility = ref('public')
 const roomSettingsApprovalMode = ref('manual')
-const roomPinCode = ref('8391')
+const roomPinCode = ref('')
 const isPinHidden = ref(true)
 const isCollaboratorModalOpen = ref(false)
 const collaboratorEmail = ref('')
 const isCopyToastVisible = ref(false)
 const isSaveToastVisible = ref(false)
+const isSavingRoomSettings = ref(false)
+const saveError = ref('')
 
 let copyToastTimer = null
 let saveToastTimer = null
 
-const collaborators = ref([
-  { id: 1, initials: 'J', name: 'Jan Jansen', role: 'Eigenaar' },
-  { id: 2, initials: 'S', name: 'Sophie de Boer', role: 'Beheerder' }
-])
+watch(
+  room,
+  (nextRoom) => {
+    if (!nextRoom) return
 
-const moderationItems = ref([
-  { id: 1, name: 'Anna Bakker', content: 'Condoleance bericht', time: '2 uur geleden', type: 'message', icon: '💬' },
-  { id: 2, name: 'Pieter de Vries', content: 'Foto toegevoegd', time: '5 uur geleden', type: 'photo', icon: '🖼' },
-  { id: 3, name: 'Lotte Veenstra', content: 'Geluidspost toegevoegd', time: '1 dag geleden', type: 'audio', icon: '♪' },
-  { id: 4, name: 'Daan Meijer', content: 'Video herinnering', time: '2 dagen geleden', type: 'video', icon: '▶' }
-])
+    visibility.value = nextRoom.visibility
+    approvalMode.value = nextRoom.approvalMode
+    roomSettingsName.value = workspace.value?.name || nextRoom.title
+    roomSettingsFirstName.value = workspace.value?.deceased_first_name || ''
+    roomSettingsLastName.value = workspace.value?.deceased_last_name || ''
+    roomSettingsVisibility.value = nextRoom.visibility
+    roomSettingsApprovalMode.value = nextRoom.approvalMode
+    roomPinCode.value = nextRoom.accessPin || ''
+  },
+  { immediate: true }
+)
 
-const recentActivityItems = ref([
-  { id: 1, title: 'Anna liet een bericht achter', time: '2 uur geleden', variant: 'message' },
-  { id: 2, title: '12 mensen brandden een kaarsje', time: 'Afgelopen maand', variant: 'candle' },
-  { id: 3, title: '45 mensen reageerden', time: 'Afgelopen maand', variant: 'heart' }
-])
+function openRoomSettings() {
+  if (!room.value) return
+
+  roomSettingsName.value = workspace.value?.name || room.value.title
+  roomSettingsFirstName.value = workspace.value?.deceased_first_name || ''
+  roomSettingsLastName.value = workspace.value?.deceased_last_name || ''
+  roomSettingsVisibility.value = visibility.value
+  roomSettingsApprovalMode.value = approvalMode.value
+  saveError.value = ''
+  isRoomSettingsOpen.value = true
+}
 
 function copyRoomUrl() {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && roomUrl.value && roomUrl.value !== '—') {
     navigator.clipboard.writeText(roomUrl.value)
     triggerCopyToast()
   }
@@ -389,9 +467,32 @@ function sendCollaboratorInvite() {
   collaboratorEmail.value = ''
 }
 
-function saveRoomSettings() {
-  closeRoomSettings()
-  triggerSaveToast()
+async function saveRoomSettings() {
+  if (!workspaceId.value) return
+
+  saveError.value = ''
+  isSavingRoomSettings.value = true
+
+  try {
+    const response = await $fetch(`/api/workspaces/${workspaceId.value}`, {
+      method: 'PUT',
+      body: {
+        name: roomSettingsName.value.trim(),
+        deceasedFirstName: roomSettingsFirstName.value.trim(),
+        deceasedLastName: roomSettingsLastName.value.trim(),
+        visibility: roomSettingsVisibility.value,
+        approvalMode: roomSettingsApprovalMode.value
+      }
+    })
+
+    roomResponse.value = response
+    closeRoomSettings()
+    triggerSaveToast()
+  } catch (error) {
+    saveError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Opslaan van de herdenkingsruimte is mislukt.'
+  } finally {
+    isSavingRoomSettings.value = false
+  }
 }
 
 function triggerSaveToast() {
@@ -524,6 +625,37 @@ onUnmounted(() => {
 
 .details-card {
   padding: 0.85rem;
+}
+
+.room-state-card {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.room-state-title {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2433;
+}
+
+.room-state-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #5c657b;
+}
+
+.room-state-action {
+  margin-top: 0.8rem;
+  margin-bottom: 0;
+}
+
+.room-state-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-title {
@@ -746,6 +878,16 @@ onUnmounted(() => {
   font-size: 0.75rem;
   line-height: 1.35;
   color: #5c657b;
+}
+
+.empty-message {
+  margin: 0;
+  color: #5c657b;
+}
+
+.empty-message-compact {
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .share-btn {
