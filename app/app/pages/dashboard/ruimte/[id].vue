@@ -188,8 +188,20 @@
               />
             </div>
 
-            <button type="button" class="collaborator-modal-submit" @click="sendCollaboratorInvite">
-              Verzend Uitnodiging
+            <p v-if="collaboratorError" class="helper-text collaborator-feedback collaborator-feedback-error">
+              {{ collaboratorError }}
+            </p>
+            <p v-if="collaboratorSuccess" class="helper-text collaborator-feedback collaborator-feedback-success">
+              {{ collaboratorSuccess }}
+            </p>
+
+            <button
+              type="button"
+              class="collaborator-modal-submit"
+              :disabled="isInvitingCollaborator"
+              @click="sendCollaboratorInvite"
+            >
+              {{ isInvitingCollaborator ? 'Bezig...' : 'Verzend Uitnodiging' }}
             </button>
           </Card>
         </div>
@@ -277,6 +289,13 @@
             <span>Veranderingen opgeslagen</span>
           </div>
         </transition>
+
+        <transition name="invite-toast">
+          <div v-if="isInviteToastVisible" class="invite-toast" role="status" aria-live="polite">
+            <span class="invite-toast-icon" aria-hidden="true">!</span>
+            <span>{{ inviteToastMessage }}</span>
+          </div>
+        </transition>
       </template>
     </div>
   </DashboardLayout>
@@ -295,7 +314,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { init } = useAuth()
+const { init, session } = useAuth()
 
 const workspaceId = computed(() => {
   const value = route.params.id
@@ -394,6 +413,11 @@ const roomPinCode = ref('')
 const isPinHidden = ref(true)
 const isCollaboratorModalOpen = ref(false)
 const collaboratorEmail = ref('')
+const collaboratorError = ref('')
+const collaboratorSuccess = ref('')
+const isInvitingCollaborator = ref(false)
+const isInviteToastVisible = ref(false)
+const inviteToastMessage = ref('')
 const isCopyToastVisible = ref(false)
 const isSaveToastVisible = ref(false)
 const isSavingRoomSettings = ref(false)
@@ -401,6 +425,7 @@ const saveError = ref('')
 
 let copyToastTimer = null
 let saveToastTimer = null
+let inviteToastTimer = null
 
 watch(
   room,
@@ -452,19 +477,75 @@ function triggerCopyToast() {
 
 function closeCollaboratorModal() {
   isCollaboratorModalOpen.value = false
+  collaboratorError.value = ''
+  collaboratorSuccess.value = ''
+}
+
+function triggerInviteWarningToast(message) {
+  inviteToastMessage.value = message
+
+  if (inviteToastTimer) {
+    clearTimeout(inviteToastTimer)
+  }
+
+  isInviteToastVisible.value = true
+  inviteToastTimer = setTimeout(() => {
+    isInviteToastVisible.value = false
+    inviteToastTimer = null
+  }, 3000)
 }
 
 function closeRoomSettings() {
   isRoomSettingsOpen.value = false
 }
 
-function sendCollaboratorInvite() {
-  if (!collaboratorEmail.value.trim()) {
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+async function sendCollaboratorInvite() {
+  collaboratorError.value = ''
+  collaboratorSuccess.value = ''
+
+  const email = collaboratorEmail.value.trim().toLowerCase()
+  if (!email) {
+    collaboratorError.value = 'Geef een e-mailadres op.'
     return
   }
 
-  closeCollaboratorModal()
-  collaboratorEmail.value = ''
+  if (!isValidEmail(email)) {
+    collaboratorError.value = 'Geef een geldig e-mailadres op.'
+    return
+  }
+
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    collaboratorError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
+  isInvitingCollaborator.value = true
+
+  try {
+    await $fetch(`/api/workspaces/${workspaceId.value}/invite`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      },
+      body: {
+        email
+      }
+    })
+
+    collaboratorSuccess.value = 'Uitnodiging verstuurd en collaborator toegevoegd.'
+    collaboratorEmail.value = ''
+    await refreshRoom()
+  } catch (error) {
+    collaboratorError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Uitnodiging versturen is mislukt.'
+    triggerInviteWarningToast(collaboratorError.value)
+  } finally {
+    isInvitingCollaborator.value = false
+  }
 }
 
 async function saveRoomSettings() {
@@ -514,6 +595,10 @@ onUnmounted(() => {
 
   if (saveToastTimer) {
     clearTimeout(saveToastTimer)
+  }
+
+  if (inviteToastTimer) {
+    clearTimeout(inviteToastTimer)
   }
 })
 </script>
@@ -1114,6 +1199,18 @@ onUnmounted(() => {
   margin-bottom: 1.1rem;
 }
 
+.collaborator-feedback {
+  margin-bottom: 0.8rem;
+}
+
+.collaborator-feedback-error {
+  color: #b53d2c;
+}
+
+.collaborator-feedback-success {
+  color: #3f7b2d;
+}
+
 .collaborator-modal-field label {
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -1150,6 +1247,11 @@ onUnmounted(() => {
   justify-content: center;
   gap: 0.45rem;
   cursor: pointer;
+}
+
+.collaborator-modal-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .copy-toast {
@@ -1222,6 +1324,50 @@ onUnmounted(() => {
 
 .save-toast-enter-from,
 .save-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+}
+
+.invite-toast {
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 84px);
+  transform: translate(-50%, -50%);
+  min-width: min(88vw, 650px);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(180deg, #f4bf57 0%, #d79a2f 100%);
+  color: #3b2b0d;
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  z-index: 261;
+  box-shadow: 0 16px 28px rgba(119, 84, 20, 0.28);
+}
+
+.invite-toast-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: rgba(59, 43, 13, 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.invite-toast-enter-active,
+.invite-toast-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.invite-toast-enter-from,
+.invite-toast-leave-to {
   opacity: 0;
   transform: translate(-50%, calc(-50% + 8px));
 }
