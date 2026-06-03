@@ -115,7 +115,7 @@ export default defineEventHandler(async (event) => {
       access_pin: nextAccessPin
     })
     .eq('id', workspaceId)
-    .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, created_at, updated_at')
+    .select('id, name, slug, owner_id, deceased_first_name, deceased_last_name, visibility, approval_mode, access_pin, published_at, created_at, updated_at')
     .single()
 
   if (updateError || !updatedWorkspace) {
