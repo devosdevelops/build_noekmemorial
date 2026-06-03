@@ -1,5 +1,7 @@
 # TODO
 
+[] split codebase into the 3 products
+
 ## Editor
 
 [x] delete object
@@ -30,8 +32,8 @@
 [x] add lighting options
 [x] hide grid 
 [x] add animation to anything that opens or closes
-[] generate SQL files
-[] add other tables to supabase
+[x] generate SQL files
+[x] add other tables to supabase
 [] connect editors to accounts
 [] load screen when loading page
 [] dashboard integration
@@ -39,14 +41,30 @@
 [] add special pinboard and candle objects
 [] add templates
 
+## Viewer
+
+[] fly through scene
+[] add photos
+[] add videos
+[] burn candle
+[] leave message
+[] toggle music
+[] leave voice message
+[] hide ui
+[] pin protection
+
 ## Dashboard
 
+[] create account
+[] activate workspace
 [] start room
 [] manage rooms
 [] manage collaborators
-[] 
+[] memorial settings
 
+### CMS
 
+[] edit branding
 
 ## Fixes
 
