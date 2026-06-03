@@ -240,12 +240,15 @@ function handleTextureScaleInput(event) {
 <style scoped>
 .asset-config-panel {
   top: 50%;
-  right: 1.5rem;
+  right: 0;
   transform: translateY(-50%);
   z-index: 3;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0;
-  border-radius: 0.9rem;
+  border-top-left-radius: 0.9rem;
+  border-bottom-left-radius: 0.9rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -259,7 +262,10 @@ function handleTextureScaleInput(event) {
   gap: 0.7rem;
   padding: 0.88rem 0.9rem 0.7rem;
   background: rgba(244, 247, 240, 0.96);
-  border-radius: 0.9rem;
+  border-top-left-radius: 0.9rem;
+  border-bottom-left-radius: 0.9rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .panel-title {
@@ -311,7 +317,7 @@ function handleTextureScaleInput(event) {
 }
 
 .material-tab:last-child {
-  border-top-right-radius: 0.9rem;
+  border-top-right-radius: 0;
 }
 
 .material-panel {
@@ -320,7 +326,7 @@ function handleTextureScaleInput(event) {
   padding: 0.78rem 0.78rem 0.72rem;
   background: #c2c6d8;
   border-bottom-left-radius: 0.9rem;
-  border-bottom-right-radius: 0.9rem;
+  border-bottom-right-radius: 0;
 }
 
 .material-panel--color {

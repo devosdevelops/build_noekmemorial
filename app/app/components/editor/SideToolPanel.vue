@@ -33,14 +33,17 @@ function handleToolClick(toolId) {
 <style scoped>
 .left-panel {
   top: 28%;
-  left: 1.5rem;
+  left: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
   width: 10.2rem;
   padding: 0.95rem;
-  border-radius: 0.9rem;
+  border-top-right-radius: 0.9rem;
+  border-bottom-right-radius: 0.9rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .tool-button {

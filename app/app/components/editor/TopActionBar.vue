@@ -91,12 +91,15 @@ const statusClass = computed(() => {
 <style scoped>
 .top-actions {
   top: 1.5rem;
-  right: 1.5rem;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0.5rem;
-  border-radius: 0.8rem;
+  border-top-left-radius: 0.8rem;
+  border-bottom-left-radius: 0.8rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .top-actions__status {

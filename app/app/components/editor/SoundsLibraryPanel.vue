@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .sounds-library {
   top: 28%;
-  left: calc(1.5rem + 10.2rem + 16px);
+  left: calc(1.5rem + 10.2rem + 8px);
   z-index: 3;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.9rem;

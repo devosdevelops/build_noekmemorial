@@ -913,6 +913,8 @@ function handleSceneRuntimeChanged() {
   overflow: hidden;
   background: radial-gradient(circle at 20% 10%, #f4f5f2 0%, #e8ece5 45%, #dbe4d7 100%);
   font-family: 'Nunito Sans', sans-serif;
+  --editor-edge-gutter: 0;
+  --editor-panel-gap: 1rem;
 }
 
 .scene-layer {

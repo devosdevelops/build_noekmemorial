@@ -3,8 +3,12 @@
 [x] delete object
 [x] recolor object
 [] refactor ui to match figma design
-    [] refactor ui to stick to sides
+    [x] refactor ui to stick to sides
     [x] reposition config ui to center
+    [] add logo
+    [] add icons
+    [] add hinting for toolbar
+    [] replace close buttons with x's
 [] add other tables to supabase
 [] connect editors to accounts
 [] load screen when loading page
@@ -28,9 +32,8 @@
 [x] add lighting options
 [x] hide grid 
 [] add special pinboard and candle objects
-[] add all tool icons 
-    [] add hinting for toolbar
 [] add templates
+
 
 ## Fixes
 
@@ -46,6 +49,7 @@
     [x] intermediate sizes
     [x] rect object
 [] click a selected object to deselect it
+[] configure underfloor in settings instead
 [] color textures better
 [] round the scroll bar containers
 

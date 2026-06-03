@@ -162,12 +162,15 @@ watch(
 <style scoped>
 .audio-config-panel {
   top: 50%;
-  right: 1.5rem;
+  right: 0;
   transform: translateY(-50%);
   z-index: 3;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0;
-  border-radius: 0.9rem;
+  border-top-left-radius: 0.9rem;
+  border-bottom-left-radius: 0.9rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -181,7 +184,10 @@ watch(
   gap: 0.7rem;
   padding: 0.88rem 0.9rem 0.7rem;
   background: rgba(244, 247, 240, 0.96);
-  border-radius: 0.9rem;
+  border-top-left-radius: 0.9rem;
+  border-bottom-left-radius: 0.9rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .panel-title {
@@ -201,7 +207,10 @@ watch(
   margin-top: 0.5rem;
   padding: 0.86rem;
   background: #c2c6d8;
-  border-radius: 0.9rem;
+  border-top-left-radius: 0.9rem;
+  border-bottom-left-radius: 0.9rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   display: grid;
   gap: 0.56rem;
 }

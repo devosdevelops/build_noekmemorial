@@ -15,12 +15,15 @@ import OverlayCard from '../ui/OverlayCard.vue'
 <style scoped>
 .brand-card {
   top: 1.5rem;
-  left: 1.5rem;
+  left: 0;
   display: flex;
   align-items: center;
   gap: 0.85rem;
   padding: 0.7rem 1rem;
-  border-radius: 0.9rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 0.9rem;
+  border-bottom-right-radius: 0.9rem;
 }
 
 .brand-mark {
