@@ -82,8 +82,18 @@
             </ul>
           </div>
 
-          <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
-          <p v-if="submitError" class="error-text">{{ submitError }}</p>
+          <AlertToast
+            v-if="passwordError"
+            type="warning"
+            title="Controleer je wachtwoord"
+            :message="passwordError"
+          />
+          <AlertToast
+            v-if="submitError"
+            type="error"
+            title="Account aanmaken mislukt"
+            :message="submitError"
+          />
 
           <button type="submit" class="auth-primary-button" :disabled="!canSubmit || isSubmitting">
             {{ isSubmitting ? 'Bezig...' : 'Account aanmaken' }}
@@ -102,6 +112,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import Card from '../../components/ui/Card.vue'
+import AlertToast from '../../components/ui/AlertToast.vue'
 import { useAuth } from '../../composables/useAuth'
 
 definePageMeta({
@@ -194,7 +205,8 @@ async function submitSignup() {
       return
     }
 
-    router.push(`/auth/login?registered=1&redirect=${encodeURIComponent(redirect)}`)
+    const encodedEmail = encodeURIComponent(email.value.trim())
+    router.push(`/auth/verify-email?email=${encodedEmail}&redirect=${encodeURIComponent(redirect)}`)
   } catch (err) {
     submitError.value = err.message || 'Er is een fout opgetreden. Probeer opnieuw.'
   } finally {
@@ -375,12 +387,6 @@ async function submitSignup() {
 
 .rule-box li.ok {
   color: #4e7f31;
-}
-
-.error-text {
-  margin: -0.2rem 0 0;
-  font-size: 0.84rem;
-  color: #b63e2e;
 }
 
 .auth-primary-button {
