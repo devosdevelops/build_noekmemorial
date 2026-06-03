@@ -83,8 +83,11 @@
           </div>
 
           <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
+          <p v-if="submitError" class="error-text">{{ submitError }}</p>
 
-          <button type="submit" class="auth-primary-button" :disabled="!canSubmit">Account aanmaken</button>
+          <button type="submit" class="auth-primary-button" :disabled="!canSubmit || isSubmitting">
+            {{ isSubmitting ? 'Bezig...' : 'Account aanmaken' }}
+          </button>
         </form>
 
         <p class="auth-footnote">
@@ -99,10 +102,14 @@
 <script setup>
 import { computed, ref } from 'vue'
 import Card from '../../components/ui/Card.vue'
+import { useAuth } from '../../composables/useAuth'
 
 definePageMeta({
   layout: false
 })
+
+const { signUp } = useAuth()
+const router = useRouter()
 
 const firstName = ref('')
 const lastName = ref('')
@@ -111,6 +118,8 @@ const password = ref('')
 const repeatPassword = ref('')
 const isPasswordVisible = ref(false)
 const isRepeatPasswordVisible = ref(false)
+const submitError = ref('')
+const isSubmitting = ref(false)
 
 const passwordRules = computed(() => {
   const value = password.value
@@ -165,8 +174,22 @@ const passwordError = computed(() => {
   return ''
 })
 
-function submitSignup() {
-  // UI-only screen for now.
+async function submitSignup() {
+  submitError.value = ''
+  isSubmitting.value = true
+  try {
+    await signUp({
+      email: email.value.trim(),
+      password: password.value,
+      firstName: firstName.value.trim(),
+      lastName: lastName.value.trim()
+    })
+    router.push('/dashboard')
+  } catch (err) {
+    submitError.value = err.message || 'Er is een fout opgetreden. Probeer opnieuw.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
