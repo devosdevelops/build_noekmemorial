@@ -94,16 +94,18 @@
               <span>Handmatige goedkeuring (aanbevolen)</span>
             </label>
             <label class="radio-item">
-              <input v-model="approvalMode" type="radio" value="auto" />
+              <input v-model="approvalMode" type="radio" value="automatic" />
               <span>Automatische goedkeuring</span>
             </label>
           </div>
         </Card>
 
-        <button class="create-room-button" type="button">
+        <button class="create-room-button" type="button" :disabled="isSubmitting" @click="createRoom">
           <span class="btn-icon">+</span>
-          Maak Ruimte Aan
+          {{ isSubmitting ? 'Ruimte wordt aangemaakt...' : 'Maak Ruimte Aan' }}
         </button>
+
+        <p v-if="submitError" class="submit-error">{{ submitError }}</p>
       </aside>
     </div>
   </DashboardLayout>
@@ -113,10 +115,14 @@
 import { ref } from 'vue'
 import DashboardLayout from '../../components/dashboard/DashboardLayout.vue'
 import Card from '../../components/ui/Card.vue'
+import { useAuth } from '../../composables/useAuth'
 
 definePageMeta({
-  layout: false
+  layout: false,
+  middleware: ['auth']
 })
+
+const { init, session } = useAuth()
 
 const selectedTemplate = ref('empty')
 const roomName = ref('')
@@ -124,6 +130,56 @@ const firstName = ref('')
 const lastName = ref('')
 const visibility = ref('public')
 const approvalMode = ref('manual')
+const isSubmitting = ref(false)
+const submitError = ref('')
+
+await init()
+
+async function createRoom() {
+  submitError.value = ''
+
+  const trimmedRoomName = roomName.value.trim()
+  if (!trimmedRoomName) {
+    submitError.value = 'Geef een naam op voor je ruimte.'
+    return
+  }
+
+  const accessToken = session.value?.access_token
+  if (!accessToken) {
+    submitError.value = 'Je sessie is verlopen. Log opnieuw in.'
+    return
+  }
+
+  isSubmitting.value = true
+
+  try {
+    const response = await $fetch('/api/workspaces', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      },
+      body: {
+        name: trimmedRoomName,
+        deceasedFirstName: firstName.value.trim(),
+        deceasedLastName: lastName.value.trim(),
+        visibility: visibility.value,
+        approvalMode: approvalMode.value,
+        template: selectedTemplate.value
+      }
+    })
+
+    const createdWorkspaceId = response?.workspace?.id
+    if (!createdWorkspaceId) {
+      throw new Error('De nieuwe werkruimte werd aangemaakt maar de ID ontbreekt.')
+    }
+
+    await navigateTo(`/dashboard/ruimte/${createdWorkspaceId}`)
+  } catch (error) {
+    submitError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Aanmaken van ruimte is mislukt.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -321,6 +377,18 @@ const approvalMode = ref('manual')
   justify-content: center;
   gap: 0.35rem;
   cursor: pointer;
+}
+
+.create-room-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.76;
+}
+
+.submit-error {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #9a2f2f;
+  font-weight: 600;
 }
 
 .btn-icon {
