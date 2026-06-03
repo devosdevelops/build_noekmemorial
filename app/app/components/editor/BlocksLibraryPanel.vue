@@ -159,7 +159,7 @@ onMounted(() => {
 <style scoped>
 .blocks-library {
   top: 28%;
-  left: calc(1.5rem + 10.2rem + 8px);
+  left: calc(14.2rem + 0.8rem);
   z-index: 3;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.9rem;
