@@ -1,5 +1,9 @@
 <template>
   <aside class="viewer-rail" aria-label="Viewer weergave instellingen">
+    <button type="button" class="viewer-rail__toggle" @click="$emit('toggle-music')">
+      {{ isMusicOn ? 'Muziek uit' : 'Muziek aan' }}
+    </button>
+
     <button type="button" class="viewer-rail__toggle" @click="$emit('toggle-ui')">
       {{ isUiHidden ? 'Toon UI' : 'Verberg UI' }}
     </button>
@@ -25,13 +29,17 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  isMusicOn: {
+    type: Boolean,
+    default: false
+  },
   activeMode: {
     type: String,
     default: 'look-around'
   }
 })
 
-defineEmits(['toggle-ui', 'set-mode'])
+defineEmits(['toggle-ui', 'set-mode', 'toggle-music'])
 
 const modes = [
   { value: 'look-around', label: 'Kijken' },

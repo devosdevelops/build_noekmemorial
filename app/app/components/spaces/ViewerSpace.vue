@@ -109,13 +109,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ViewerSceneViewport from '../scene/ViewerSceneViewport.client.vue'
 import ViewerEntryGate from '../viewer/ViewerEntryGate.vue'
 import ViewerTopBar from '../viewer/ViewerTopBar.vue'
 import ViewerBottomDock from '../viewer/ViewerBottomDock.vue'
 import ViewerRightRail from '../viewer/ViewerRightRail.vue'
 import ViewerLeftPanel from '../viewer/ViewerLeftPanel.vue'
+import { AUDIO_TRACKS } from '../../config/audioLibrary.js'
 import { useViewerSession } from '../../composables/useViewerSession'
 import { useViewerUiState } from '../../composables/useViewerUiState'
 import { useViewerAuthGate } from '../../composables/useViewerAuthGate'
@@ -145,11 +146,14 @@ const {
   isUiHidden,
   activePanel,
   activeMode,
+  isMusicOn,
   isPanelOpen,
   openPanel,
   closePanel,
   toggleUi,
-  setMode
+  setMode,
+  toggleMusic,
+  setMusicOn
 } = useViewerUiState()
 
 const { hasEnteredViewer, enterViewer, resetViewerGate } = useViewerAuthGate()
@@ -206,6 +210,8 @@ const roomName = computed(() => {
 const isGuestNamePromptOpen = ref(false)
 const viewerSpaceRoot = ref(null)
 const viewerViewportRef = ref(null)
+const viewerMusicAudio = ref(null)
+const carouselAudio = ref(null)
 const pendingGuestName = ref('')
 const guestNameError = ref('')
 const submitSuccessMessage = ref('')
@@ -217,6 +223,11 @@ const pendingAccessPin = ref('')
 const acceptedAccessPin = ref('')
 const pinError = ref('')
 const isSubmittingPin = ref(false)
+const isMediaCarouselOpen = ref(false)
+const mediaCarouselKind = ref('')
+const mediaCarouselIndex = ref(0)
+const swipeStartX = ref(0)
+const swipeIsActive = ref(false)
 
 useUiClickSound({
   containerRef: viewerSpaceRoot
@@ -224,6 +235,70 @@ useUiClickSound({
 
 const showEntryGate = computed(() => {
   return !hasEnteredViewer.value && !hasFatalRoomAccessError.value && !isPinPromptOpen.value && !roomLoading.value
+})
+
+const viewerMusicTrackUrl = computed(() => {
+  const sceneObjects = Array.isArray(viewerSceneDocument.value?.objects)
+    ? viewerSceneDocument.value.objects
+    : []
+
+  const sceneMusicObject = sceneObjects.find((objectState) => {
+    return objectState?.kind === 'audio'
+      && typeof objectState?.assetRef === 'string'
+      && objectState.assetRef.length
+  })
+
+  if (sceneMusicObject?.assetRef) {
+    const fromLibrary = AUDIO_TRACKS.find((track) => track.id === sceneMusicObject.assetRef)
+    if (fromLibrary?.url) {
+      return fromLibrary.url
+    }
+
+    if (sceneMusicObject.assetRef.startsWith('/audio/') || sceneMusicObject.assetRef.startsWith('http')) {
+      return sceneMusicObject.assetRef
+    }
+  }
+
+  const fallbackMusicTrack = AUDIO_TRACKS.find((track) => track.categoryId === 'music')
+  return fallbackMusicTrack?.url || ''
+})
+
+const mediaCarouselItems = computed(() => {
+  const source = Array.isArray(contributions.value) ? contributions.value : []
+  const kind = mediaCarouselKind.value
+
+  if (!kind.length) {
+    return []
+  }
+
+  return source.filter((entry) => {
+    const entryType = String(entry?.type || '').toLowerCase()
+    const mediaType = String(entry?.content?.media_type || '').toLowerCase()
+    const hasVoiceUrl = typeof entry?.content?.voice_url === 'string' && entry.content.voice_url.trim().length > 0
+
+    if (kind === 'message') {
+      return entryType === 'message' || entryType === 'post'
+    }
+
+    if (kind === 'image-video') {
+      return mediaType === 'image' || mediaType === 'video' || entryType === 'image' || entryType === 'video'
+    }
+
+    if (kind === 'audio') {
+      return mediaType === 'audio' || entryType === 'audio' || hasVoiceUrl
+    }
+
+    return false
+  })
+})
+
+const activeCarouselItem = computed(() => {
+  if (!mediaCarouselItems.value.length) {
+    return null
+  }
+
+  const safeIndex = Math.min(Math.max(mediaCarouselIndex.value, 0), mediaCarouselItems.value.length - 1)
+  return mediaCarouselItems.value[safeIndex] || null
 })
 
 const showAccessError = computed(() => !hasEnteredViewer.value && hasFatalRoomAccessError.value)
@@ -234,6 +309,45 @@ onMounted(async () => {
   await initializeAuth()
   await resolveRoomAccess()
 })
+
+onBeforeUnmount(() => {
+  stopViewerMusic()
+  stopCarouselAudio()
+  window.removeEventListener('keydown', onCarouselKeydown)
+})
+
+watch(
+  () => [isMusicOn.value, viewerMusicTrackUrl.value, hasEnteredViewer.value],
+  async () => {
+    await syncViewerMusicPlayback()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => isMediaCarouselOpen.value,
+  (isOpen) => {
+    if (isOpen) {
+      window.addEventListener('keydown', onCarouselKeydown)
+      return
+    }
+
+    window.removeEventListener('keydown', onCarouselKeydown)
+    stopCarouselAudio()
+  }
+)
+
+watch(
+  () => mediaCarouselItems.value.length,
+  (nextLength) => {
+    if (!nextLength) {
+      mediaCarouselIndex.value = 0
+      return
+    }
+
+    mediaCarouselIndex.value = Math.min(mediaCarouselIndex.value, nextLength - 1)
+  }
+)
 
 async function resolveRoomAccess(accessPin = '') {
   hasFatalRoomAccessError.value = false
@@ -392,11 +506,13 @@ function openGuestNamePrompt() {
 
 async function handleSignOut() {
   await signOut()
+  setMusicOn(false)
   hasEnteredViewer.value = false
   closePanel()
   isGuestNamePromptOpen.value = false
   submitSuccessMessage.value = ''
   clearSelection()
+  closeMediaCarousel()
 }
 
 function submitGuestName() {
@@ -417,6 +533,7 @@ function handleSceneElementSelection(element) {
     if (activePanel.value === 'element') {
       closePanel()
     }
+    closeMediaCarousel()
     return
   }
 
@@ -428,10 +545,23 @@ function handleSceneElementSelection(element) {
     interaction: element.interaction ?? null
   })
   setPointerWorldPosition(worldPosition)
+
+  if (worldPosition && viewerViewportRef.value?.focusCameraOnPosition) {
+    viewerViewportRef.value.focusCameraOnPosition(worldPosition)
+  }
+
+  if (element.interaction?.type === 'media-carousel' && typeof element.interaction.mediaKind === 'string') {
+    openMediaCarousel(element.interaction.mediaKind)
+    return
+  }
+
+  closeMediaCarousel()
   openPanel('element')
 }
 
 function handlePanelQuickAction(action) {
+  closeMediaCarousel()
+
   if (action === 'message') {
     openPanel('message')
     return
@@ -445,6 +575,202 @@ function handlePanelQuickAction(action) {
   if (action === 'add') {
     openPanel('add')
   }
+}
+
+function openMediaCarousel(mediaKind) {
+  mediaCarouselKind.value = mediaKind
+  mediaCarouselIndex.value = 0
+  isMediaCarouselOpen.value = true
+  closePanel()
+  isUiHidden.value = false
+}
+
+function closeMediaCarousel() {
+  isMediaCarouselOpen.value = false
+  mediaCarouselKind.value = ''
+  mediaCarouselIndex.value = 0
+}
+
+function nextCarouselItem() {
+  if (!mediaCarouselItems.value.length) {
+    return
+  }
+
+  mediaCarouselIndex.value = (mediaCarouselIndex.value + 1) % mediaCarouselItems.value.length
+  stopCarouselAudio()
+}
+
+function previousCarouselItem() {
+  if (!mediaCarouselItems.value.length) {
+    return
+  }
+
+  mediaCarouselIndex.value = (mediaCarouselIndex.value - 1 + mediaCarouselItems.value.length) % mediaCarouselItems.value.length
+  stopCarouselAudio()
+}
+
+function onCarouselKeydown(event) {
+  if (!isMediaCarouselOpen.value) {
+    return
+  }
+
+  if (event.key === 'Escape') {
+    closeMediaCarousel()
+    return
+  }
+
+  if (event.key === 'ArrowRight') {
+    nextCarouselItem()
+    return
+  }
+
+  if (event.key === 'ArrowLeft') {
+    previousCarouselItem()
+  }
+}
+
+function beginCarouselSwipe(event) {
+  const clientX = event?.touches?.[0]?.clientX ?? event?.clientX
+  if (!Number.isFinite(clientX)) {
+    return
+  }
+
+  swipeStartX.value = clientX
+  swipeIsActive.value = true
+}
+
+function endCarouselSwipe(event) {
+  if (!swipeIsActive.value) {
+    return
+  }
+
+  const clientX = event?.changedTouches?.[0]?.clientX ?? event?.clientX
+  if (!Number.isFinite(clientX)) {
+    swipeIsActive.value = false
+    return
+  }
+
+  const delta = clientX - swipeStartX.value
+  swipeIsActive.value = false
+
+  if (Math.abs(delta) < 38) {
+    return
+  }
+
+  if (delta < 0) {
+    nextCarouselItem()
+    return
+  }
+
+  previousCarouselItem()
+}
+
+function posterNameFromContribution(entry) {
+  const guestName = typeof entry?.content?.guest_name === 'string' ? entry.content.guest_name.trim() : ''
+  if (guestName.length) {
+    return guestName
+  }
+
+  const title = typeof entry?.title === 'string' ? entry.title : ''
+  const titleMatch = title.match(/van\s+(.+)$/i)
+  if (titleMatch?.[1]) {
+    return titleMatch[1].trim()
+  }
+
+  return 'Bezoeker'
+}
+
+function excerptFromContribution(entry) {
+  const message = typeof entry?.content?.message === 'string' ? entry.content.message.trim() : ''
+  if (message.length) {
+    return message
+  }
+
+  const excerpt = typeof entry?.excerpt === 'string' ? entry.excerpt.trim() : ''
+  return excerpt
+}
+
+function mediaUrlFromContribution(entry) {
+  if (typeof entry?.mediaUrl === 'string' && entry.mediaUrl.trim().length) {
+    return entry.mediaUrl.trim()
+  }
+
+  const voiceUrl = typeof entry?.content?.voice_url === 'string' ? entry.content.voice_url.trim() : ''
+  return voiceUrl
+}
+
+function toggleCarouselAudio() {
+  const mediaUrl = mediaUrlFromContribution(activeCarouselItem.value)
+  if (!mediaUrl.length || !process.client) {
+    return
+  }
+
+  if (carouselAudio.value) {
+    stopCarouselAudio()
+    return
+  }
+
+  const nextAudio = new Audio(mediaUrl)
+  nextAudio.preload = 'auto'
+  nextAudio.volume = 0.9
+  nextAudio.onended = () => {
+    if (carouselAudio.value === nextAudio) {
+      carouselAudio.value = null
+    }
+  }
+
+  carouselAudio.value = nextAudio
+  nextAudio.play().catch(() => {
+    if (carouselAudio.value === nextAudio) {
+      carouselAudio.value = null
+    }
+  })
+}
+
+function stopCarouselAudio() {
+  if (!carouselAudio.value) {
+    return
+  }
+
+  carouselAudio.value.pause()
+  carouselAudio.value.currentTime = 0
+  carouselAudio.value = null
+}
+
+async function syncViewerMusicPlayback() {
+  if (!process.client) {
+    return
+  }
+
+  if (!hasEnteredViewer.value || !isMusicOn.value || !viewerMusicTrackUrl.value.length) {
+    stopViewerMusic()
+    return
+  }
+
+  if (!viewerMusicAudio.value || viewerMusicAudio.value.src !== new URL(viewerMusicTrackUrl.value, window.location.origin).href) {
+    stopViewerMusic()
+    const nextAudio = new Audio(viewerMusicTrackUrl.value)
+    nextAudio.loop = true
+    nextAudio.volume = 0.32
+    nextAudio.preload = 'auto'
+    viewerMusicAudio.value = nextAudio
+  }
+
+  try {
+    await viewerMusicAudio.value.play()
+  } catch {
+    setMusicOn(false)
+  }
+}
+
+function stopViewerMusic() {
+  if (!viewerMusicAudio.value) {
+    return
+  }
+
+  viewerMusicAudio.value.pause()
+  viewerMusicAudio.value.currentTime = 0
+  viewerMusicAudio.value = null
 }
 
 async function handleMessageSubmit(payload) {
