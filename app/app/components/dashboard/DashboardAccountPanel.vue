@@ -134,11 +134,16 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Card from '../ui/Card.vue'
 import IconAccount from '../icons/IconAccount.vue'
 import { useAuth } from '../../composables/useAuth'
+import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
 const { appUser, init, signOut } = useAuth()
+const { workspaces, loadWorkspaces } = useDashboardWorkspaces()
 const router = useRouter()
 
-onMounted(init)
+onMounted(async () => {
+  await init()
+  await loadWorkspaces()
+})
 
 const userName = computed(() => {
   if (!appUser.value) return '—'
@@ -155,7 +160,7 @@ const subscriptionPrice = computed(() => {
 })
 
 const roomsLimit = computed(() => appUser.value?.rooms_limit ?? 1)
-const roomsUsed = ref(0) // will be driven by workspaces count later
+const roomsUsed = computed(() => workspaces.value.length)
 
 const isAccountSettingsOpen = ref(false)
 const accountFirstName = ref('')
