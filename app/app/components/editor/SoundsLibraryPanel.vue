@@ -4,7 +4,18 @@ import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 import { AUDIO_CATEGORIES, AUDIO_TRACKS } from '../../config/audioLibrary.js'
 
-const emit = defineEmits(['close'])
+const props = defineProps({
+  addedTrackIds: {
+    type: Array,
+    default: () => []
+  },
+  selectedTrackId: {
+    type: String,
+    default: null
+  }
+})
+
+const emit = defineEmits(['close', 'add-track', 'select-track'])
 
 const selectedCategoryIds = ref(AUDIO_CATEGORIES.map((category) => category.id))
 const currentTrackId = ref(null)
@@ -21,6 +32,8 @@ const filteredTracks = computed(() => {
     return true
   })
 })
+
+const addedTrackIdSet = computed(() => new Set(props.addedTrackIds))
 
 function handleClose() {
   stopActiveTrack()
@@ -83,6 +96,26 @@ function handleToggleTrack(track) {
   })
 }
 
+function isTrackAdded(trackId) {
+  return addedTrackIdSet.value.has(trackId)
+}
+
+function isTrackSelected(trackId) {
+  return props.selectedTrackId === trackId
+}
+
+function handleAddTrack(track) {
+  emit('add-track', track)
+}
+
+function handleSelectTrack(trackId) {
+  if (!isTrackAdded(trackId)) {
+    return
+  }
+
+  emit('select-track', trackId)
+}
+
 onBeforeUnmount(() => {
   stopActiveTrack()
 })
@@ -123,20 +156,45 @@ onBeforeUnmount(() => {
     </p>
 
     <div v-else class="tracks-list">
-      <button
+      <article
         v-for="track in filteredTracks"
         :key="track.id"
-        type="button"
         class="track-row"
-        :class="{ 'track-row--active': currentTrackId === track.id }"
-        @click="handleToggleTrack(track)"
+        :class="{
+          'track-row--previewing': currentTrackId === track.id,
+          'track-row--selected': isTrackSelected(track.id)
+        }"
       >
-        <span class="track-meta">
+        <button
+          type="button"
+          class="track-meta"
+          :class="{ 'track-meta--clickable': isTrackAdded(track.id) }"
+          :title="isTrackAdded(track.id) ? 'Selecteer toegevoegd geluid' : ''"
+          @click="handleSelectTrack(track.id)"
+        >
           <span class="track-title">{{ track.label }}</span>
           <span class="track-category">{{ track.categoryId === 'ambient' ? 'Ambient' : 'Muziek' }}</span>
-        </span>
-        <span class="track-action">{{ currentTrackId === track.id ? 'Stop' : 'Play' }}</span>
-      </button>
+        </button>
+
+        <div class="track-actions">
+          <button
+            type="button"
+            class="track-action-button"
+            :class="{ 'track-action-button--active': currentTrackId === track.id }"
+            @click="handleToggleTrack(track)"
+          >
+            {{ currentTrackId === track.id ? 'Stop' : 'Beluister' }}
+          </button>
+          <button
+            type="button"
+            class="track-action-button"
+            :class="{ 'track-action-button--active': isTrackAdded(track.id) }"
+            @click="handleAddTrack(track)"
+          >
+            {{ isTrackAdded(track.id) ? 'Toegevoegd' : 'Voeg toe' }}
+          </button>
+        </div>
+      </article>
     </div>
   </OverlayCard>
 </template>
@@ -282,8 +340,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.34rem;
   max-height: min(18.5rem, calc(100vh - 15rem));
+  overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 0.18rem;
+  padding-right: 0.7rem;
   scrollbar-gutter: stable;
 }
 
@@ -293,11 +352,12 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 0.55rem;
   width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   padding: 0.48rem 0.56rem;
   border: 1px solid rgba(124, 138, 110, 0.3);
   border-radius: 0.58rem;
   background: linear-gradient(180deg, #f6f8f2, #e4ebda);
-  cursor: pointer;
   text-align: left;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -307,7 +367,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 8px rgba(73, 88, 60, 0.12);
 }
 
-.track-row--active {
+.track-row--previewing,
+.track-row--selected {
   border-color: rgba(97, 118, 72, 0.84);
   box-shadow: 0 0 0 2px rgba(150, 170, 128, 0.2) inset;
 }
@@ -317,6 +378,15 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.08rem;
   min-width: 0;
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.track-meta--clickable {
+  cursor: pointer;
 }
 
 .track-title {
@@ -335,12 +405,37 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
-.track-action {
+.track-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
   flex: 0 0 auto;
+}
+
+.track-action-button {
+  min-width: 0;
+  padding: 0.28rem 0.46rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(124, 138, 110, 0.48);
+  background: #f6f8f2;
   color: rgba(68, 80, 56, 0.9);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
+}
+
+.track-action-button:hover {
+  border-color: rgba(96, 115, 71, 0.72);
+}
+
+.track-action-button--active {
+  background: linear-gradient(180deg, #9fb383, #8a9e70);
+  border-color: rgba(96, 115, 71, 0.82);
+  color: #f8fbf2;
 }
 
 @media (max-width: 900px) {

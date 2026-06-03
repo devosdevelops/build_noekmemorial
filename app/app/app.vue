@@ -44,7 +44,18 @@
     />
     <SoundsLibraryPanel
       v-if="isSoundsLibraryVisible"
+      :added-track-ids="sceneAudioTrackIds"
+      :selected-track-id="selectedSceneAudioTrackId"
       @close="handleSoundsLibraryClose"
+      @add-track="handleAddAudioTrack"
+      @select-track="handleSelectAudioTrack"
+    />
+    <AudioConfigurationPanel
+      v-if="selectedSceneAudioItem"
+      :selected-audio="selectedSceneAudioItem"
+      @close="handleAudioSelectionClose"
+      @update-volume="handleAudioVolumeChange"
+      @remove-audio="handleRemoveSelectedAudio"
     />
     <AssetConfigurationPanel
       v-if="selectedAsset?.assetType === 'block'"
@@ -81,8 +92,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { SCENE_KIND } from './scene/sceneContract.js'
 import AssetConfigurationPanel from './components/editor/AssetConfigurationPanel.vue'
+import AudioConfigurationPanel from './components/editor/AudioConfigurationPanel.vue'
 import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from './components/editor/FloorLibraryPanel.vue'
 import LightLibraryPanel from './components/editor/LightLibraryPanel.vue'
@@ -94,7 +107,10 @@ import SideToolPanel from './components/editor/SideToolPanel.vue'
 import TopActionBar from './components/editor/TopActionBar.vue'
 import EditorSceneViewport from './components/scene/EditorSceneViewport.client.vue'
 import { useScenePersistence } from './composables/useScenePersistence.js'
+import { AUDIO_TRACKS } from './config/audioLibrary.js'
 import { DEFAULT_LIGHTING_PRESET_ID } from './config/lightingPresets.js'
+
+const DEFAULT_AUDIO_VOLUME = 0.6
 
 const activeInteractionMode = ref('select')
 const activeEditTool = ref('move')
@@ -163,6 +179,8 @@ const isGridVisible = ref(true)
 const skipNextDirtyEvent = ref(false)
 const selectedAsset = ref(null)
 const currentLightingPresetId = ref(DEFAULT_LIGHTING_PRESET_ID)
+const sceneAudioItems = ref([])
+const selectedSceneAudioId = ref(null)
 
 const {
   persistenceStatus,
@@ -178,6 +196,154 @@ const blockLabelByType = {
   cylinder: 'Cilinder',
   cone: 'Kegel',
   triangle: 'Helling'
+}
+
+const selectedSceneAudioItem = computed(() => {
+  return sceneAudioItems.value.find((item) => item.objectId === selectedSceneAudioId.value) ?? null
+})
+
+const sceneAudioTrackIds = computed(() => sceneAudioItems.value.map((item) => item.trackId))
+
+const selectedSceneAudioTrackId = computed(() => {
+  return selectedSceneAudioItem.value?.trackId ?? null
+})
+
+function normalizeAudioVolume(volume) {
+  if (!Number.isFinite(volume)) {
+    return DEFAULT_AUDIO_VOLUME
+  }
+
+  return Math.min(1, Math.max(0, volume))
+}
+
+function trackById(trackId) {
+  if (typeof trackId !== 'string' || !trackId.length) {
+    return null
+  }
+
+  return AUDIO_TRACKS.find((track) => track.id === trackId) ?? null
+}
+
+function toAudioObjectId(trackId) {
+  return `audio-${String(trackId).replace(/[^a-zA-Z0-9]+/g, '-')}`
+}
+
+function toSceneAudioObject(audioItem, index) {
+  return {
+    id: audioItem.objectId || `audio-${index}`,
+    kind: SCENE_KIND.AUDIO,
+    assetRef: audioItem.trackId,
+    transform: {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
+    }
+  }
+}
+
+function toSceneAudioSettingsTrack(audioItem) {
+  return {
+    trackId: audioItem.trackId,
+    objectId: audioItem.objectId,
+    label: audioItem.label,
+    categoryId: audioItem.categoryId,
+    url: audioItem.url,
+    defaultVolume: normalizeAudioVolume(audioItem.defaultVolume)
+  }
+}
+
+function withAudioPersistence(sceneDocument) {
+  if (!sceneDocument || typeof sceneDocument !== 'object') {
+    return sceneDocument
+  }
+
+  const nonAudioObjects = Array.isArray(sceneDocument.objects)
+    ? sceneDocument.objects.filter((objectState) => objectState?.kind !== SCENE_KIND.AUDIO)
+    : []
+  const audioObjects = sceneAudioItems.value.map((audioItem, index) => toSceneAudioObject(audioItem, index))
+
+  return {
+    ...sceneDocument,
+    editorSettings: {
+      ...(sceneDocument.editorSettings && typeof sceneDocument.editorSettings === 'object'
+        ? sceneDocument.editorSettings
+        : {}),
+      audio: {
+        tracks: sceneAudioItems.value.map((audioItem) => toSceneAudioSettingsTrack(audioItem))
+      }
+    },
+    objects: [...nonAudioObjects, ...audioObjects]
+  }
+}
+
+function hydrateSceneAudioFromDocument(sceneDocument) {
+  const audioTracksInput = Array.isArray(sceneDocument?.editorSettings?.audio?.tracks)
+    ? sceneDocument.editorSettings.audio.tracks
+    : []
+
+  const fromEditorSettings = audioTracksInput
+    .map((trackEntry, index) => {
+      const catalogTrack = trackById(trackEntry?.trackId)
+      const trackId = typeof trackEntry?.trackId === 'string' && trackEntry.trackId.length
+        ? trackEntry.trackId
+        : catalogTrack?.id
+
+      if (!trackId) {
+        return null
+      }
+
+      return {
+        objectId: typeof trackEntry?.objectId === 'string' && trackEntry.objectId.length
+          ? trackEntry.objectId
+          : toAudioObjectId(trackId || `unknown-${index}`),
+        trackId,
+        label: typeof trackEntry?.label === 'string' && trackEntry.label.length
+          ? trackEntry.label
+          : (catalogTrack?.label ?? trackId),
+        categoryId: typeof trackEntry?.categoryId === 'string' && trackEntry.categoryId.length
+          ? trackEntry.categoryId
+          : (catalogTrack?.categoryId ?? 'ambient'),
+        url: typeof trackEntry?.url === 'string' && trackEntry.url.length
+          ? trackEntry.url
+          : (catalogTrack?.url ?? ''),
+        defaultVolume: normalizeAudioVolume(Number(trackEntry?.defaultVolume))
+      }
+    })
+    .filter(Boolean)
+
+  if (fromEditorSettings.length > 0) {
+    sceneAudioItems.value = fromEditorSettings
+    selectedSceneAudioId.value = fromEditorSettings[0]?.objectId ?? null
+    return
+  }
+
+  const fromObjects = (Array.isArray(sceneDocument?.objects) ? sceneDocument.objects : [])
+    .filter((objectState) => objectState?.kind === SCENE_KIND.AUDIO)
+    .map((audioObject, index) => {
+      const catalogTrack = trackById(audioObject?.assetRef)
+      const trackId = typeof audioObject?.assetRef === 'string' && audioObject.assetRef.length
+        ? audioObject.assetRef
+        : (catalogTrack?.id ?? null)
+
+      if (!trackId) {
+        return null
+      }
+
+      return {
+        objectId: typeof audioObject?.id === 'string' && audioObject.id.length
+          ? audioObject.id
+          : toAudioObjectId(`${trackId}-${index}`),
+        trackId,
+        label: catalogTrack?.label ?? trackId,
+        categoryId: catalogTrack?.categoryId ?? 'ambient',
+        url: catalogTrack?.url ?? '',
+        defaultVolume: DEFAULT_AUDIO_VOLUME
+      }
+    })
+    .filter(Boolean)
+
+  sceneAudioItems.value = fromObjects
+  selectedSceneAudioId.value = fromObjects[0]?.objectId ?? null
 }
 
 function handleInteractionModeChange(nextMode) {
@@ -323,7 +489,102 @@ function handleSelectLightingPreset(presetId) {
   isLightLibraryVisible.value = false
 }
 
+function handleAddAudioTrack(track) {
+  if (!track || typeof track !== 'object') {
+    return
+  }
+
+  if (typeof track.id !== 'string' || !track.id.length || typeof track.url !== 'string' || !track.url.length) {
+    return
+  }
+
+  const existingAudio = sceneAudioItems.value.find((audioItem) => audioItem.trackId === track.id)
+
+  if (existingAudio) {
+    selectedSceneAudioId.value = existingAudio.objectId
+    selectedAsset.value = null
+    return
+  }
+
+  const nextAudioItem = {
+    objectId: toAudioObjectId(track.id),
+    trackId: track.id,
+    label: typeof track.label === 'string' && track.label.length ? track.label : track.id,
+    categoryId: typeof track.categoryId === 'string' && track.categoryId.length ? track.categoryId : 'ambient',
+    url: track.url,
+    defaultVolume: DEFAULT_AUDIO_VOLUME
+  }
+
+  sceneAudioItems.value = [...sceneAudioItems.value, nextAudioItem]
+  selectedSceneAudioId.value = nextAudioItem.objectId
+  selectedAsset.value = null
+  isSceneDirty.value = true
+}
+
+function handleSelectAudioTrack(trackId) {
+  if (typeof trackId !== 'string' || !trackId.length) {
+    return
+  }
+
+  const matchingAudio = sceneAudioItems.value.find((audioItem) => audioItem.trackId === trackId)
+
+  if (!matchingAudio) {
+    return
+  }
+
+  selectedSceneAudioId.value = matchingAudio.objectId
+  selectedAsset.value = null
+}
+
+function handleAudioVolumeChange(nextVolume) {
+  if (!selectedSceneAudioId.value) {
+    return
+  }
+
+  const normalizedVolume = normalizeAudioVolume(Number(nextVolume))
+  let hasUpdatedAudio = false
+
+  sceneAudioItems.value = sceneAudioItems.value.map((audioItem) => {
+    if (audioItem.objectId !== selectedSceneAudioId.value) {
+      return audioItem
+    }
+
+    hasUpdatedAudio = true
+
+    return {
+      ...audioItem,
+      defaultVolume: normalizedVolume
+    }
+  })
+
+  if (hasUpdatedAudio) {
+    isSceneDirty.value = true
+  }
+}
+
+function handleRemoveSelectedAudio() {
+  if (!selectedSceneAudioId.value) {
+    return
+  }
+
+  const nextItems = sceneAudioItems.value.filter((audioItem) => audioItem.objectId !== selectedSceneAudioId.value)
+
+  if (nextItems.length === sceneAudioItems.value.length) {
+    return
+  }
+
+  sceneAudioItems.value = nextItems
+  selectedSceneAudioId.value = nextItems[0]?.objectId ?? null
+  isSceneDirty.value = true
+}
+
+function handleAudioSelectionClose() {
+  selectedSceneAudioId.value = null
+}
+
 function handleSelectionChanged(selection) {
+  selectedSceneAudioId.value = null
+
   if (!selection) {
     selectedAsset.value = null
     return
@@ -525,7 +786,10 @@ async function handleSceneDocumentPrepared(payload) {
     return
   }
 
-  const response = await saveSceneDocument(latestPreparedScene.value)
+  const sceneDocumentWithAudio = withAudioPersistence(latestPreparedScene.value)
+  latestPreparedScene.value = sceneDocumentWithAudio
+
+  const response = await saveSceneDocument(sceneDocumentWithAudio)
 
   if (!response?.ok) {
     console.error('Failed to persist scene document.', {
@@ -568,6 +832,8 @@ async function loadSceneIntoEditor() {
   currentLightingPresetId.value = typeof loadedLightingPresetId === 'string' && loadedLightingPresetId.length
     ? loadedLightingPresetId
     : DEFAULT_LIGHTING_PRESET_ID
+
+  hydrateSceneAudioFromDocument(loadedSceneDocument)
 
   skipNextDirtyEvent.value = true
 

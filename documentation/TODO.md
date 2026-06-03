@@ -19,11 +19,11 @@
 [] add colors to models
 [x] add missing textures
 [x] load models with loader wheel
-[] add favicon
+[x] add favicon
 [] deploy room
 [] add ambient noise options
     [x] add sound files
-    [] sound ui
+    [x] sound ui
     [] add sounds to scene
 [x] add lighting options
 [x] hide grid 
