@@ -975,6 +975,7 @@ onUnmounted(() => {
   color: #ffffff;
   background: var(--ok-gradient, linear-gradient(180deg, #82d14d 0%, #629d3a 100%));
   box-shadow: 0 2px 6px rgba(89, 130, 51, 0.28);
+  transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
 }
 
 .action-btn-primary {
@@ -994,6 +995,53 @@ onUnmounted(() => {
   text-align: left;
   color: #1d2030;
   width: 100%;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.action-btn:hover,
+.action-btn-segmented:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 6px 14px rgba(89, 130, 51, 0.28);
+}
+
+.action-btn-segmented:hover {
+  border-color: #81906c;
+  box-shadow: 0 5px 12px rgba(77, 90, 63, 0.16);
+}
+
+.action-btn:active,
+.action-btn-segmented:active {
+  transform: translateY(0);
+}
+
+.action-btn:active {
+  filter: brightness(0.98);
+}
+
+.action-btn-segmented:active {
+  border-color: #748160;
+}
+
+.action-btn:focus-visible,
+.action-btn-segmented:focus-visible,
+.share-btn:focus-visible,
+.download-btn:focus-visible,
+.pin-toggle:focus-visible,
+.link-action:focus-visible,
+.collaborator-remove:focus-visible,
+.collaborator-modal-submit:focus-visible,
+.room-settings-save:focus-visible,
+.room-settings-delete:focus-visible,
+.pin-generate:focus-visible,
+.room-settings-close:focus-visible,
+.collaborator-modal-close:focus-visible {
+  outline: 2px solid #6c8f54;
+  outline-offset: 2px;
 }
 
 .action-segment-icon {
@@ -1269,6 +1317,15 @@ onUnmounted(() => {
   color: #6fb63e;
   font-size: 0.75rem;
   cursor: pointer;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.link-action:hover {
+  color: #5b9a31;
+}
+
+.link-action:active {
+  transform: translateY(1px);
 }
 
 .collaborators-list {
@@ -1300,6 +1357,16 @@ onUnmounted(() => {
   font-weight: 700;
   padding: 0.28rem 0.52rem;
   cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.collaborator-remove:hover:not(:disabled) {
+  background: #ffece7;
+  border-color: #dba79c;
+}
+
+.collaborator-remove:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .collaborator-remove:disabled {
@@ -1356,6 +1423,17 @@ onUnmounted(() => {
   font-size: 0.8rem;
   padding: 0.42rem 0.6rem;
   margin-bottom: 0.45rem;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.share-btn:hover {
+  background: #f2f6f0;
+  border-color: #bcc6b8;
+}
+
+.share-btn:active {
+  transform: translateY(1px);
 }
 
 .pin-field {
@@ -1395,6 +1473,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.pin-toggle:hover {
+  background: #f2f6f0;
+  border-color: #bcc6b8;
+}
+
+.pin-toggle:active {
+  transform: translateY(1px);
 }
 
 .pin-toggle img {
@@ -1425,6 +1513,20 @@ onUnmounted(() => {
   color: #fff;
   font-size: 0.86rem;
   font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(82, 103, 66, 0.22);
+  transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+}
+
+.download-btn:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(82, 103, 66, 0.26);
+}
+
+.download-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.98);
 }
 
 .activity-list {
@@ -1567,6 +1669,15 @@ onUnmounted(() => {
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.collaborator-modal-close:hover {
+  filter: brightness(1.05);
+}
+
+.collaborator-modal-close:active {
+  transform: translateY(1px);
 }
 
 .collaborator-modal-field {
@@ -1624,6 +1735,18 @@ onUnmounted(() => {
   justify-content: center;
   gap: 0.45rem;
   cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+}
+
+.collaborator-modal-submit:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(89, 130, 51, 0.28);
+}
+
+.collaborator-modal-submit:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.98);
 }
 
 .collaborator-modal-submit:disabled {
@@ -1793,6 +1916,15 @@ onUnmounted(() => {
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.room-settings-close:hover {
+  filter: brightness(1.05);
+}
+
+.room-settings-close:active {
+  transform: translateY(1px);
 }
 
 .room-settings-field {
@@ -1879,6 +2011,10 @@ onUnmounted(() => {
   filter: brightness(0.98);
 }
 
+.pin-generate:active {
+  transform: translateY(1px);
+}
+
 .room-settings-help-text {
   margin: 0.65rem 0 0;
   font-size: 0.82rem;
@@ -1898,6 +2034,7 @@ onUnmounted(() => {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 3px 10px rgba(98, 157, 58, 0.28);
+  transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
 }
 
 .room-settings-delete {
@@ -1912,6 +2049,16 @@ onUnmounted(() => {
   color: #7a2418;
   background: linear-gradient(180deg, #fee8e2 0%, #fbdad0 100%);
   cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease, border-color 0.12s ease;
+}
+
+.room-settings-delete:hover:not(:disabled) {
+  filter: brightness(0.99);
+  border-color: #c94a35;
+}
+
+.room-settings-delete:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .room-settings-delete:disabled {
@@ -1920,6 +2067,13 @@ onUnmounted(() => {
 }
 
 .room-settings-save:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 7px 16px rgba(98, 157, 58, 0.3);
+}
+
+.room-settings-save:active {
+  transform: translateY(0);
   filter: brightness(0.98);
 }
 
