@@ -117,7 +117,9 @@
       <div class="workspace-settings-card">
         <div class="workspace-settings-header">
           <h2 id="workspace-settings-title">Ruimte Instellingen</h2>
-          <button type="button" class="workspace-settings-close" aria-label="Sluiten" @click="closeWorkspaceSettings">x</button>
+          <button type="button" class="workspace-settings-close" aria-label="Sluiten" @click="closeWorkspaceSettings">
+            <img src="/icons/Close_Button.svg" alt="" class="workspace-settings-close-icon" aria-hidden="true" />
+          </button>
         </div>
 
         <div class="workspace-settings-field">
@@ -1396,11 +1398,15 @@ async function handleSceneReady() {
   border: none;
   width: 1.8rem;
   height: 1.8rem;
-  border-radius: 8px;
-  background: #eef2e8;
-  color: #52624b;
+  padding: 0;
+  background: transparent;
   cursor: pointer;
-  font-weight: 700;
+}
+
+.workspace-settings-close-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .workspace-settings-field {
