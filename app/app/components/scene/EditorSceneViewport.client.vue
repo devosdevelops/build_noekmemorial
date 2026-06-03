@@ -1644,6 +1644,11 @@ function handlePointerUp(event) {
   const objectId = selectedRoot?.userData?.objectId
 
   if (typeof objectId === 'string') {
+    if (selectedObjectId.value === objectId) {
+      setSelectedObjectId(null)
+      return
+    }
+
     setSelectedObjectId(objectId)
   }
 }
