@@ -46,7 +46,7 @@
             v-model="roomName"
             type="text"
             class="text-input"
-            placeholder="In liefdevolle herinnering aan Maria de Vries"
+            placeholder="Naam ruimte"
           />
         </Card>
 
@@ -57,13 +57,13 @@
               v-model="firstName"
               type="text"
               class="text-input"
-              placeholder="Maria"
+              placeholder="Voornaam"
             />
             <input
               v-model="lastName"
               type="text"
               class="text-input"
-              placeholder="de Vries"
+              placeholder="Achternaam"
             />
           </div>
         </Card>
@@ -119,9 +119,9 @@ definePageMeta({
 })
 
 const selectedTemplate = ref('empty')
-const roomName = ref('In liefdevolle herinnering aan Maria de Vries')
-const firstName = ref('Maria')
-const lastName = ref('de Vries')
+const roomName = ref('')
+const firstName = ref('')
+const lastName = ref('')
 const visibility = ref('public')
 const approvalMode = ref('manual')
 </script>
@@ -248,6 +248,7 @@ const approvalMode = ref('manual')
 
 .text-input {
   width: 100%;
+  box-sizing: border-box;
   border: none;
   border-radius: 10px;
   padding: 0.5rem 0.6rem;
@@ -261,9 +262,14 @@ const approvalMode = ref('manual')
 }
 
 .name-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
+  display: flex;
+  width: 100%;
+  gap: 1rem;
+}
+
+.name-row .text-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .radio-row {
