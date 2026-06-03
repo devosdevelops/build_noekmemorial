@@ -174,6 +174,7 @@ const approvalMode = ref('manual')
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
+  box-sizing: border-box;
   text-align: left;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcfb 100%);
   border: 1px solid #d9dfd6;
@@ -184,8 +185,8 @@ const approvalMode = ref('manual')
 }
 
 .template-card.selected {
-  border-color: #7a8568;
-  box-shadow: 0 0 0 2px rgba(122, 133, 104, 0.2);
+  border: 4px solid #7a8568;
+  box-shadow: none;
 }
 
 .template-content {
