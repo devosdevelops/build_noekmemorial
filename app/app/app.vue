@@ -42,6 +42,10 @@
       @close="handleFloorLibraryClose"
       @select-floor="handleSelectFloor"
     />
+    <SoundsLibraryPanel
+      v-if="isSoundsLibraryVisible"
+      @close="handleSoundsLibraryClose"
+    />
     <AssetConfigurationPanel
       v-if="selectedAsset?.assetType === 'block'"
       :selected-asset="selectedAsset"
@@ -83,6 +87,7 @@ import BlocksLibraryPanel from './components/editor/BlocksLibraryPanel.vue'
 import FloorLibraryPanel from './components/editor/FloorLibraryPanel.vue'
 import LightLibraryPanel from './components/editor/LightLibraryPanel.vue'
 import ModelsLibraryPanel from './components/editor/ModelsLibraryPanel.vue'
+import SoundsLibraryPanel from './components/editor/SoundsLibraryPanel.vue'
 import BottomControlBar from './components/editor/BottomControlBar.vue'
 import BrandPanel from './components/editor/BrandPanel.vue'
 import SideToolPanel from './components/editor/SideToolPanel.vue'
@@ -101,6 +106,7 @@ const isBlocksLibraryVisible = ref(false)
 const isFloorLibraryVisible = ref(false)
 const isModelsLibraryVisible = ref(false)
 const isLightLibraryVisible = ref(false)
+const isSoundsLibraryVisible = ref(false)
 const blockAction = ref({
   type: null,
   shapeType: null,
@@ -193,43 +199,46 @@ function handleHistoryAction(actionType) {
   }
 }
 
-function handleSideToolClick(toolId) {
-  if (toolId === 'blocks') {
-    isBlocksLibraryVisible.value = true
-    isFloorLibraryVisible.value = false
-    isModelsLibraryVisible.value = false
-    isLightLibraryVisible.value = false
-    return
-  }
-
-  if (toolId === 'models') {
-    isModelsLibraryVisible.value = true
-    isBlocksLibraryVisible.value = false
-    isFloorLibraryVisible.value = false
-    isLightLibraryVisible.value = false
-    return
-  }
-
-  if (toolId === 'floors') {
-    isFloorLibraryVisible.value = true
-    isBlocksLibraryVisible.value = false
-    isModelsLibraryVisible.value = false
-    isLightLibraryVisible.value = false
-    return
-  }
-
-  if (toolId === 'light') {
-    isLightLibraryVisible.value = true
-    isBlocksLibraryVisible.value = false
-    isFloorLibraryVisible.value = false
-    isModelsLibraryVisible.value = false
-    return
-  }
-
+function closeAllLibraries() {
   isBlocksLibraryVisible.value = false
   isFloorLibraryVisible.value = false
   isModelsLibraryVisible.value = false
   isLightLibraryVisible.value = false
+  isSoundsLibraryVisible.value = false
+}
+
+function handleSideToolClick(toolId) {
+  if (toolId === 'blocks') {
+    closeAllLibraries()
+    isBlocksLibraryVisible.value = true
+    return
+  }
+
+  if (toolId === 'models') {
+    closeAllLibraries()
+    isModelsLibraryVisible.value = true
+    return
+  }
+
+  if (toolId === 'floors') {
+    closeAllLibraries()
+    isFloorLibraryVisible.value = true
+    return
+  }
+
+  if (toolId === 'light') {
+    closeAllLibraries()
+    isLightLibraryVisible.value = true
+    return
+  }
+
+  if (toolId === 'audio') {
+    closeAllLibraries()
+    isSoundsLibraryVisible.value = true
+    return
+  }
+
+  closeAllLibraries()
 }
 
 function handleBlocksLibraryClose() {
@@ -246,6 +255,10 @@ function handleFloorLibraryClose() {
 
 function handleLightLibraryClose() {
   isLightLibraryVisible.value = false
+}
+
+function handleSoundsLibraryClose() {
+  isSoundsLibraryVisible.value = false
 }
 
 function handleAssetConfigurationClose() {

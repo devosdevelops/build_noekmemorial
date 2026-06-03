@@ -22,11 +22,15 @@
 [] add favicon
 [] deploy room
 [] add ambient noise options
+    [x] add sound files
+    [] sound ui
+    [] add sounds to scene
 [x] add lighting options
 [x] hide grid 
 [] add special pinboard and candle objects
 [] add all tool icons 
     [] add hinting for toolbar
+[] add templates
 
 ## Fixes
 
@@ -44,6 +48,7 @@
 [] color textures better
 
 ## Nice to have
+
 [] add clicky noises to editor
 [] add sound effects to viewer
 [] scale smoothly instead of snapping
@@ -55,3 +60,4 @@
 [] add more models
 [] translation of models
 [] add shortcuts to editor
+[] upload your own ambient sound
