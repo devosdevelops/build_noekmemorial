@@ -34,11 +34,11 @@
 
     <!-- Settings Card -->
     <Card class="settings-card">
-      <button class="settings-button">
+      <button class="settings-button" type="button" @click="isAccountSettingsOpen = true">
         <img src="/icons/SettingsInline.svg" alt="Settings" class="settings-icon" />
         Accountinstellingen
       </button>
-      <button class="settings-button">
+      <button class="settings-button" type="button">
         <img src="/icons/Support.svg" alt="Support" class="settings-icon" />
         Klantenservice
       </button>
@@ -46,6 +46,49 @@
 
     <!-- Logout Button -->
     <button class="logout-button">Logout</button>
+
+    <div
+      v-if="isAccountSettingsOpen"
+      class="account-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="account-modal-title"
+      @click.self="isAccountSettingsOpen = false"
+    >
+      <div class="account-modal-card">
+        <div class="account-modal-header">
+          <h2 id="account-modal-title">Mijn Gegevens</h2>
+          <button
+            type="button"
+            class="account-modal-close"
+            aria-label="Sluiten"
+            @click="isAccountSettingsOpen = false"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="account-modal-field">
+          <label for="account-first-name">Naam</label>
+          <div class="account-modal-name-row">
+            <input id="account-first-name" v-model="accountFirstName" type="text" class="account-modal-input" />
+            <input v-model="accountLastName" type="text" class="account-modal-input" />
+          </div>
+        </div>
+
+        <div class="account-modal-field">
+          <label for="account-email">E-mail</label>
+          <input id="account-email" v-model="accountEmail" type="email" class="account-modal-input" />
+        </div>
+
+        <div class="account-modal-field">
+          <label for="account-card">Bankaart</label>
+          <input id="account-card" v-model="accountCard" type="text" class="account-modal-input" />
+        </div>
+
+        <button type="button" class="account-modal-save">Veranderingen Opslaan</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -59,6 +102,12 @@ const userEmail = ref('jan.jansen@voorbeeld.nl')
 const subscriptionPrice = ref('€ 45,00')
 const roomsUsed = ref(0)
 const roomsLimit = ref(1)
+
+const isAccountSettingsOpen = ref(false)
+const accountFirstName = ref('Jan')
+const accountLastName = ref('Jansens')
+const accountEmail = ref('janjansens@bedrijf.be')
+const accountCard = ref('BE123456790')
 </script>
 
 <style scoped>
@@ -195,5 +244,113 @@ const roomsLimit = ref(1)
   filter: brightness(0.95);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(211, 47, 47, 0.4);
+}
+
+.account-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 220;
+}
+
+.account-modal-card {
+  width: min(100%, 640px);
+  background: #f6f6f4;
+  border-radius: 10px;
+  padding: 1.85rem;
+  box-shadow: 0 24px 60px rgba(10, 14, 10, 0.25);
+}
+
+.account-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.account-modal-header h2 {
+  margin: 0;
+  color: #232334;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+.account-modal-close {
+  border: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #e55a3c 0%, #cf482e 100%);
+  color: #ffffff;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.account-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 1.2rem;
+}
+
+.account-modal-field label {
+  color: #272736;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.account-modal-name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.account-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 12px;
+  padding: 0.62rem 1rem;
+  background: linear-gradient(180deg, #a5a9b6 0%, #9da2ae 100%);
+  color: #ffffff;
+  font-size: 0.98rem;
+}
+
+.account-modal-input:focus {
+  outline: 2px solid rgba(122, 155, 126, 0.45);
+  outline-offset: 1px;
+}
+
+.account-modal-save {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 0.78rem 1.2rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .account-modal-card {
+    padding: 1.25rem;
+  }
+
+  .account-modal-header h2 {
+    font-size: 1.9rem;
+  }
+
+  .account-modal-name-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
