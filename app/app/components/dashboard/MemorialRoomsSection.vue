@@ -52,12 +52,18 @@ import Card from '../ui/Card.vue'
 
 const rooms = ref([
   // Demo rooms - will be replaced with real data
-  // {
-  //   id: 'room-1',
-  //   title: 'In liefdevolle herinnering aan Maria de Vries',
-  //   lastUpdated: new Date('2025-10-12'),
-  //   pendingCount: 3
-  // }
+  {
+    id: 'room-1',
+    title: 'In liefdevolle herinnering aan Maria de Vries',
+    lastUpdated: new Date('2025-10-12'),
+    pendingCount: 3
+  },
+  {
+    id: 'room-2',
+    title: 'In liefdevolle herinnering aan Johannes Bakker',
+    lastUpdated: new Date('2025-09-05'),
+    pendingCount: 0
+  }
 ])
 
 function formatDate(date) {
@@ -115,11 +121,11 @@ function formatDate(date) {
 }
 
 .room-card {
-  padding: 1.5rem;
+  padding: 1.35rem 1.25rem;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.15rem;
 }
 
 .room-header {
@@ -128,80 +134,99 @@ function formatDate(date) {
 }
 
 .room-header h3 {
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  margin: 0 0 0.65rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: var(--font-display);
   color: #1a1a1a;
 }
 
 .room-meta {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
 }
 
 .meta-date,
 .meta-status {
-  font-size: 0.8rem;
-  color: #999;
+  font-size: 0.82rem;
+  color: #8f93a3;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.34rem;
+}
+
+.meta-date::before {
+  content: '◷';
+  font-size: 0.8rem;
+  color: #a2a7bc;
 }
 
 .meta-status {
-  color: #7a9b7e;
+  color: #635c32;
   font-weight: 500;
+  border: 1px solid #d8ca78;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbf7df 0%, #f7f0c7 100%);
+  padding: 0.14rem 0.5rem;
 }
 
 .meta-status::before {
-  content: '●';
-  font-size: 0.6rem;
+  content: '';
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  background: #2f2d39;
+  flex-shrink: 0;
 }
 
 .room-actions {
   display: flex;
-  gap: 0.75rem;
-  flex-shrink: 0;
+  width: 100%;
+  gap: 0.8rem;
 }
 
 /* Button styles */
 .btn-primary,
 .btn-secondary {
-  padding: 0.625rem 1rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 9px;
+  font-size: 0.98rem;
   font-weight: 600;
+  font-family: var(--font-display);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   white-space: nowrap;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #7a9b7e 0%, #6b8a6f 100%);
+  border: 1px solid #92a084;
+  background: linear-gradient(180deg, #a6b58f 0%, #8b9c77 100%);
   color: white;
-  box-shadow: 0 2px 4px rgba(122, 155, 126, 0.3);
+  box-shadow: 0 2px 6px rgba(97, 118, 82, 0.22);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #6b8a6f 0%, #5d7a60 100%);
+  background: linear-gradient(180deg, #9eae87 0%, #839471 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(122, 155, 126, 0.4);
+  box-shadow: 0 4px 12px rgba(97, 118, 82, 0.28);
 }
 
 .btn-secondary {
-  background: transparent;
-  border: 1.5px solid #999;
-  color: #666;
+  background: #fbfcfb;
+  border: 3px solid #8b9c77;
+  color: #292b35;
 }
 
 .btn-secondary:hover {
-  background: #f5f5f5;
-  border-color: #666;
+  background: #f8faf7;
+  border-color: #7e8f6d;
   color: #1a1a1a;
 }
 
@@ -215,6 +240,7 @@ function formatDate(date) {
 
 .btn-ok-gradient {
   background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
+  border: none;
   box-shadow: 0 3px 10px rgba(98, 157, 58, 0.35);
 }
 
@@ -238,7 +264,8 @@ function formatDate(date) {
 }
 
 .btn-icon {
-  font-size: 1.1em;
+  font-size: 0.92em;
+  line-height: 1;
 }
 
 @media (max-width: 768px) {

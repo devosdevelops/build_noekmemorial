@@ -86,14 +86,23 @@
           <input id="account-card" v-model="accountCard" type="text" class="account-modal-input" />
         </div>
 
-        <button type="button" class="account-modal-save">Veranderingen Opslaan</button>
+        <button type="button" class="account-modal-save" @click="saveAccountSettings">
+          Veranderingen Opslaan
+        </button>
       </div>
     </div>
+
+    <transition name="save-toast">
+      <div v-if="isSaveToastVisible" class="save-toast" role="status" aria-live="polite">
+        <span class="save-toast__icon" aria-hidden="true">✓</span>
+        <span class="save-toast__text">Veranderingen opgeslagen</span>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import Card from '../ui/Card.vue'
 import IconAccount from '../icons/IconAccount.vue'
 
@@ -108,6 +117,31 @@ const accountFirstName = ref('Jan')
 const accountLastName = ref('Jansens')
 const accountEmail = ref('janjansens@bedrijf.be')
 const accountCard = ref('BE123456790')
+const isSaveToastVisible = ref(false)
+
+let saveToastTimer = null
+
+function saveAccountSettings() {
+  userName.value = `${accountFirstName.value} ${accountLastName.value}`.trim()
+  userEmail.value = accountEmail.value
+  isAccountSettingsOpen.value = false
+
+  if (saveToastTimer) {
+    clearTimeout(saveToastTimer)
+  }
+
+  isSaveToastVisible.value = true
+  saveToastTimer = setTimeout(() => {
+    isSaveToastVisible.value = false
+    saveToastTimer = null
+  }, 2600)
+}
+
+onUnmounted(() => {
+  if (saveToastTimer) {
+    clearTimeout(saveToastTimer)
+  }
+})
 </script>
 
 <style scoped>
@@ -340,6 +374,48 @@ const accountCard = ref('BE123456790')
   cursor: pointer;
 }
 
+.save-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: min(86vw, 430px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  border-radius: 12px;
+  padding: 1rem 1.3rem;
+  background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
+  color: #ffffff;
+  box-shadow: 0 18px 34px rgba(52, 90, 34, 0.36);
+  z-index: 240;
+}
+
+.save-toast__icon {
+  font-size: 1.65rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.save-toast__text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.save-toast-enter-active,
+.save-toast-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.save-toast-enter-from,
+.save-toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+}
+
 @media (max-width: 768px) {
   .account-modal-card {
     padding: 1.25rem;
@@ -351,6 +427,14 @@ const accountCard = ref('BE123456790')
 
   .account-modal-name-row {
     grid-template-columns: 1fr;
+  }
+
+  .save-toast {
+    min-width: calc(100vw - 2rem);
+  }
+
+  .save-toast__text {
+    font-size: 0.9rem;
   }
 }
 </style>
