@@ -1,7 +1,5 @@
 <template>
-  <AppLoadingScreen v-if="isLoading" mode="data" message="Herdenkingsruimtes worden geladen..." />
-
-  <div v-else class="section">
+  <div class="section" :class="{ 'section-busy': isLoading || isPurchasingSlot }">
     <!-- Title Card -->
     <Card class="title-card">
       <h2>Herdenkingsruimtes</h2>
@@ -9,7 +7,11 @@
     </Card>
 
     <!-- Empty State or Rooms List Card -->
-    <Card v-if="loadError" class="content-card">
+    <Card v-if="isLoading" class="content-card">
+      <p class="empty-message">Herdenkingsruimtes worden geladen...</p>
+    </Card>
+
+    <Card v-else-if="loadError" class="content-card">
       <p class="empty-message">{{ loadError }}</p>
     </Card>
 
@@ -167,7 +169,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import Card from '../ui/Card.vue'
-import AppLoadingScreen from '../ui/AppLoadingScreen.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
@@ -248,6 +249,11 @@ async function confirmBuySlot() {
   flex-direction: column;
   gap: 1.5rem;
   font-family: var(--font-sans);
+}
+
+.section-busy,
+.section-busy * {
+  cursor: wait !important;
 }
 
 .title-card {
