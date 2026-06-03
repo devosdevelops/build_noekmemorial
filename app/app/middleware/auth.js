@@ -1,8 +1,9 @@
 import { useSupabaseClient } from '../composables/useSupabaseClient'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  // Only guard dashboard routes.
-  if (!to.path.startsWith('/dashboard')) return
+  // Guard authenticated app surfaces.
+  const needsAuth = to.path.startsWith('/dashboard') || to.path.startsWith('/editor')
+  if (!needsAuth) return
 
   // Skip on server — session is browser-only with the anon key client.
   if (import.meta.server) return
