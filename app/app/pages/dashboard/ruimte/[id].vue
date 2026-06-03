@@ -156,6 +156,7 @@
               </p>
               <button class="share-btn" type="button" @click="copyRoomUrl">Kopieer link</button>
               <div v-if="visibility === 'private'" class="pin-field">
+                <p class="pin-label">Pincode voor afgeschermde ruimte</p>
                 <input
                   v-model="roomPinCode"
                   :type="isPinHidden ? 'password' : 'text'"
@@ -1363,6 +1364,14 @@ onUnmounted(() => {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 0.4rem;
+}
+
+.pin-label {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #5c657b;
+  font-weight: 600;
 }
 
 .pin-input {
