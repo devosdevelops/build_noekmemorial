@@ -1,5 +1,96 @@
 import { createSupabaseServerClient } from '../../../utils/supabaseServerClient.js'
 
+function buildDemoSceneDocument() {
+  return {
+    id: 'viewer-demo-scene',
+    name: 'Viewer Demo Scene',
+    schemaVersion: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editorSettings: {
+      grid: {
+        cellSize: 1,
+        groundSize: 24,
+        origin: [0, 0, 0]
+      },
+      lighting: {
+        presetId: 'bright-warm'
+      }
+    },
+    objects: [
+      {
+        id: 'floor-main',
+        kind: 'floor',
+        assetRef: 'floor-base',
+        transform: {
+          position: [0, -0.07, 0],
+          rotation: [0, 0, 0],
+          scale: [20, 1, 20]
+        },
+        appearance: {
+          color: '#7a8fa0',
+          texture: null,
+          materialOverrides: null,
+          finish: {
+            roughness: 0.56,
+            metalness: 0.03
+          }
+        },
+        metadata: null,
+        interaction: null
+      },
+      {
+        id: 'demo-message-node',
+        kind: 'model',
+        assetRef: 'placeholder-model',
+        transform: {
+          position: [-2.8, 1.0, -1.5],
+          rotation: [0, 0.25, 0],
+          scale: [1, 1, 1]
+        },
+        appearance: {
+          color: '#c7b08d',
+          texture: null,
+          materialOverrides: [],
+          finish: {
+            roughness: 0.58,
+            metalness: 0.06
+          }
+        },
+        metadata: null,
+        interaction: {
+          type: 'media-carousel',
+          mediaKind: 'message'
+        }
+      },
+      {
+        id: 'demo-image-node',
+        kind: 'model',
+        assetRef: 'placeholder-model',
+        transform: {
+          position: [2.6, 1.0, -1.8],
+          rotation: [0, -0.3, 0],
+          scale: [1, 1, 1]
+        },
+        appearance: {
+          color: '#9ab8c8',
+          texture: null,
+          materialOverrides: [],
+          finish: {
+            roughness: 0.54,
+            metalness: 0.05
+          }
+        },
+        metadata: null,
+        interaction: {
+          type: 'media-carousel',
+          mediaKind: 'image-video'
+        }
+      }
+    ]
+  }
+}
+
 function normalizePin(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -27,6 +118,27 @@ export default defineEventHandler(async (event) => {
       statusCode: 400,
       statusMessage: 'Slug is verplicht.'
     })
+  }
+
+  if (slug === 'demo') {
+    return {
+      ok: true,
+      room: {
+        id: 'demo-room',
+        slug: 'demo',
+        name: 'Demo Herdenkingsruimte',
+        visibility: 'public',
+        approvalMode: 'manual',
+        deceasedFirstName: 'Demo',
+        deceasedLastName: 'Ruimte'
+      },
+      scene: {
+        id: 'demo-scene-row',
+        scene_data: buildDemoSceneDocument(),
+        updated_at: new Date().toISOString()
+      },
+      contributions: []
+    }
   }
 
   const supabase = createSupabaseServerClient()

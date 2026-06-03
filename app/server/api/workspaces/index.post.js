@@ -5,6 +5,51 @@ import { normalizeAndValidateSceneDocument } from '~/scene/sceneValidation.js'
 const TEMPLATES_TABLE = 'app_scene_templates'
 const SCENES_TABLE = 'app_scenes'
 
+function buildFallbackSceneDocument(name) {
+  const now = new Date().toISOString()
+
+  return {
+    id: null,
+    name,
+    schemaVersion: 1,
+    createdAt: now,
+    updatedAt: now,
+    editorSettings: {
+      grid: {
+        cellSize: 1,
+        groundSize: 24,
+        origin: [0, 0, 0]
+      },
+      lighting: {
+        presetId: 'bright-warm'
+      }
+    },
+    objects: [
+      {
+        id: 'floor-main',
+        kind: 'floor',
+        assetRef: 'floor-base',
+        transform: {
+          position: [0, -0.07, 0],
+          rotation: [0, 0, 0],
+          scale: [20, 1, 20]
+        },
+        appearance: {
+          color: '#7a8fa0',
+          texture: null,
+          materialOverrides: null,
+          finish: {
+            roughness: 0.56,
+            metalness: 0.03
+          }
+        },
+        metadata: null,
+        interaction: null
+      }
+    ]
+  }
+}
+
 function slugifyName(value) {
   return String(value || '')
     .toLowerCase()
@@ -67,63 +112,57 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (!Number.isInteger(templateId) || templateId < 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Selecteer een geldige template voor de nieuwe ruimte.'
-    })
-  }
-
   const supabase = createSupabaseServerClient()
   const { actorId } = await requireAuthenticatedAppUser(event, supabase)
 
-  const { data: template, error: templateError } = await supabase
-    .from(TEMPLATES_TABLE)
-    .select('id, template_key, name, schema_version, scene_data, is_active')
-    .eq('id', templateId)
-    .eq('is_active', true)
-    .maybeSingle()
+  let template = null
+  let normalizedTemplateScene = null
+  let usedFallbackTemplate = false
 
-  if (templateError) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Template ophalen is mislukt.',
-      data: {
-        supabaseError: templateError.message
+  if (Number.isInteger(templateId) && templateId >= 0) {
+    const { data: selectedTemplate, error: templateError } = await supabase
+      .from(TEMPLATES_TABLE)
+      .select('id, template_key, name, schema_version, scene_data, is_active')
+      .eq('id', templateId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!templateError && selectedTemplate) {
+      const sceneSeedSource = selectedTemplate.scene_data && typeof selectedTemplate.scene_data === 'object'
+        ? JSON.parse(JSON.stringify(selectedTemplate.scene_data))
+        : null
+
+      const sceneSeedDraft = {
+        ...(sceneSeedSource || {}),
+        id: null,
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
-    })
-  }
 
-  if (!template) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Gekozen template is niet gevonden of niet actief.'
-    })
-  }
+      const normalized = normalizeAndValidateSceneDocument(sceneSeedDraft)
 
-  const sceneSeedSource = template.scene_data && typeof template.scene_data === 'object'
-    ? JSON.parse(JSON.stringify(template.scene_data))
-    : null
-
-  const sceneSeedDraft = {
-    ...(sceneSeedSource || {}),
-    id: null,
-    name,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-
-  const normalizedTemplateScene = normalizeAndValidateSceneDocument(sceneSeedDraft)
-
-  if (!normalizedTemplateScene.isValid || !normalizedTemplateScene.sceneDocument) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'De gekozen template bevat ongeldige scènegegevens.',
-      data: {
-        errors: normalizedTemplateScene.errors,
-        warnings: normalizedTemplateScene.warnings
+      if (normalized.isValid && normalized.sceneDocument) {
+        template = selectedTemplate
+        normalizedTemplateScene = normalized
       }
-    })
+    }
+  }
+
+  if (!normalizedTemplateScene?.sceneDocument) {
+    usedFallbackTemplate = true
+    normalizedTemplateScene = normalizeAndValidateSceneDocument(buildFallbackSceneDocument(name))
+
+    if (!normalizedTemplateScene.isValid || !normalizedTemplateScene.sceneDocument) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Lege fallback-template kon niet worden opgebouwd.',
+        data: {
+          errors: normalizedTemplateScene.errors,
+          warnings: normalizedTemplateScene.warnings
+        }
+      })
+    }
   }
 
   const slug = await createUniqueWorkspaceSlug(supabase, name)
@@ -181,10 +220,17 @@ export default defineEventHandler(async (event) => {
   return {
     ok: true,
     workspace,
-    template: {
-      id: template.id,
-      templateKey: template.template_key,
-      name: template.name
-    }
+    template: template
+      ? {
+          id: template.id,
+          templateKey: template.template_key,
+          name: template.name
+        }
+      : {
+          id: null,
+          templateKey: 'fallback-empty',
+          name: 'Fallback Empty'
+        },
+    usedFallbackTemplate
   }
 })
