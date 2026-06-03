@@ -8,6 +8,11 @@ create table if not exists public.app_users (
   email text not null unique,
   user_type text not null default 'user' check (user_type in ('user', 'collaborator', 'owner', 'consultant')),
   display_name text null,
+  first_name text null,
+  last_name text null,
+  billing_card_last4 text null,
+  maintenance_yearly_price_cents integer not null default 4500,
+  rooms_limit integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
