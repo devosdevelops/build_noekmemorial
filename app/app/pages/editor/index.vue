@@ -26,8 +26,19 @@ if (!resolvedWorkspaceId || typeof resolvedWorkspaceId !== 'string' || !resolved
 }
 
 const isEditorBooting = ref(true)
+const loaderStartedAt = Date.now()
 
-function handleEditorReady() {
+async function handleEditorReady() {
+  const elapsedMs = Date.now() - loaderStartedAt
+  const minDurationMs = 2000
+  const remainingMs = minDurationMs - elapsedMs
+
+  if (remainingMs > 0) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, remainingMs)
+    })
+  }
+
   isEditorBooting.value = false
 }
 

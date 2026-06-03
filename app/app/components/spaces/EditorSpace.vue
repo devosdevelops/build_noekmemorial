@@ -293,6 +293,9 @@ const isWorkspaceOwner = ref(false)
 const currentWorkspaceVisibility = ref('offline')
 const isEditorWarningVisible = ref(false)
 const editorWarningMessage = ref('')
+const isInitialBootLoadFinished = ref(false)
+const hasSceneViewportMounted = ref(false)
+const hasEditorReadyBeenEmitted = ref(false)
 let editorWarningTimer = null
 
 const {
@@ -306,14 +309,41 @@ const {
 
 const route = useRoute()
 
-onMounted(() => {
+onMounted(async () => {
   const workspaceQueryParam = route.query.workspaceId
   const resolvedWorkspaceId = Array.isArray(workspaceQueryParam)
     ? workspaceQueryParam[0]
     : workspaceQueryParam
 
   workspaceId.value = typeof resolvedWorkspaceId === 'string' ? resolvedWorkspaceId : ''
+
+  await maybeRunInitialSceneLoad()
 })
+
+async function maybeRunInitialSceneLoad() {
+  if (!hasSceneViewportMounted.value || isInitialBootLoadFinished.value) {
+    return
+  }
+
+  if (!workspaceId.value || !workspaceId.value.length) {
+    isInitialBootLoadFinished.value = true
+    emitEditorReadyOnce()
+    return
+  }
+
+  await loadSceneIntoEditor()
+  isInitialBootLoadFinished.value = true
+  emitEditorReadyOnce()
+}
+
+function emitEditorReadyOnce() {
+  if (hasEditorReadyBeenEmitted.value) {
+    return
+  }
+
+  hasEditorReadyBeenEmitted.value = true
+  emit('editor-ready')
+}
 
 function triggerEditorWarning(message) {
   editorWarningMessage.value = message
@@ -1214,7 +1244,7 @@ async function handleSceneDocumentPrepared(payload) {
 async function loadSceneIntoEditor() {
   if (!workspaceId.value || !workspaceId.value.length) {
     console.warn('Workspace context ontbreekt voor deze editor sessie.')
-    return
+    return false
   }
 
   const response = await loadSceneDocument(lastSavedSceneId.value)
@@ -1224,7 +1254,7 @@ async function loadSceneIntoEditor() {
       persistenceStatus: persistenceStatus.value,
       persistenceError: persistenceError.value
     })
-    return
+    return false
   }
 
   const loadedSceneDocument = response.scene.scene_data
@@ -1253,6 +1283,8 @@ async function loadSceneIntoEditor() {
     sceneId: response.scene.id,
     name: response.scene.name
   })
+
+  return true
 }
 
 function handleSceneRuntimeChanged() {
@@ -1268,8 +1300,9 @@ function handleSceneRuntimeChanged() {
   isSceneDirty.value = true
 }
 
-function handleSceneReady() {
-  emit('editor-ready')
+async function handleSceneReady() {
+  hasSceneViewportMounted.value = true
+  await maybeRunInitialSceneLoad()
 }
 </script>
 
