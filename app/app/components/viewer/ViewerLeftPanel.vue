@@ -11,29 +11,97 @@
           Media toevoegen is alleen beschikbaar voor ingelogde gebruikers.
         </p>
         <template v-else>
-          <p>Kies een type:</p>
-          <ul>
-            <li>Foto</li>
-            <li>Video</li>
-            <li>Audio</li>
-          </ul>
+          <div class="viewer-left-panel__form-grid">
+            <label for="media-type">Media type</label>
+            <select id="media-type" v-model="mediaForm.type" class="viewer-left-panel__select">
+              <option value="image">Foto</option>
+              <option value="video">Video</option>
+              <option value="audio">Audio</option>
+            </select>
+
+            <label for="media-url">Media URL</label>
+            <input
+              id="media-url"
+              v-model="mediaForm.url"
+              class="viewer-left-panel__input"
+              type="url"
+              placeholder="https://..."
+            />
+
+            <label for="media-title">Titel</label>
+            <input
+              id="media-title"
+              v-model="mediaForm.title"
+              class="viewer-left-panel__input"
+              type="text"
+              placeholder="Bijdrage titel"
+            />
+
+            <label for="media-caption">Bijschrift</label>
+            <textarea
+              id="media-caption"
+              v-model="mediaForm.caption"
+              class="viewer-left-panel__textarea"
+              placeholder="Optioneel bijschrift"
+            />
+          </div>
+          <button
+            type="button"
+            class="viewer-left-panel__action"
+            :disabled="isSubmitting || !mediaForm.url.trim().length"
+            @click="submitMedia"
+          >
+            {{ isSubmitting ? 'Bezig...' : 'Media plaatsen' }}
+          </button>
         </template>
       </template>
 
       <template v-else-if="activePanel === 'message'">
         <p>Laat een bericht achter.</p>
-        <textarea class="viewer-left-panel__textarea" placeholder="Schrijf je bericht hier..." />
-        <button type="button" class="viewer-left-panel__action">Bericht plaatsen</button>
+        <textarea
+          v-model="messageForm.message"
+          class="viewer-left-panel__textarea"
+          placeholder="Schrijf je bericht hier..."
+        />
+        <label for="voice-url" class="viewer-left-panel__label-inline">Voice URL (optioneel)</label>
+        <input
+          id="voice-url"
+          v-model="messageForm.voiceUrl"
+          class="viewer-left-panel__input"
+          type="url"
+          placeholder="https://..."
+        />
+        <button
+          type="button"
+          class="viewer-left-panel__action"
+          :disabled="isSubmitting || (!messageForm.message.trim().length && !messageForm.voiceUrl.trim().length)"
+          @click="submitMessage"
+        >
+          {{ isSubmitting ? 'Bezig...' : 'Bericht plaatsen' }}
+        </button>
       </template>
 
       <template v-else-if="activePanel === 'candle'">
         <p>Kies een kaars en steek deze aan.</p>
         <div class="viewer-left-panel__chips">
-          <button type="button" class="viewer-left-panel__chip">Klassiek</button>
-          <button type="button" class="viewer-left-panel__chip">Warm licht</button>
-          <button type="button" class="viewer-left-panel__chip">Goud</button>
+          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Klassiek'">Klassiek</button>
+          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Warm licht'">Warm licht</button>
+          <button type="button" class="viewer-left-panel__chip" @click="candleForm.style = 'Goud'">Goud</button>
         </div>
-        <button type="button" class="viewer-left-panel__action">Kaars aansteken</button>
+        <p class="viewer-left-panel__selection">Gekozen stijl: {{ candleForm.style }}</p>
+        <textarea
+          v-model="candleForm.dedication"
+          class="viewer-left-panel__textarea"
+          placeholder="Optionele dedicatie"
+        />
+        <button
+          type="button"
+          class="viewer-left-panel__action"
+          :disabled="isSubmitting"
+          @click="submitCandle"
+        >
+          {{ isSubmitting ? 'Bezig...' : 'Kaars aansteken' }}
+        </button>
       </template>
 
       <template v-else-if="activePanel === 'element'">
@@ -57,16 +125,18 @@
 
         <p v-else>Geen object geselecteerd. Klik of tik in de scène om details te openen.</p>
       </template>
-
       <template v-else>
         <p>Kies een actie onderaan om een bijdrage toe te voegen.</p>
       </template>
+
+      <p v-if="submitError && !isSubmitting" class="viewer-left-panel__submit-error">{{ submitError }}</p>
+      <p v-if="submitSuccessMessage && !isSubmitting" class="viewer-left-panel__submit-success">{{ submitSuccessMessage }}</p>
     </div>
   </aside>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 
 const props = defineProps({
   activePanel: {
@@ -80,10 +150,39 @@ const props = defineProps({
   selectedElement: {
     type: Object,
     default: null
+  },
+  isSubmitting: {
+    type: Boolean,
+    default: false
+  },
+  submitError: {
+    type: String,
+    default: ''
+  },
+  submitSuccessMessage: {
+    type: String,
+    default: ''
   }
 })
 
-defineEmits(['close', 'quick-action'])
+const emit = defineEmits(['close', 'quick-action', 'submit-message', 'submit-candle', 'submit-media'])
+
+const messageForm = reactive({
+  message: '',
+  voiceUrl: ''
+})
+
+const candleForm = reactive({
+  style: 'Klassiek',
+  dedication: ''
+})
+
+const mediaForm = reactive({
+  type: 'image',
+  url: '',
+  title: '',
+  caption: ''
+})
 
 const panelTitle = computed(() => {
   if (props.activePanel === 'add') return 'Bijdrage toevoegen'
@@ -92,6 +191,29 @@ const panelTitle = computed(() => {
   if (props.activePanel === 'element') return 'Element details'
   return 'Interactie'
 })
+
+function submitMessage() {
+  emit('submit-message', {
+    message: messageForm.message,
+    voiceUrl: messageForm.voiceUrl
+  })
+}
+
+function submitCandle() {
+  emit('submit-candle', {
+    candleStyle: candleForm.style,
+    dedication: candleForm.dedication
+  })
+}
+
+function submitMedia() {
+  emit('submit-media', {
+    mediaType: mediaForm.type,
+    mediaUrl: mediaForm.url,
+    title: mediaForm.title,
+    caption: mediaForm.caption
+  })
+}
 </script>
 
 <style scoped>
@@ -168,6 +290,28 @@ const panelTitle = computed(() => {
   color: #fbd0bf;
 }
 
+.viewer-left-panel__form-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.viewer-left-panel__label-inline {
+  display: block;
+  margin: 0.45rem 0 0.2rem;
+}
+
+.viewer-left-panel__input,
+.viewer-left-panel__select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.3rem;
+  border-radius: 10px;
+  border: 1px solid rgba(224, 238, 248, 0.2);
+  background: rgba(11, 17, 25, 0.88);
+  color: #eff7ff;
+  padding: 0 0.65rem;
+}
+
 .viewer-left-panel__textarea {
   width: 100%;
   min-height: 6.5rem;
@@ -198,6 +342,21 @@ const panelTitle = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.viewer-left-panel__selection {
+  margin: 0.6rem 0 0.2rem;
+  color: rgba(236, 245, 255, 0.86);
+}
+
+.viewer-left-panel__submit-error {
+  margin-top: 0.8rem;
+  color: #f4b9ab;
+}
+
+.viewer-left-panel__submit-success {
+  margin-top: 0.8rem;
+  color: #bfe5be;
 }
 
 @media (max-width: 700px) {
