@@ -167,11 +167,11 @@ function confirmDelete() {
 }
 
 .toolbar-divider {
-  width: 1px;
+  width: 2px;
   align-self: stretch;
   margin: 0 0.14rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(118, 135, 102, 0.2), rgba(94, 112, 78, 0.62), rgba(118, 135, 102, 0.2));
+  background: rgba(94, 112, 78, 0.7);
 }
 
 .toolbar-icon-button {
