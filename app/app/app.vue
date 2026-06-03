@@ -312,8 +312,9 @@ function hydrateSceneAudioFromDocument(sceneDocument) {
     .filter(Boolean)
 
   if (fromEditorSettings.length > 0) {
-    sceneAudioItems.value = fromEditorSettings
-    selectedSceneAudioId.value = fromEditorSettings[0]?.objectId ?? null
+    const firstAudio = fromEditorSettings[0]
+    sceneAudioItems.value = firstAudio ? [firstAudio] : []
+    selectedSceneAudioId.value = firstAudio?.objectId ?? null
     return
   }
 
@@ -342,8 +343,9 @@ function hydrateSceneAudioFromDocument(sceneDocument) {
     })
     .filter(Boolean)
 
-  sceneAudioItems.value = fromObjects
-  selectedSceneAudioId.value = fromObjects[0]?.objectId ?? null
+  const firstAudio = fromObjects[0]
+  sceneAudioItems.value = firstAudio ? [firstAudio] : []
+  selectedSceneAudioId.value = firstAudio?.objectId ?? null
 }
 
 function handleInteractionModeChange(nextMode) {
@@ -501,6 +503,7 @@ function handleAddAudioTrack(track) {
   const existingAudio = sceneAudioItems.value.find((audioItem) => audioItem.trackId === track.id)
 
   if (existingAudio) {
+    sceneAudioItems.value = [existingAudio]
     selectedSceneAudioId.value = existingAudio.objectId
     selectedAsset.value = null
     return
@@ -515,7 +518,7 @@ function handleAddAudioTrack(track) {
     defaultVolume: DEFAULT_AUDIO_VOLUME
   }
 
-  sceneAudioItems.value = [...sceneAudioItems.value, nextAudioItem]
+  sceneAudioItems.value = [nextAudioItem]
   selectedSceneAudioId.value = nextAudioItem.objectId
   selectedAsset.value = null
   isSceneDirty.value = true

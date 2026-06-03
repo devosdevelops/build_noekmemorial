@@ -46,6 +46,7 @@
     [x] intermediate sizes
     [x] rect object
 [] color textures better
+[] round the scroll bar containers
 
 ## Nice to have
 

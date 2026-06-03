@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
@@ -12,6 +12,9 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'update-volume', 'remove-audio'])
 
+const activeAudio = ref(null)
+const isPreviewPlaying = ref(false)
+
 const volumePercent = computed(() => {
   const volume = Number(props.selectedAudio?.defaultVolume)
 
@@ -23,6 +26,7 @@ const volumePercent = computed(() => {
 })
 
 function handleClose() {
+  stopPreview()
   emit('close')
 }
 
@@ -37,8 +41,51 @@ function handleVolumeInput(event) {
 }
 
 function handleRemoveAudio() {
+  stopPreview()
   emit('remove-audio')
 }
+
+function stopPreview() {
+  if (!activeAudio.value) {
+    isPreviewPlaying.value = false
+    return
+  }
+
+  activeAudio.value.pause()
+  activeAudio.value.currentTime = 0
+  activeAudio.value = null
+  isPreviewPlaying.value = false
+}
+
+function handlePreviewToggle() {
+  if (!props.selectedAudio?.url) {
+    return
+  }
+
+  if (isPreviewPlaying.value) {
+    stopPreview()
+    return
+  }
+
+  stopPreview()
+
+  const audio = new Audio(props.selectedAudio.url)
+  audio.onended = () => {
+    activeAudio.value = null
+    isPreviewPlaying.value = false
+  }
+
+  activeAudio.value = audio
+  isPreviewPlaying.value = true
+
+  audio.play().catch(() => {
+    stopPreview()
+  })
+}
+
+onBeforeUnmount(() => {
+  stopPreview()
+})
 </script>
 
 <template>
@@ -67,9 +114,15 @@ function handleRemoveAudio() {
         @input="handleVolumeInput"
       >
 
-      <button type="button" class="remove-button" @click="handleRemoveAudio">
-        Verwijder audio
-      </button>
+      <div class="action-row">
+        <button type="button" class="preview-button" @click="handlePreviewToggle">
+          {{ isPreviewPlaying ? 'Stop' : 'Beluister' }}
+        </button>
+
+        <button type="button" class="remove-button" @click="handleRemoveAudio">
+          Verwijder audio
+        </button>
+      </div>
     </div>
   </OverlayCard>
 </template>
@@ -163,9 +216,14 @@ function handleRemoveAudio() {
   accent-color: #5f6f4b;
 }
 
-.remove-button {
-  justify-self: start;
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
   margin-top: 0.14rem;
+}
+
+.remove-button {
   border: 1px solid rgba(137, 47, 31, 0.42);
   border-radius: 0.58rem;
   padding: 0.4rem 0.62rem;
@@ -174,6 +232,21 @@ function handleRemoveAudio() {
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.preview-button {
+  border: 1px solid rgba(124, 138, 110, 0.48);
+  border-radius: 0.58rem;
+  padding: 0.4rem 0.62rem;
+  background: #f6f8f2;
+  color: rgba(68, 80, 56, 0.9);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.preview-button:hover {
+  border-color: rgba(96, 115, 71, 0.72);
 }
 
 .remove-button:hover {
