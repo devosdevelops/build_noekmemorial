@@ -40,9 +40,9 @@ defineEmits(['edit-guest-name', 'sign-out'])
 <style scoped>
 .viewer-topbar {
   position: absolute;
-  top: 0.85rem;
-  left: 0.85rem;
-  right: 0.85rem;
+  top: 1.5rem;
+  left: 0;
+  right: 0;
   z-index: 25;
   display: flex;
   justify-content: space-between;
@@ -53,9 +53,8 @@ defineEmits(['edit-guest-name', 'sign-out'])
 .viewer-topbar__logo-wrap,
 .viewer-topbar__user {
   pointer-events: auto;
-  border-radius: 999px;
-  min-height: 3rem;
-  padding: 0.35rem 0.7rem;
+  min-height: 3.1rem;
+  padding: 0.48rem 0.78rem;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -65,30 +64,54 @@ defineEmits(['edit-guest-name', 'sign-out'])
   box-shadow: 0 8px 20px rgba(32, 40, 26, 0.18);
 }
 
+.viewer-topbar__logo-wrap {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 0.9rem;
+  border-bottom-right-radius: 0.9rem;
+}
+
+.viewer-topbar__user {
+  margin-right: 1.5rem;
+  border-radius: 999px;
+}
+
 .viewer-topbar__logo {
-  height: 2.15rem;
+  height: 2.55rem;
   width: auto;
 }
 
 .viewer-topbar__user-name {
   margin: 0;
   color: #2c3829;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .viewer-topbar__button {
-  border: 0;
-  border-radius: 999px;
-  min-height: 1.85rem;
-  padding: 0 0.75rem;
-  background: rgba(171, 197, 148, 0.95);
-  color: #ffffff;
-  font-size: 0.75rem;
+  border: 1px solid rgba(124, 138, 110, 0.32);
+  border-radius: 0.76rem;
+  min-height: 2.2rem;
+  padding: 0 0.78rem;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  color: #3b4831;
+  font-size: 0.76rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
 @media (max-width: 700px) {
+  .viewer-topbar {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .viewer-topbar__logo-wrap {
+    border-radius: 999px;
+  }
+
   .viewer-topbar__user {
+    margin-right: 0;
     max-width: 72vw;
   }
 

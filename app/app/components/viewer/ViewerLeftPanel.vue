@@ -418,14 +418,14 @@ function submitMedia() {
 <style scoped>
 .viewer-left-panel {
   position: absolute;
-  top: 4.1rem;
-  bottom: 4.25rem;
-  left: 0.85rem;
+  top: 5.3rem;
+  bottom: 1.5rem;
+  left: 1.5rem;
   z-index: 24;
-  width: clamp(18rem, 30vw, 22rem);
-  max-width: calc(100% - 1.7rem);
-  max-height: calc(100vh - 8.35rem);
-  border-radius: 16px;
+  width: clamp(17rem, 22vw, 20rem);
+  max-width: calc(100% - 3rem);
+  max-height: calc(100svh - 6.8rem);
+  border-radius: 0.96rem;
   background: rgba(251, 252, 249, 0.93);
   border: 1px solid rgba(162, 174, 143, 0.35);
   backdrop-filter: blur(7px);
@@ -440,7 +440,7 @@ function submitMedia() {
   justify-content: space-between;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.75rem 0.8rem;
+  padding: 0.82rem 0.9rem;
   border-bottom: 1px solid rgba(162, 174, 143, 0.24);
 }
 
@@ -451,18 +451,18 @@ function submitMedia() {
 }
 
 .viewer-left-panel__close {
-  border: 0;
-  background: rgba(229, 235, 220, 0.96);
+  border: 1px solid rgba(124, 138, 110, 0.22);
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
   color: #2f3a2d;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 8px;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.64rem;
   cursor: pointer;
 }
 
 .viewer-left-panel__content {
   overflow: auto;
-  padding: 0.8rem;
+  padding: 0.9rem;
 }
 
 .viewer-left-panel__content p {
@@ -656,10 +656,12 @@ function submitMedia() {
 
 @media (max-width: 700px) {
   .viewer-left-panel {
-    top: 3.9rem;
-    bottom: 4.75rem;
-    max-height: calc(100vh - 8.65rem);
-    width: calc(100% - 1.7rem);
+    top: 4.6rem;
+    right: 0.85rem;
+    bottom: 5.2rem;
+    left: 0.85rem;
+    max-height: calc(100svh - 9.8rem);
+    width: auto;
   }
 }
 </style>

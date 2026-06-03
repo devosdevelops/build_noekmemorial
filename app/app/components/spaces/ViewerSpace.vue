@@ -642,7 +642,6 @@ function handleSceneElementSelection(element) {
     playClickSound()
   }
 
-  const worldPosition = Array.isArray(element.worldPosition) ? element.worldPosition : null
   setSelectedElement({
     id: element.id,
     kind: element.kind || '',
@@ -650,11 +649,7 @@ function handleSceneElementSelection(element) {
     description: element.description || '',
     interaction: element.interaction ?? null
   })
-  setPointerWorldPosition(worldPosition)
-
-  if (worldPosition && viewerViewportRef.value?.focusCameraOnPosition) {
-    viewerViewportRef.value.focusCameraOnPosition(worldPosition)
-  }
+    setPointerWorldPosition(Array.isArray(element.worldPosition) ? element.worldPosition : null)
 
   closeMediaCarousel()
   openPanel('element')
@@ -1056,7 +1051,7 @@ async function handleMediaSubmit(payload) {
 <style scoped>
 .viewer-space {
   position: relative;
-  min-height: 100vh;
+  min-height: 100svh;
   overflow: hidden;
   background: #e8dcc0;
   font-family: var(--font-sans);

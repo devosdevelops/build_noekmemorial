@@ -362,7 +362,12 @@ function attachCandlePointLight(modelRoot) {
   bounds.getCenter(center)
   bounds.getSize(size)
 
-  const light = new THREE.PointLight('#ffb057', 0.95, Math.max(2.2, size.length() * 0.85), 1.8)
+  const light = new THREE.PointLight(
+    '#ffb057',
+    0.16,
+    THREE.MathUtils.clamp(size.length() * 0.22, 0.45, 1.1),
+    2.4
+  )
   light.userData[CANDLE_LIGHT_USERDATA_KEY] = true
   light.userData.baseIntensity = light.intensity
   light.userData.baseDistance = light.distance
@@ -866,13 +871,16 @@ function startCameraFocusTransition(targetPosition) {
 
   const targetVector = new THREE.Vector3(targetPosition[0], targetPosition[1], targetPosition[2])
   const currentDistance = camera.position.distanceTo(controls.target)
-  const nextDistance = THREE.MathUtils.clamp(currentDistance * 0.65, 2.7, 9)
+  const nextDistance = THREE.MathUtils.clamp(currentDistance * 0.72, 7, 22)
+  const viewOffset = camera.position.clone().sub(controls.target)
 
-  const nextPosition = new THREE.Vector3(
-    targetVector.x + 2.1,
-    targetVector.y + 1.9,
-    targetVector.z + nextDistance * 0.45
-  )
+  if (viewOffset.lengthSq() === 0) {
+    viewOffset.copy(defaultCameraPosition).sub(defaultCameraTarget)
+  }
+
+  viewOffset.setLength(nextDistance)
+
+  const nextPosition = targetVector.clone().add(viewOffset)
   startCameraTransition(nextPosition, targetVector, 900)
 }
 

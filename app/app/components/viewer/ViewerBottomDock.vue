@@ -20,13 +20,13 @@ defineEmits(['open-add', 'open-message', 'open-candle'])
 .viewer-dock {
   position: absolute;
   left: 50%;
-  bottom: 0.9rem;
+  bottom: 1.5rem;
   transform: translateX(-50%);
   z-index: 25;
   display: flex;
-  gap: 0.6rem;
-  padding: 0.45rem;
-  border-radius: 999px;
+  gap: 0.58rem;
+  padding: 0.64rem;
+  border-radius: 0.96rem;
   background: rgba(251, 252, 249, 0.9);
   border: 1px solid rgba(162, 174, 143, 0.35);
   backdrop-filter: blur(6px);
@@ -34,13 +34,13 @@ defineEmits(['open-add', 'open-message', 'open-candle'])
 }
 
 .viewer-dock__icon-button {
-  border: 0;
-  border-radius: 999px;
-  min-height: 2.4rem;
-  min-width: 2.4rem;
+  border: 1px solid rgba(124, 138, 110, 0.32);
+  border-radius: 0.64rem;
+  min-height: 2.68rem;
+  min-width: 2.68rem;
   padding: 0;
-  background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  color: #3a4532;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

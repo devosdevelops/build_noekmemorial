@@ -33,24 +33,25 @@ defineEmits(['toggle-ui', 'toggle-music', 'reset-view'])
 .viewer-rail {
   position: absolute;
   top: 50%;
-  right: 0.9rem;
+  right: 1.5rem;
   transform: translateY(-50%);
   z-index: 25;
   display: grid;
-  gap: 0.6rem;
+  gap: 0.58rem;
 }
 
 .viewer-rail__toggle,
 .viewer-rail__mode-button {
-  border: 0;
-  border-radius: 10px;
-  min-height: 2.3rem;
-  padding: 0.45rem 0.75rem;
+  border: 1px solid rgba(124, 138, 110, 0.32);
+  border-radius: 0.76rem;
+  min-height: 2.68rem;
+  padding: 0.5rem 0.88rem;
   cursor: pointer;
-  background: rgba(251, 252, 249, 0.92);
-  color: #2a3527;
-  border: 1px solid rgba(162, 174, 143, 0.36);
-  box-shadow: 0 6px 16px rgba(32, 40, 26, 0.14);
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  color: #33402b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: 0 8px 18px rgba(32, 40, 26, 0.14);
 }
 
 .viewer-rail__modes {
@@ -61,5 +62,14 @@ defineEmits(['toggle-ui', 'toggle-music', 'reset-view'])
 .viewer-rail__mode-button--active {
   background: linear-gradient(180deg, #a3b18a 0%, #7a8568 100%);
   border-color: transparent;
+}
+
+@media (max-width: 900px) {
+  .viewer-rail {
+    top: auto;
+    right: 0.9rem;
+    bottom: 5.7rem;
+    transform: none;
+  }
 }
 </style>
