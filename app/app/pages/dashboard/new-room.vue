@@ -145,15 +145,15 @@ const approvalMode = ref('manual')
 .intro-card h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 2.15rem;
-  font-weight: 700;
-  color: #1b2238;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .intro-card p {
   margin: 0.25rem 0 0;
-  color: #61728d;
-  font-size: 1.1rem;
+  color: #666;
+  font-size: 0.9rem;
 }
 
 .templates-heading-card {
@@ -163,8 +163,8 @@ const approvalMode = ref('manual')
 .templates-heading-card h3 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 2rem;
-  color: #1b2238;
+  font-size: 1.25rem;
+  color: #1a1a1a;
 }
 
 .template-card {
@@ -193,16 +193,17 @@ const approvalMode = ref('manual')
 
 .template-content h4 {
   margin: 0 0 0.75rem;
-  font-size: 2rem;
+  font-size: 1rem;
   font-family: var(--font-display);
-  color: #262a3a;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .template-content p {
   margin: 0;
-  font-size: 1.1rem;
-  color: #3f4353;
-  line-height: 1.25;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
 }
 
 .template-visual {
@@ -236,9 +237,9 @@ const approvalMode = ref('manual')
   display: block;
   margin: 0 0 0.5rem;
   font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  color: #282d3b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .section-title {
@@ -281,9 +282,9 @@ const approvalMode = ref('manual')
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #2f3342;
+  color: #1a1a1a;
 }
 
 .radio-item input {
@@ -292,17 +293,17 @@ const approvalMode = ref('manual')
 
 .help-text {
   margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.2;
-  color: #3f4351;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #666;
 }
 
 .create-room-button {
   border: none;
   border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 1.9rem;
-  font-family: var(--font-display);
+  padding: 0.875rem 1.5rem;
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
   font-weight: 600;
   color: #ffffff;
   background: var(--ok-gradient, linear-gradient(180deg, #82D14D 0%, #629D3A 100%));
@@ -315,7 +316,7 @@ const approvalMode = ref('manual')
 }
 
 .btn-icon {
-  font-size: 2rem;
+  font-size: 1.1em;
   line-height: 1;
 }
 
