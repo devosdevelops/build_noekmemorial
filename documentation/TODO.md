@@ -58,6 +58,7 @@
 
 [] add clicky noises to editor
 [] add sound effects to viewer
+[] mirror tool
 [] scale smoothly instead of snapping
 [] add color picker
 [] scale object from menu

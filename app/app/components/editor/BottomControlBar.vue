@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from 'vue'
-import OverlayButton from '../ui/OverlayButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
 
 const props = defineProps({
@@ -20,22 +19,41 @@ const isDeleteToastVisible = ref(false)
 
 const groupedControls = [
   [
-    { id: 'select', label: 'Selecteren' },
-    { id: 'pan', label: 'Pannen' },
-    { id: 'center', label: 'Centreren' }
+    { id: 'select', label: 'Selecteren', icon: 'Select.svg', hasTwoStates: true },
+    { id: 'pan', label: 'Pannen', icon: 'Pan.svg', hasTwoStates: true },
+    { id: 'center', label: 'Centreren', icon: 'Focus.svg', hasTwoStates: false }
   ],
   [
-    { id: 'move', label: 'Verplaatsen' },
-    { id: 'rotate', label: 'Roteren' },
-    { id: 'scale', label: 'Schalen' }
+    { id: 'move', label: 'Verplaatsen', icon: 'Move.svg', hasTwoStates: true },
+    { id: 'rotate', label: 'Roteren', icon: 'Rotate.svg', hasTwoStates: true },
+    { id: 'scale', label: 'Schalen', icon: 'Resize.svg', hasTwoStates: true }
   ],
   [
-    { id: 'delete', label: 'Verwijderen' },
-    { id: 'reset', label: 'Resetten' },
-    { id: 'undo', label: 'Ongedaan' },
-    { id: 'redo', label: 'Opnieuw' }
+    { id: 'delete', label: 'Verwijderen', icon: 'Delete.svg', hasTwoStates: true, forceFilledState: true },
+    { id: 'reset', label: 'Resetten', icon: 'Reset.svg', hasTwoStates: false },
+    { id: 'undo', label: 'Ongedaan', icon: 'Undo-Redo.svg', hasTwoStates: false },
+    { id: 'redo', label: 'Opnieuw', icon: 'Undo-Redo.svg', hasTwoStates: false, flipHorizontal: true }
   ]
 ]
+
+function getControlIconStyle(control, isActive) {
+  const iconPath = `/icons/${control.icon}`
+  const showFilledState = control.forceFilledState ? true : isActive
+
+  if (control.hasTwoStates) {
+    return {
+      backgroundImage: `url('${iconPath}')`,
+      backgroundSize: '200% 100%',
+      backgroundPosition: showFilledState ? 'left center' : 'right center'
+    }
+  }
+
+  return {
+    backgroundImage: `url('${iconPath}')`,
+    backgroundSize: 'contain',
+    backgroundPosition: 'center'
+  }
+}
 
 function isInteractionControl(controlId) {
   return controlId === 'select' || controlId === 'pan'
@@ -105,14 +123,27 @@ function confirmDelete() {
     </transition>
 
     <template v-for="(group, groupIndex) in groupedControls" :key="`group-${groupIndex}`">
-      <OverlayButton
+      <button
         v-for="control in group"
         :key="control.id"
-        :label="control.label"
-        :class="{ 'overlay-button--delete': control.id === 'delete' }"
-        :is-active="isControlActive(control.id)"
+        type="button"
+        class="toolbar-icon-button"
+        :class="{
+          'toolbar-icon-button--active': isControlActive(control.id),
+          'toolbar-icon-button--delete': control.id === 'delete'
+        }"
+        :data-tooltip="control.label"
+        :aria-label="control.label"
+        :aria-pressed="isControlActive(control.id) ? 'true' : 'false'"
         @click="handleControlClick(control.id)"
-      />
+      >
+        <span
+          class="toolbar-icon"
+          :class="{ 'toolbar-icon--flip-x': control.flipHorizontal }"
+          :style="getControlIconStyle(control, isControlActive(control.id))"
+          aria-hidden="true"
+        />
+      </button>
       <span
         v-if="groupIndex < groupedControls.length - 1"
         :key="`divider-${groupIndex}`"
@@ -129,10 +160,10 @@ function confirmDelete() {
   left: 50%;
   bottom: 1.5rem;
   display: flex;
-  gap: 0.52rem;
+  gap: 0.58rem;
   transform: translateX(-50%);
-  padding: 0.55rem;
-  border-radius: 0.9rem;
+  padding: 0.64rem;
+  border-radius: 0.96rem;
 }
 
 .toolbar-divider {
@@ -143,14 +174,102 @@ function confirmDelete() {
   background: linear-gradient(180deg, rgba(118, 135, 102, 0.2), rgba(94, 112, 78, 0.62), rgba(118, 135, 102, 0.2));
 }
 
-.overlay-button--delete {
-  border-color: rgba(184, 56, 41, 0.42);
-  color: #8f2e21;
+.toolbar-icon-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(124, 138, 110, 0.32);
+  border-radius: 0.64rem;
+  background: linear-gradient(180deg, #f6f8f2, #e4ebda);
+  padding: 0;
+  width: 2.68rem;
+  height: 2.68rem;
+  cursor: pointer;
+  transition: all 180ms ease;
 }
 
-.overlay-button--delete:hover {
+.toolbar-icon-button:hover {
+  border-color: rgba(114, 131, 98, 0.45);
+}
+
+.toolbar-icon-button--active {
+  border-color: rgba(101, 124, 74, 0.72);
+  background: linear-gradient(180deg, #eef5df, #d6e6be);
+  box-shadow: 0 0 0 2px rgba(188, 208, 154, 0.55);
+}
+
+.toolbar-icon-button--delete {
+  border-color: rgba(184, 56, 41, 0.42);
+}
+
+.toolbar-icon-button--delete:hover {
   border-color: rgba(173, 49, 34, 0.6);
-  color: #7f261c;
+}
+
+.toolbar-icon-button:focus-visible {
+  outline: 2px solid rgba(90, 116, 60, 0.72);
+  outline-offset: 2px;
+}
+
+.toolbar-icon {
+  width: 2.01rem;
+  height: 2.01rem;
+  display: block;
+  background-repeat: no-repeat;
+}
+
+.toolbar-icon--flip-x {
+  transform: scaleX(-1);
+}
+
+.toolbar-icon-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.58rem);
+  transform: translateX(-50%);
+  min-width: max-content;
+  max-width: 12rem;
+  padding: 0.44rem 0.56rem;
+  border-radius: 0.7rem;
+  background: rgba(106, 106, 110, 0.97);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+  z-index: 4;
+}
+
+.toolbar-icon-button::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.22rem);
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 0.34rem solid transparent;
+  border-right: 0.34rem solid transparent;
+  border-top: 0.38rem solid rgba(106, 106, 110, 0.97);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+  z-index: 4;
+}
+
+.toolbar-icon-button:hover::after,
+.toolbar-icon-button:hover::before,
+.toolbar-icon-button:focus-visible::after,
+.toolbar-icon-button:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
 }
 
 .delete-toast {
