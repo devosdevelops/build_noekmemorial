@@ -158,6 +158,7 @@ const approvalMode = ref('manual')
 
 .templates-heading-card {
   padding: 1rem 1.5rem;
+  margin-top: 0.75rem;
 }
 
 .templates-heading-card h3 {
