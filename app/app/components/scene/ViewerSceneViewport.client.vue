@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { SCENE_KIND } from '../../scene/sceneContract.js'
 import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
+import { setCameraStartPosition } from './viewport/sceneMath.js'
 
 const props = defineProps({
   activeMode: {
@@ -60,70 +61,70 @@ const cameraFocusState = {
   toTarget: new THREE.Vector3()
 }
 
+const defaultCameraPosition = new THREE.Vector3()
+const defaultCameraTarget = new THREE.Vector3()
+
 let pointerIsDown = false
 let pointerMoved = false
 let pointerDownX = 0
 let pointerDownY = 0
-let flyPointerActive = false
-let lastPointerClientX = 0
-let lastPointerClientY = 0
-
-const keyState = {
-  forward: false,
-  backward: false,
-  left: false,
-  right: false,
-  up: false,
-  down: false,
-  fast: false
-}
-
-const flyState = {
-  yaw: 0,
-  pitch: 0,
-  movementSpeed: 8,
-  fastMultiplier: 1.9,
-  verticalLookSensitivity: 0.0026,
-  horizontalLookSensitivity: 0.0026,
-  moveVector: new THREE.Vector3(),
-  forwardVector: new THREE.Vector3(),
-  rightVector: new THREE.Vector3()
-}
 
 const CLICK_MOVE_THRESHOLD = 6
 
 function applyModeSettings() {
-  if (!controls || !camera) {
+  if (!controls) {
     return
   }
 
-  const isLookAround = props.activeMode === 'look-around'
-
-  controls.enabled = isLookAround
-  controls.enablePan = false
-  controls.enableZoom = isLookAround
-  controls.minDistance = 7
-  controls.maxDistance = 38
+  controls.enabled = true
+  controls.enablePan = true
+  controls.enableZoom = true
+  controls.enableRotate = true
+  controls.minDistance = 12
+  controls.maxDistance = 60
   controls.minPolarAngle = THREE.MathUtils.degToRad(18)
-  controls.maxPolarAngle = THREE.MathUtils.degToRad(86)
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(82)
+  controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+  controls.mouseButtons.RIGHT = THREE.MOUSE.PAN
+  controls.touches.ONE = THREE.TOUCH.ROTATE
+  controls.touches.TWO = THREE.TOUCH.DOLLY_PAN
+  controls.keyPanSpeed = 12
+  controls.update()
+}
 
-  if (!isLookAround) {
-    controls.update()
-    syncFlyAnglesFromCamera()
+function easeInOutCubic(value) {
+  if (value < 0.5) {
+    return 4 * value * value * value
   }
+
+  return 1 - Math.pow(-2 * value + 2, 3) / 2
 }
 
-function syncFlyAnglesFromCamera() {
-  const direction = new THREE.Vector3()
-  camera.getWorldDirection(direction)
-  flyState.yaw = Math.atan2(direction.x, direction.z)
-  flyState.pitch = Math.asin(THREE.MathUtils.clamp(direction.y, -0.95, 0.95))
+function captureDefaultCameraView() {
+  if (!camera || !controls) {
+    return
+  }
+
+  defaultCameraPosition.copy(camera.position)
+  defaultCameraTarget.copy(controls.target)
 }
 
-function applyFlyCameraRotation() {
-  camera.rotation.order = 'YXZ'
-  camera.rotation.y = flyState.yaw
-  camera.rotation.x = flyState.pitch
+function cancelCameraTransition() {
+  cameraFocusState.active = false
+}
+
+function startCameraTransition(nextPosition, nextTarget, durationMs = 900) {
+  if (!camera || !controls || !nextPosition || !nextTarget) {
+    return
+  }
+
+  cameraFocusState.fromPosition.copy(camera.position)
+  cameraFocusState.fromTarget.copy(controls.target)
+  cameraFocusState.toPosition.copy(nextPosition)
+  cameraFocusState.toTarget.copy(nextTarget)
+  cameraFocusState.durationMs = durationMs
+  cameraFocusState.startTime = performance.now()
+  cameraFocusState.active = true
 }
 
 function asVector3(input, fallback) {
@@ -865,16 +866,12 @@ function startCameraFocusTransition(targetPosition) {
   const currentDistance = camera.position.distanceTo(controls.target)
   const nextDistance = THREE.MathUtils.clamp(currentDistance * 0.65, 2.7, 9)
 
-  cameraFocusState.fromPosition.copy(camera.position)
-  cameraFocusState.fromTarget.copy(controls.target)
-  cameraFocusState.toTarget.copy(targetVector)
-  cameraFocusState.toPosition.set(
+  const nextPosition = new THREE.Vector3(
     targetVector.x + 2.1,
     targetVector.y + 1.9,
     targetVector.z + nextDistance * 0.45
   )
-  cameraFocusState.startTime = performance.now()
-  cameraFocusState.active = true
+  startCameraTransition(nextPosition, targetVector, 900)
 }
 
 function updateCameraFocusTransition(now) {
@@ -884,7 +881,7 @@ function updateCameraFocusTransition(now) {
 
   const elapsed = now - cameraFocusState.startTime
   const rawProgress = Math.min(Math.max(elapsed / cameraFocusState.durationMs, 0), 1)
-  const easedProgress = 1 - Math.pow(1 - rawProgress, 3)
+  const easedProgress = easeInOutCubic(rawProgress)
 
   camera.position.lerpVectors(
     cameraFocusState.fromPosition,
@@ -900,10 +897,20 @@ function updateCameraFocusTransition(now) {
   if (rawProgress >= 1) {
     cameraFocusState.active = false
   }
+
+  controls.update()
 }
 
 function focusCameraOnPosition(targetPosition) {
   startCameraFocusTransition(targetPosition)
+}
+
+function resetCameraView() {
+  if (!camera || !controls) {
+    return
+  }
+
+  startCameraTransition(defaultCameraPosition, defaultCameraTarget, 1100)
 }
 
 async function placeVisitorCandle({ candleStyle = 'Klassiek', candleModel = null } = {}) {
@@ -955,8 +962,9 @@ function setupRendererAndScene() {
   scene.background = new THREE.Color('#e9ede5')
   scene.fog = new THREE.Fog('#e9ede5', 70, 180)
 
-  camera = new THREE.PerspectiveCamera(58, 1, 0.1, 220)
-  camera.position.set(0, 9, 18)
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 240)
+  setCameraStartPosition(camera, 28, 30, 20, THREE)
+  camera.lookAt(0, 0.8, 0)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -965,8 +973,9 @@ function setupRendererAndScene() {
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
-  controls.dampingFactor = 0.07
-  controls.target.set(0, 1.8, 0)
+  controls.dampingFactor = 0.05
+  controls.target.set(0, 0.8, 0)
+  controls.listenToKeyEvents(window)
 
   hemiLight = new THREE.HemisphereLight('#f7faef', '#b9c7b2', 0.82)
   sunLight = new THREE.DirectionalLight('#ffffff', 0.84)
@@ -983,8 +992,8 @@ function setupRendererAndScene() {
   resizeObserver.observe(container)
 
   syncSize()
+  captureDefaultCameraView()
   applyModeSettings()
-  syncFlyAnglesFromCamera()
 }
 
 function syncSize() {
@@ -1001,16 +1010,11 @@ function syncSize() {
 }
 
 function onPointerDown(event) {
+  cancelCameraTransition()
   pointerIsDown = true
   pointerMoved = false
   pointerDownX = event.clientX
   pointerDownY = event.clientY
-
-  if (props.activeMode === 'flythrough') {
-    flyPointerActive = true
-    lastPointerClientX = event.clientX
-    lastPointerClientY = event.clientY
-  }
 }
 
 function onPointerMove(event) {
@@ -1025,21 +1029,6 @@ function onPointerMove(event) {
     pointerMoved = true
   }
 
-  if (props.activeMode !== 'flythrough' || !flyPointerActive) {
-    return
-  }
-
-  const moveX = event.clientX - lastPointerClientX
-  const moveY = event.clientY - lastPointerClientY
-
-  flyState.yaw -= moveX * flyState.horizontalLookSensitivity
-  flyState.pitch -= moveY * flyState.verticalLookSensitivity
-  flyState.pitch = THREE.MathUtils.clamp(flyState.pitch, -1.3, 1.3)
-
-  lastPointerClientX = event.clientX
-  lastPointerClientY = event.clientY
-
-  applyFlyCameraRotation()
 }
 
 function emitSelectionFromPointer(event) {
@@ -1119,7 +1108,6 @@ function onPointerUp(event) {
   }
 
   pointerIsDown = false
-  flyPointerActive = false
 }
 
 function onTouchStart(event) {
@@ -1127,17 +1115,13 @@ function onTouchStart(event) {
     return
   }
 
+  cancelCameraTransition()
+
   const touch = event.touches[0]
   pointerIsDown = true
   pointerMoved = false
   pointerDownX = touch.clientX
   pointerDownY = touch.clientY
-
-  if (props.activeMode === 'flythrough') {
-    flyPointerActive = true
-    lastPointerClientX = touch.clientX
-    lastPointerClientY = touch.clientY
-  }
 }
 
 function onTouchMove(event) {
@@ -1151,21 +1135,6 @@ function onTouchMove(event) {
     pointerMoved = true
   }
 
-  if (props.activeMode !== 'flythrough' || !flyPointerActive) {
-    return
-  }
-
-  const moveX = touch.clientX - lastPointerClientX
-  const moveY = touch.clientY - lastPointerClientY
-
-  flyState.yaw -= moveX * flyState.horizontalLookSensitivity
-  flyState.pitch -= moveY * flyState.verticalLookSensitivity
-  flyState.pitch = THREE.MathUtils.clamp(flyState.pitch, -1.3, 1.3)
-
-  lastPointerClientX = touch.clientX
-  lastPointerClientY = touch.clientY
-
-  applyFlyCameraRotation()
 }
 
 function onTouchEnd(event) {
@@ -1180,90 +1149,14 @@ function onTouchEnd(event) {
   }
 
   pointerIsDown = false
-  flyPointerActive = false
 }
-
-function onKeyDown(event) {
-  if (props.activeMode !== 'flythrough') {
-    return
-  }
-
-  if (event.code === 'KeyW' || event.code === 'ArrowUp') keyState.forward = true
-  if (event.code === 'KeyS' || event.code === 'ArrowDown') keyState.backward = true
-  if (event.code === 'KeyA' || event.code === 'ArrowLeft') keyState.left = true
-  if (event.code === 'KeyD' || event.code === 'ArrowRight') keyState.right = true
-  if (event.code === 'Space') keyState.up = true
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') keyState.down = true
-  if (event.code === 'AltLeft' || event.code === 'AltRight') keyState.fast = true
-}
-
-function onKeyUp(event) {
-  if (event.code === 'KeyW' || event.code === 'ArrowUp') keyState.forward = false
-  if (event.code === 'KeyS' || event.code === 'ArrowDown') keyState.backward = false
-  if (event.code === 'KeyA' || event.code === 'ArrowLeft') keyState.left = false
-  if (event.code === 'KeyD' || event.code === 'ArrowRight') keyState.right = false
-  if (event.code === 'Space') keyState.up = false
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') keyState.down = false
-  if (event.code === 'AltLeft' || event.code === 'AltRight') keyState.fast = false
-}
-
-function updateFlythrough(deltaSeconds) {
-  if (props.activeMode !== 'flythrough') {
-    return
-  }
-
-  flyState.moveVector.set(0, 0, 0)
-
-  if (keyState.forward) flyState.moveVector.z -= 1
-  if (keyState.backward) flyState.moveVector.z += 1
-  if (keyState.left) flyState.moveVector.x -= 1
-  if (keyState.right) flyState.moveVector.x += 1
-  if (keyState.up) flyState.moveVector.y += 1
-  if (keyState.down) flyState.moveVector.y -= 1
-
-  if (flyState.moveVector.lengthSq() === 0) {
-    return
-  }
-
-  flyState.moveVector.normalize()
-
-  camera.getWorldDirection(flyState.forwardVector)
-  flyState.forwardVector.y = 0
-  if (flyState.forwardVector.lengthSq() === 0) {
-    flyState.forwardVector.set(0, 0, -1)
-  }
-  flyState.forwardVector.normalize()
-
-  flyState.rightVector.crossVectors(flyState.forwardVector, new THREE.Vector3(0, 1, 0)).normalize()
-
-  const speed = flyState.movementSpeed * (keyState.fast ? flyState.fastMultiplier : 1)
-  const distance = deltaSeconds * speed
-
-  camera.position.addScaledVector(flyState.forwardVector, -flyState.moveVector.z * distance)
-  camera.position.addScaledVector(flyState.rightVector, flyState.moveVector.x * distance)
-  camera.position.y += flyState.moveVector.y * distance
-  camera.position.y = Math.max(1.2, Math.min(20, camera.position.y))
-}
-
-let lastFrameTime = 0
 
 function animate(time) {
   const safeTime = Number.isFinite(time) ? time : performance.now()
-  if (!lastFrameTime) {
-    lastFrameTime = safeTime
-  }
-
-  const deltaSeconds = Math.min((safeTime - lastFrameTime) / 1000, 0.1)
-  lastFrameTime = safeTime
 
   updateCandleFlickerAnimation(safeTime)
   updateCameraFocusTransition(safeTime)
-
-  if (props.activeMode === 'look-around') {
-    controls?.update()
-  } else {
-    updateFlythrough(deltaSeconds)
-  }
+  controls?.update()
 
   renderer?.render(scene, camera)
   frameId = requestAnimationFrame(animate)
@@ -1284,9 +1177,6 @@ function bindDomListeners() {
   domElement.addEventListener('touchstart', onTouchStart, { passive: true })
   domElement.addEventListener('touchmove', onTouchMove, { passive: true })
   domElement.addEventListener('touchend', onTouchEnd)
-
-  window.addEventListener('keydown', onKeyDown)
-  window.addEventListener('keyup', onKeyUp)
 }
 
 function unbindDomListeners() {
@@ -1302,9 +1192,6 @@ function unbindDomListeners() {
     domElement.removeEventListener('touchmove', onTouchMove)
     domElement.removeEventListener('touchend', onTouchEnd)
   }
-
-  window.removeEventListener('keydown', onKeyDown)
-  window.removeEventListener('keyup', onKeyUp)
 }
 
 onMounted(() => {
@@ -1315,7 +1202,8 @@ onMounted(() => {
 
 defineExpose({
   placeVisitorCandle,
-  focusCameraOnPosition
+  focusCameraOnPosition,
+  resetCameraView
 })
 
 watch(
@@ -1343,6 +1231,7 @@ onBeforeUnmount(() => {
   }
 
   controls?.dispose()
+  controls?.stopListenToKeyEvents()
   renderer?.dispose()
 
   clearRuntimeSceneObjects()

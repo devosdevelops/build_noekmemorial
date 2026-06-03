@@ -89,10 +89,9 @@
       <ViewerRightRail
         :is-ui-hidden="isUiHidden"
         :is-music-on="isMusicOn"
-        :active-mode="activeMode"
         @toggle-music="toggleMusic"
         @toggle-ui="toggleUi"
-        @set-mode="setMode"
+        @reset-view="handleResetView"
       />
 
       <div
@@ -234,7 +233,6 @@ const {
   openPanel,
   closePanel,
   toggleUi,
-  setMode,
   toggleMusic,
   setMusicOn
 } = useViewerUiState()
@@ -682,6 +680,10 @@ function handlePanelQuickAction(action) {
   if (action === 'add') {
     openPanel('add')
   }
+}
+
+function handleResetView() {
+  viewerViewportRef.value?.resetCameraView?.()
 }
 
 function openMediaCarousel(mediaKind) {

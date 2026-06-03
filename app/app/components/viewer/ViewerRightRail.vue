@@ -8,23 +8,14 @@
       {{ isUiHidden ? 'Toon UI' : 'Verberg UI' }}
     </button>
 
-    <div v-if="!isUiHidden" class="viewer-rail__modes" role="group" aria-label="Navigatiemodus">
-      <button
-        v-for="mode in modes"
-        :key="mode.value"
-        type="button"
-        class="viewer-rail__mode-button"
-        :class="{ 'viewer-rail__mode-button--active': activeMode === mode.value }"
-        @click="$emit('set-mode', mode.value)"
-      >
-        {{ mode.label }}
-      </button>
-    </div>
+    <button v-if="!isUiHidden" type="button" class="viewer-rail__mode-button" @click="$emit('reset-view')">
+      Reset view
+    </button>
   </aside>
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
   isUiHidden: {
     type: Boolean,
     default: false
@@ -32,19 +23,10 @@ const props = defineProps({
   isMusicOn: {
     type: Boolean,
     default: false
-  },
-  activeMode: {
-    type: String,
-    default: 'look-around'
   }
 })
 
-defineEmits(['toggle-ui', 'set-mode', 'toggle-music'])
-
-const modes = [
-  { value: 'look-around', label: 'Kijken' },
-  { value: 'flythrough', label: 'Fly' }
-]
+defineEmits(['toggle-ui', 'toggle-music', 'reset-view'])
 </script>
 
 <style scoped>
