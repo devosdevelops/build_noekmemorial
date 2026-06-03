@@ -77,6 +77,25 @@ export function useAuth() {
     return data
   }
 
+  async function resendSignupVerification(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+
+    if (!normalizedEmail) {
+      throw new Error('Geef een geldig e-mailadres op om de verificatiemail opnieuw te sturen.')
+    }
+
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl()
+      }
+    })
+
+    if (error) throw error
+    return data
+  }
+
   async function updateProfile({ firstName, lastName, billingCardLast4 }) {
     if (!session.value?.user?.id) {
       throw new Error('Je moet aangemeld zijn om je profiel bij te werken.')
@@ -138,6 +157,7 @@ export function useAuth() {
     init,
     signUp,
     signIn,
+    resendSignupVerification,
     updateProfile,
     updateEmail,
     signOut
