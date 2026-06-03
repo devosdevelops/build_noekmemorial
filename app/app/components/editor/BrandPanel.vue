@@ -25,7 +25,7 @@ import OverlayCard from '../ui/OverlayCard.vue'
 .brand-logo {
   display: block;
   width: auto;
-  height: 3.1rem;
+  height: 3.6rem;
   object-fit: contain;
 }
 
