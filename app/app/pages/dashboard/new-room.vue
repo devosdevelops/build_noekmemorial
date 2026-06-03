@@ -1,6 +1,6 @@
 <template>
   <DashboardLayout :showSidebar="false" :showBackButton="true" backTo="/dashboard" backLabel="Ga terug">
-    <div class="create-room-page">
+    <div class="create-room-page" :class="{ 'page-busy': isSubmitting }">
       <section class="left-column">
         <Card class="intro-card">
           <h2>Nieuwe herdenkingsruimte opstellen</h2>
@@ -192,6 +192,11 @@ async function createRoom() {
   display: grid;
   grid-template-columns: 5fr 3fr;
   gap: 1.5rem;
+}
+
+.page-busy,
+.page-busy * {
+  cursor: wait !important;
 }
 
 .left-column,
