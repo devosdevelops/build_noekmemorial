@@ -156,7 +156,7 @@ function handleSelectModel(model) {
 <style scoped>
 .models-library {
   top: 28%;
-  left: calc(1.5rem + 10.2rem + 8px);
+  left: calc(14.2rem + 0.8rem);
   z-index: 3;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.9rem;
@@ -358,7 +358,7 @@ function handleSelectModel(model) {
 
 .models-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
   max-height: 22rem;
   overflow-y: auto;
