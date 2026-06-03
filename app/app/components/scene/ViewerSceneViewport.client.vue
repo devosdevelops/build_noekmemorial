@@ -49,6 +49,11 @@ const VIEWER_CANDLE_TARGET_DIAGONAL = 0.34
 const gltfLoader = new GLTFLoader()
 const textureLoader = new THREE.TextureLoader()
 const loadedTextureCache = new Map()
+const gridConfig = {
+  groundSize: 160,
+  cellSize: 1,
+  origin: [0, 0, 0]
+}
 
 let hemiLight = null
 let sunLight = null
@@ -258,6 +263,99 @@ function applyModelAppearance(modelRoot, appearance) {
   })
 }
 
+function createModelLayoutFromBounds(box) {
+  const size = new THREE.Vector3()
+  const center = new THREE.Vector3()
+  box.getSize(size)
+  box.getCenter(center)
+
+  const safeWidth = Math.max(size.x, 0.001)
+  const safeDepth = Math.max(size.z, 0.001)
+  const rawAspectRatio = safeWidth / safeDepth
+  const isNearSquare = Math.abs(1 - rawAspectRatio) <= 0.12
+  const maxAxisCells = Math.max(1, Math.min(24, Math.ceil(Math.max(safeWidth, safeDepth) / gridConfig.cellSize) + 2))
+
+  let bestCandidate = null
+
+  for (let cellsX = 1; cellsX <= maxAxisCells; cellsX += 1) {
+    for (let cellsZ = 1; cellsZ <= maxAxisCells; cellsZ += 1) {
+      const candidateIsSquare = cellsX === cellsZ
+
+      if (isNearSquare && !candidateIsSquare) {
+        continue
+      }
+
+      const fitScale = Math.min(
+        (cellsX * gridConfig.cellSize) / safeWidth,
+        (cellsZ * gridConfig.cellSize) / safeDepth
+      )
+
+      if (!(fitScale > 0)) {
+        continue
+      }
+
+      const aspectPenalty = Math.abs(Math.log((cellsX / cellsZ) / rawAspectRatio))
+      const scalePenalty = Math.abs(Math.log(fitScale))
+      const areaPenalty = (cellsX * cellsZ) / (maxAxisCells * maxAxisCells)
+      const squarePenalty = !isNearSquare && candidateIsSquare ? 0.08 : 0
+      const score = aspectPenalty * 4 + scalePenalty * 2 + areaPenalty + squarePenalty
+
+      if (!bestCandidate || score < bestCandidate.score) {
+        bestCandidate = {
+          cellsX,
+          cellsZ,
+          fitScale,
+          score
+        }
+      }
+    }
+  }
+
+  const candidate = bestCandidate ?? { cellsX: 1, cellsZ: 1, fitScale: 1 }
+  const groupWidth = candidate.cellsX * gridConfig.cellSize
+  const groupDepth = candidate.cellsZ * gridConfig.cellSize
+  const scaledHeight = size.y * candidate.fitScale
+  const groupHeight = Math.max(
+    gridConfig.cellSize,
+    Math.ceil(Math.max(scaledHeight, gridConfig.cellSize) / gridConfig.cellSize) * gridConfig.cellSize
+  )
+
+  return {
+    center,
+    minY: box.min.y,
+    fitScale: candidate.fitScale,
+    footprintCells: [candidate.cellsX, candidate.cellsZ],
+    groupSize: new THREE.Vector3(groupWidth, groupHeight, groupDepth)
+  }
+}
+
+function buildModelWrapper(modelId, gltfScene) {
+  gltfScene.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(gltfScene)
+  const layout = createModelLayoutFromBounds(box)
+  const wrapper = new THREE.Group()
+
+  wrapper.name = `${modelId}-wrapper`
+  wrapper.userData.baseUniformSize = Math.max(layout.groupSize.x, layout.groupSize.y, layout.groupSize.z)
+  wrapper.userData.baseSize = layout.groupSize.clone()
+  wrapper.userData.scaleProfile = 'model'
+  wrapper.userData.localBounds = {
+    min: [-layout.groupSize.x / 2, 0, -layout.groupSize.z / 2],
+    max: [layout.groupSize.x / 2, layout.groupSize.y, layout.groupSize.z / 2]
+  }
+  wrapper.userData.modelFootprintCells = [...layout.footprintCells]
+
+  gltfScene.scale.setScalar(layout.fitScale)
+  gltfScene.position.set(
+    -layout.center.x * layout.fitScale,
+    -layout.minY * layout.fitScale,
+    -layout.center.z * layout.fitScale
+  )
+  wrapper.add(gltfScene)
+
+  return wrapper
+}
+
 function createBlockGeometry(shapeType) {
   if (shapeType === 'sphere') {
     return new THREE.SphereGeometry(1, 24, 18)
@@ -437,40 +535,13 @@ function clearVisitorCandles() {
   visitorCandleGlowLights.clear()
 }
 
-function buildModelWrapper(modelId, gltfScene, targetDiagonal = 1.2) {
-  gltfScene.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(gltfScene)
-  const center = new THREE.Vector3()
-  const size = new THREE.Vector3()
-  box.getCenter(center)
-  box.getSize(size)
-
-  const uniformScale = size.length() > 0.0001 ? (targetDiagonal / size.length()) : 1
-  const wrapper = new THREE.Group()
-  wrapper.name = `${modelId}-wrapper`
-
-  gltfScene.scale.setScalar(uniformScale)
-  gltfScene.position.set(
-    -center.x * uniformScale,
-    -box.min.y * uniformScale,
-    -center.z * uniformScale
-  )
-  wrapper.add(gltfScene)
-
-  return wrapper
-}
-
-function loadModelWrapper(downloadUrl, modelId, options = {}) {
-  const targetDiagonal = Number.isFinite(options?.targetDiagonal)
-    ? Math.max(0.05, Number(options.targetDiagonal))
-    : 1.2
-
+function loadModelWrapper(downloadUrl, modelId) {
   return new Promise((resolve, reject) => {
     gltfLoader.load(
       downloadUrl,
       (gltf) => {
         try {
-          resolve(buildModelWrapper(modelId, gltf.scene, targetDiagonal))
+          resolve(buildModelWrapper(modelId, gltf.scene))
         } catch (error) {
           reject(error)
         }
@@ -772,6 +843,30 @@ function createObjectsFromSceneDocument() {
   const hydrationResult = hydrateRuntimeSceneState(props.sceneDocument)
   const runtimeObjects = hydrationResult.isValid ? hydrationResult.runtimeObjects : []
   const activeToken = ++sceneUpdateToken
+
+  if (props.sceneDocument?.editorSettings?.grid && typeof props.sceneDocument.editorSettings.grid === 'object') {
+    const nextCellSize = Number(props.sceneDocument.editorSettings.grid.cellSize)
+    const nextGroundSize = Number(props.sceneDocument.editorSettings.grid.groundSize)
+    const nextOrigin = Array.isArray(props.sceneDocument.editorSettings.grid.origin)
+      ? props.sceneDocument.editorSettings.grid.origin
+      : null
+
+    if (Number.isFinite(nextCellSize) && nextCellSize > 0) {
+      gridConfig.cellSize = nextCellSize
+    }
+
+    if (Number.isFinite(nextGroundSize) && nextGroundSize > 0) {
+      gridConfig.groundSize = nextGroundSize
+    }
+
+    if (nextOrigin && nextOrigin.length === 3) {
+      gridConfig.origin = [
+        Number.isFinite(nextOrigin[0]) ? nextOrigin[0] : 0,
+        Number.isFinite(nextOrigin[1]) ? nextOrigin[1] : 0,
+        Number.isFinite(nextOrigin[2]) ? nextOrigin[2] : 0
+      ]
+    }
+  }
 
   const objectTasks = runtimeObjects.map(async (objectState, index) => {
     if (activeToken !== sceneUpdateToken) {
