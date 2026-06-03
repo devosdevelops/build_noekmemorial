@@ -121,6 +121,21 @@
               Voeg media toe
             </button>
           </div>
+
+          <section class="viewer-left-panel__contributions">
+            <h4>Recente bijdragen</h4>
+            <p v-if="filteredContributions.length === 0" class="viewer-left-panel__contributions-empty">
+              Nog geen bijdragen gekoppeld aan dit element.
+            </p>
+            <ul v-else class="viewer-left-panel__contributions-list">
+              <li v-for="entry in filteredContributions" :key="entry.id" class="viewer-left-panel__contribution-item">
+                <p class="viewer-left-panel__contribution-title">{{ contributionTitle(entry) }}</p>
+                <p v-if="contributionExcerpt(entry)" class="viewer-left-panel__contribution-excerpt">
+                  {{ contributionExcerpt(entry) }}
+                </p>
+              </li>
+            </ul>
+          </section>
         </template>
 
         <p v-else>Geen object geselecteerd. Klik of tik in de scène om details te openen.</p>
@@ -150,6 +165,10 @@ const props = defineProps({
   selectedElement: {
     type: Object,
     default: null
+  },
+  contributions: {
+    type: Array,
+    default: () => []
   },
   isSubmitting: {
     type: Boolean,
@@ -191,6 +210,77 @@ const panelTitle = computed(() => {
   if (props.activePanel === 'element') return 'Element details'
   return 'Interactie'
 })
+
+const filteredContributions = computed(() => {
+  const elementId = props.selectedElement?.id
+  const interactionType = props.selectedElement?.interaction?.type
+  const mediaKind = props.selectedElement?.interaction?.mediaKind
+  const source = Array.isArray(props.contributions) ? props.contributions : []
+
+  const byElement = source.filter((entry) => {
+    if (!elementId) {
+      return true
+    }
+
+    return entry?.content?.element_id === elementId
+  })
+
+  if (interactionType !== 'media-carousel' || !mediaKind) {
+    return byElement.slice(0, 8)
+  }
+
+  const filteredByKind = byElement.filter((entry) => {
+    const entryType = String(entry?.type || '').toLowerCase()
+    const mediaType = String(entry?.content?.media_type || '').toLowerCase()
+
+    if (mediaKind === 'message') {
+      return entryType === 'message' || entryType === 'post'
+    }
+
+    if (mediaKind === 'image-video') {
+      return entryType === 'image' || entryType === 'video' || mediaType === 'image' || mediaType === 'video'
+    }
+
+    if (mediaKind === 'audio') {
+      return entryType === 'audio' || mediaType === 'audio'
+    }
+
+    return true
+  })
+
+  return filteredByKind.slice(0, 8)
+})
+
+function contributionTitle(entry) {
+  const title = typeof entry?.title === 'string' ? entry.title.trim() : ''
+  if (title.length) {
+    return title
+  }
+
+  return 'Bijdrage'
+}
+
+function contributionExcerpt(entry) {
+  const excerpt = typeof entry?.excerpt === 'string' ? entry.excerpt.trim() : ''
+  if (excerpt.length) {
+    return excerpt
+  }
+
+  const message = typeof entry?.content?.message === 'string' ? entry.content.message.trim() : ''
+  if (message.length) {
+    return message.slice(0, 180)
+  }
+
+  if (typeof entry?.content?.voice_url === 'string' && entry.content.voice_url.trim().length) {
+    return 'Spraakbericht'
+  }
+
+  if (typeof entry?.mediaUrl === 'string' && entry.mediaUrl.trim().length) {
+    return 'Media-bijdrage'
+  }
+
+  return ''
+}
 
 function submitMessage() {
   emit('submit-message', {
@@ -347,6 +437,52 @@ function submitMedia() {
 .viewer-left-panel__selection {
   margin: 0.6rem 0 0.2rem;
   color: rgba(236, 245, 255, 0.86);
+}
+
+.viewer-left-panel__contributions {
+  margin-top: 0.9rem;
+  border-top: 1px solid rgba(224, 238, 248, 0.16);
+  padding-top: 0.75rem;
+}
+
+.viewer-left-panel__contributions h4 {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.viewer-left-panel__contributions-empty {
+  margin: 0;
+  color: rgba(226, 240, 252, 0.76);
+  font-size: 0.88rem;
+}
+
+.viewer-left-panel__contributions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.viewer-left-panel__contribution-item {
+  border: 1px solid rgba(224, 238, 248, 0.16);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  background: rgba(12, 19, 28, 0.72);
+}
+
+.viewer-left-panel__contribution-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.viewer-left-panel__contribution-excerpt {
+  margin: 0.2rem 0 0;
+  color: rgba(226, 240, 252, 0.8);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .viewer-left-panel__submit-error {
