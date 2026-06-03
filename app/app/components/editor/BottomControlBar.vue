@@ -10,6 +10,10 @@ const props = defineProps({
   activeEditTool: {
     type: String,
     default: 'move'
+  },
+  hasDeletableSelection: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -29,7 +33,7 @@ const groupedControls = [
     { id: 'scale', label: 'Schalen', icon: 'Resize.svg', hasTwoStates: true }
   ],
   [
-    { id: 'delete', label: 'Verwijderen', icon: 'Delete.svg', hasTwoStates: true, forceFilledState: true },
+    { id: 'delete', label: 'Verwijderen', icon: 'Delete.svg', hasTwoStates: true },
     { id: 'reset', label: 'Resetten', icon: 'Reset.svg', hasTwoStates: false },
     { id: 'undo', label: 'Ongedaan', icon: 'Undo-Redo.svg', hasTwoStates: false },
     { id: 'redo', label: 'Opnieuw', icon: 'Undo-Redo.svg', hasTwoStates: false, flipHorizontal: true }
@@ -38,7 +42,7 @@ const groupedControls = [
 
 function getControlIconStyle(control, isActive) {
   const iconPath = `/icons/${control.icon}`
-  const showFilledState = control.forceFilledState ? true : isActive
+  const showFilledState = isActive
 
   if (control.hasTwoStates) {
     return {
@@ -64,6 +68,10 @@ function isEditControl(controlId) {
 }
 
 function isControlActive(controlId) {
+  if (controlId === 'delete') {
+    return props.hasDeletableSelection
+  }
+
   if (isInteractionControl(controlId)) {
     return controlId === props.activeInteractionMode
   }
@@ -76,6 +84,10 @@ function isControlActive(controlId) {
 }
 
 function handleControlClick(controlId) {
+  if (controlId === 'delete' && !props.hasDeletableSelection) {
+    return
+  }
+
   if (isInteractionControl(controlId)) {
     emit('interaction-mode-change', controlId)
     return
@@ -129,12 +141,14 @@ function confirmDelete() {
         type="button"
         class="toolbar-icon-button"
         :class="{
-          'toolbar-icon-button--active': isControlActive(control.id),
-          'toolbar-icon-button--delete': control.id === 'delete'
+          'toolbar-icon-button--active': control.id !== 'delete' && isControlActive(control.id),
+          'toolbar-icon-button--delete': control.id === 'delete',
+          'toolbar-icon-button--disabled': control.id === 'delete' && !hasDeletableSelection
         }"
         :data-tooltip="control.label"
         :aria-label="control.label"
         :aria-pressed="isControlActive(control.id) ? 'true' : 'false'"
+        :disabled="control.id === 'delete' && !hasDeletableSelection"
         @click="handleControlClick(control.id)"
       >
         <span
@@ -204,6 +218,21 @@ function confirmDelete() {
 
 .toolbar-icon-button--delete:hover {
   border-color: rgba(173, 49, 34, 0.6);
+}
+
+.toolbar-icon-button--disabled {
+  opacity: 0.54;
+  cursor: not-allowed;
+}
+
+.toolbar-icon-button--disabled:hover {
+  border-color: rgba(184, 56, 41, 0.42);
+}
+
+.toolbar-icon-button--disabled:hover::after,
+.toolbar-icon-button--disabled:hover::before {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .toolbar-icon-button:focus-visible {

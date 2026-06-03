@@ -92,6 +92,7 @@
     <BottomControlBar
       :active-interaction-mode="activeInteractionMode"
       :active-edit-tool="activeEditTool"
+      :has-deletable-selection="hasDeletableSelection"
       @interaction-mode-change="handleInteractionModeChange"
       @edit-tool-change="handleEditToolChange"
       @history-action="handleHistoryAction"
@@ -215,6 +216,10 @@ const blockLabelByType = {
 
 const selectedSceneAudioItem = computed(() => {
   return sceneAudioItems.value.find((item) => item.objectId === selectedSceneAudioId.value) ?? null
+})
+
+const hasDeletableSelection = computed(() => {
+  return Boolean(selectedAsset.value?.objectId && selectedAsset.value.objectId !== 'ground')
 })
 
 const sceneAudioTrackIds = computed(() => sceneAudioItems.value.map((item) => item.trackId))
