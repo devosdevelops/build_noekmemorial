@@ -600,20 +600,27 @@ watch(
   { immediate: true }
 )
 
+async function renderRoomQrCode() {
+  const nextUrl = roomUrl.value
+  const canvas = qrCanvasRef.value
+
+  if (!nextUrl || nextUrl === '—' || !canvas) return
+
+  try {
+    await QRCode.toCanvas(canvas, nextUrl, {
+      errorCorrectionLevel: 'H',
+      width: 160,
+      margin: 1
+    })
+  } catch (error) {
+    console.error('QR code generation failed:', error)
+  }
+}
+
 watch(
-  roomUrl,
-  async (nextUrl) => {
-    if (!nextUrl || nextUrl === '—' || !qrCanvasRef.value) return
-    try {
-      await QRCode.toCanvas(qrCanvasRef.value, nextUrl, {
-        errorCorrectionLevel: 'H',
-        type: 'image/png',
-        quality: 0.95,
-        width: 160
-      })
-    } catch (error) {
-      console.error('QR code generation failed:', error)
-    }
+  [roomUrl, qrCanvasRef],
+  async () => {
+    await renderRoomQrCode()
   },
   { immediate: true }
 )
