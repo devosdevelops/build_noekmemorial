@@ -38,7 +38,7 @@
         <img src="/icons/SettingsInline.svg" alt="Settings" class="settings-icon" />
         Accountinstellingen
       </button>
-      <button class="settings-button" type="button">
+      <button class="settings-button" type="button" @click="isSupportPopupOpen = true">
         <img src="/icons/Support.svg" alt="Support" class="settings-icon" />
         Klantenservice
       </button>
@@ -98,6 +98,34 @@
         <span class="save-toast__text">Veranderingen opgeslagen</span>
       </div>
     </transition>
+
+    <div
+      v-if="isSupportPopupOpen"
+      class="support-popup-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="support-popup-title"
+      @click.self="isSupportPopupOpen = false"
+    >
+      <Card class="support-popup-card">
+        <div class="support-popup-header">
+          <h3 id="support-popup-title">Klantenservice</h3>
+          <button
+            type="button"
+            class="support-popup-close"
+            aria-label="Sluiten"
+            @click="isSupportPopupOpen = false"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="support-popup-content">
+          <p><strong>E-mail:</strong> info@noekmemorial.be</p>
+          <p><strong>Bel:</strong> +32 2 555 01 42</p>
+        </div>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -118,6 +146,7 @@ const accountLastName = ref('Jansens')
 const accountEmail = ref('janjansens@bedrijf.be')
 const accountCard = ref('BE123456790')
 const isSaveToastVisible = ref(false)
+const isSupportPopupOpen = ref(false)
 
 let saveToastTimer = null
 
@@ -414,6 +443,55 @@ onUnmounted(() => {
 .save-toast-leave-to {
   opacity: 0;
   transform: translate(-50%, calc(-50% + 8px));
+}
+
+.support-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 230;
+}
+
+.support-popup-card {
+  width: min(100%, 460px);
+  padding: 1.2rem;
+}
+
+.support-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.support-popup-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.support-popup-close {
+  border: none;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #e55a3c 0%, #cf482e 100%);
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.support-popup-content p {
+  margin: 0.3rem 0;
+  color: #4a5161;
+  font-size: 0.92rem;
 }
 
 @media (max-width: 768px) {
