@@ -1,5 +1,7 @@
 <template>
-  <div class="section">
+  <AppLoadingScreen v-if="isLoading" mode="data" message="Herdenkingsruimtes worden geladen..." />
+
+  <div v-else class="section">
     <!-- Title Card -->
     <Card class="title-card">
       <h2>Herdenkingsruimtes</h2>
@@ -7,11 +9,7 @@
     </Card>
 
     <!-- Empty State or Rooms List Card -->
-    <Card v-if="isLoading" class="content-card">
-      <p class="empty-message">Herdenkingsruimtes laden...</p>
-    </Card>
-
-    <Card v-else-if="loadError" class="content-card">
+    <Card v-if="loadError" class="content-card">
       <p class="empty-message">{{ loadError }}</p>
     </Card>
 
@@ -36,7 +34,7 @@
             <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
             Bekijk Details
           </NuxtLink>
-          <NuxtLink class="btn-primary" to="/editor">
+          <NuxtLink class="btn-primary" :to="`/editor?workspaceId=${room.id}`">
             <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
             Open in Editor
           </NuxtLink>
@@ -57,6 +55,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import Card from '../ui/Card.vue'
+import AppLoadingScreen from '../ui/AppLoadingScreen.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 

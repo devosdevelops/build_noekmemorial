@@ -45,7 +45,7 @@ import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
 import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
 
 const containerRef = ref(null)
-const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed', 'selection-changed'])
+const emit = defineEmits(['scene-document-prepared', 'scene-runtime-changed', 'selection-changed', 'scene-ready'])
 
 const props = defineProps({
   showGrid: {
@@ -2120,6 +2120,11 @@ onMounted(() => {
   isSceneReady = true
 
   animate()
+
+  // Notify parent after the scene has mounted and the first frame can render.
+  window.requestAnimationFrame(() => {
+    emit('scene-ready')
+  })
 })
 
 onBeforeUnmount(() => {

@@ -1,7 +1,8 @@
 # TODO
 
 [x] split codebase into the 3 products
-[] add mobile error screen
+[x] add mobile error screen
+[x] loading screen for data and editor
 
 ## Editor
 

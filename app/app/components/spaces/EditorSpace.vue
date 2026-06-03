@@ -16,6 +16,7 @@
       :lighting-action="lightingAction"
       :persistence-action="persistenceAction"
       :selection-action="selectionAction"
+      @scene-ready="handleSceneReady"
       @scene-document-prepared="handleSceneDocumentPrepared"
       @scene-runtime-changed="handleSceneRuntimeChanged"
       @selection-changed="handleSelectionChanged"
@@ -119,6 +120,8 @@ import EditorSceneViewport from '../scene/EditorSceneViewport.client.vue'
 import { useScenePersistence } from '../../composables/useScenePersistence.js'
 import { AUDIO_TRACKS } from '../../config/audioLibrary.js'
 import { DEFAULT_LIGHTING_PRESET_ID } from '../../config/lightingPresets.js'
+
+const emit = defineEmits(['editor-ready'])
 
 const DEFAULT_AUDIO_VOLUME = 0.6
 
@@ -1012,6 +1015,10 @@ function handleSceneRuntimeChanged() {
   }
 
   isSceneDirty.value = true
+}
+
+function handleSceneReady() {
+  emit('editor-ready')
 }
 </script>
 

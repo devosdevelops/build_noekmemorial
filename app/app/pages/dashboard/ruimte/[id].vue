@@ -1,10 +1,7 @@
 <template>
   <DashboardLayout :showSidebar="false" :showBackButton="true" backTo="/dashboard" backLabel="Ga terug">
     <div class="room-details-page">
-      <Card v-if="isLoading" class="details-card room-state-card">
-        <p class="room-state-title">Herdenkingsruimte laden...</p>
-        <p class="room-state-text">Even geduld terwijl we de workspace uit Supabase ophalen.</p>
-      </Card>
+      <AppLoadingScreen v-if="isLoading" mode="data" message="Herdenkingsruimte wordt geladen..." />
 
       <Card v-else-if="roomErrorMessage" class="details-card room-state-card">
         <p class="room-state-title">Kon de herdenkingsruimte niet laden</p>
@@ -343,6 +340,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import DashboardLayout from '../../../components/dashboard/DashboardLayout.vue'
 import Card from '../../../components/ui/Card.vue'
+import AppLoadingScreen from '../../../components/ui/AppLoadingScreen.vue'
 import { useAuth } from '../../../composables/useAuth'
 
 definePageMeta({
