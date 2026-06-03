@@ -10,6 +10,20 @@ export const SCENE_KIND = {
 
 export const SCENE_KIND_VALUES = Object.values(SCENE_KIND)
 
+export const SCENE_INTERACTION_TYPE = {
+  MEDIA_CAROUSEL: 'media-carousel'
+}
+
+export const SCENE_INTERACTION_TYPE_VALUES = Object.values(SCENE_INTERACTION_TYPE)
+
+export const SCENE_MEDIA_KIND = {
+  MESSAGE: 'message',
+  IMAGE_VIDEO: 'image-video',
+  AUDIO: 'audio'
+}
+
+export const SCENE_MEDIA_KIND_VALUES = Object.values(SCENE_MEDIA_KIND)
+
 export const SHAPE_ASSET_VALUES = ['square', 'sphere', 'cylinder', 'cone', 'triangle']
 
 export const SHAPE_COLOR_BY_TYPE = {

@@ -82,6 +82,20 @@ function toSceneObjectDocument(objectState) {
     ? objectState.kind
     : kindFromScaleProfile(objectState.scaleProfile)
 
+  const metadata = objectState?.metadata && typeof objectState.metadata === 'object'
+    ? {
+        title: typeof objectState.metadata.title === 'string' ? objectState.metadata.title : '',
+        attribution: typeof objectState.metadata.attribution === 'string' ? objectState.metadata.attribution : '',
+        licence: typeof objectState.metadata.licence === 'string' ? objectState.metadata.licence : ''
+      }
+    : null
+  const interaction = objectState?.interaction && typeof objectState.interaction === 'object'
+    ? {
+        type: typeof objectState.interaction.type === 'string' ? objectState.interaction.type : null,
+        mediaKind: typeof objectState.interaction.mediaKind === 'string' ? objectState.interaction.mediaKind : null
+      }
+    : null
+
   return {
     id: objectState.id,
     kind,
@@ -91,7 +105,9 @@ function toSceneObjectDocument(objectState) {
       rotation: [...objectState.rotation],
       scale: [...objectState.scale]
     },
-    appearance: cloneAppearance(kind, objectState.appearance)
+    appearance: cloneAppearance(kind, objectState.appearance),
+    metadata,
+    interaction
   }
 }
 

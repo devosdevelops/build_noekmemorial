@@ -2,18 +2,33 @@
 import { computed, onMounted, ref } from 'vue'
 import CloseIconButton from '../ui/CloseIconButton.vue'
 import OverlayCard from '../ui/OverlayCard.vue'
-import { POLY_PIZZA_LIST_IDS } from '../../config/polypizza.js'
+import { POLY_PIZZA_LISTS, POLY_PIZZA_LIST_CATEGORY } from '../../config/polypizza.js'
 
 const emit = defineEmits(['close', 'select-model'])
 const MIN_LOADING_SPINNER_MS = 1000
 
-async function fetchList(listId) {
+async function fetchList(listConfig) {
+  const listId = listConfig?.id
+
+  if (typeof listId !== 'string' || !listId.length) {
+    return []
+  }
+
   const res = await fetch(`/api/polypizza/list/${encodeURIComponent(listId)}`)
   if (!res.ok) {
     throw new Error(`Lijst "${listId}" kon niet worden opgehaald: ${res.status}`)
   }
   const data = await res.json()
-  return Array.isArray(data?.Models) ? data.Models : []
+  const category = typeof listConfig?.category === 'string' && listConfig.category.length
+    ? listConfig.category
+    : POLY_PIZZA_LIST_CATEGORY.MODEL
+
+  return Array.isArray(data?.Models)
+    ? data.Models.map((model) => ({
+        ...model,
+        libraryCategory: category
+      }))
+    : []
 }
 
 function mergeAndDeduplicate(arrays) {
@@ -21,9 +36,34 @@ function mergeAndDeduplicate(arrays) {
   const result = []
   for (const models of arrays) {
     for (const model of models) {
-      if (model?.ID && !seen.has(model.ID)) {
+      if (!model?.ID) {
+        continue
+      }
+
+      if (!seen.has(model.ID)) {
         seen.add(model.ID)
         result.push(model)
+        continue
+      }
+
+      const existingIndex = result.findIndex((entry) => entry?.ID === model.ID)
+      if (existingIndex < 0) {
+        continue
+      }
+
+      const existing = result[existingIndex]
+      const existingCategory = existing?.libraryCategory
+      const nextCategory = model?.libraryCategory
+      const shouldPromoteCategory =
+        existingCategory === POLY_PIZZA_LIST_CATEGORY.MODEL
+        && nextCategory
+        && nextCategory !== POLY_PIZZA_LIST_CATEGORY.MODEL
+
+      if (shouldPromoteCategory) {
+        result[existingIndex] = {
+          ...existing,
+          libraryCategory: nextCategory
+        }
       }
     }
   }
@@ -59,12 +99,12 @@ const filteredModels = computed(() => {
 })
 
 async function loadModels() {
-  if (!POLY_PIZZA_LIST_IDS.length) return
+  if (!POLY_PIZZA_LISTS.length) return
   const loadStartTime = Date.now()
   isLoading.value = true
   loadError.value = null
   try {
-    const results = await Promise.all(POLY_PIZZA_LIST_IDS.map(fetchList))
+    const results = await Promise.all(POLY_PIZZA_LISTS.map(fetchList))
     models.value = mergeAndDeduplicate(results)
   } catch (err) {
     loadError.value = err.message ?? 'Modellen konden niet worden geladen.'
@@ -85,12 +125,18 @@ function handleClose() {
 }
 
 function handleSelectModel(model) {
+  const category = typeof model?.libraryCategory === 'string' && model.libraryCategory.length
+    ? model.libraryCategory
+    : POLY_PIZZA_LIST_CATEGORY.MODEL
+
   emit('select-model', {
     id: model.ID,
     title: model.Title,
     downloadUrl: model.Download,
     attribution: model.Attribution ?? '',
-    licence: model.Licence ?? ''
+    licence: model.Licence ?? '',
+    libraryCategory: category,
+    isSpecialMediaObject: category !== POLY_PIZZA_LIST_CATEGORY.MODEL
   })
 }
 </script>

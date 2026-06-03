@@ -27,7 +27,9 @@ function toRuntimeObject(sceneObject, index) {
     position: asVector3(sceneObject.transform?.position, kind === SCENE_KIND.FLOOR ? [0, -0.07, 0] : [0, 1, 0]),
     rotation: asVector3(sceneObject.transform?.rotation, [0, 0, 0]),
     scale: asVector3(sceneObject.transform?.scale, [1, 1, 1]),
-    appearance: sceneObject.appearance ?? null
+    appearance: sceneObject.appearance ?? null,
+    metadata: sceneObject.metadata ?? null,
+    interaction: sceneObject.interaction ?? null
   }
 
   if (kind === SCENE_KIND.SHAPE && !SHAPE_ASSET_VALUES.includes(runtimeObject.assetRef)) {

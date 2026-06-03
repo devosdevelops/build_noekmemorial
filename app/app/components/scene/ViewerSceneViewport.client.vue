@@ -132,6 +132,10 @@ function createMemorialObjects() {
       id: 'memory-stone',
       title: 'Memory Stone',
       description: 'A quiet place for short dedications.',
+      interaction: {
+        type: 'media-carousel',
+        mediaKind: 'image-video'
+      },
       geometry: new THREE.DodecahedronGeometry(1.4, 0),
       material: new THREE.MeshStandardMaterial({ color: '#8f9aa7', roughness: 0.7 }),
       position: [3, 1.5, -2]
@@ -140,6 +144,10 @@ function createMemorialObjects() {
       id: 'candle-circle',
       title: 'Candle Circle',
       description: 'Light a candle in this circle.',
+      interaction: {
+        type: 'media-carousel',
+        mediaKind: 'audio'
+      },
       geometry: new THREE.TorusGeometry(2, 0.35, 16, 42),
       material: new THREE.MeshStandardMaterial({ color: '#d0b687', roughness: 0.45, metalness: 0.15 }),
       position: [0, 1, 6]
@@ -148,6 +156,10 @@ function createMemorialObjects() {
       id: 'message-wall',
       title: 'Message Wall',
       description: 'Open to read and leave messages.',
+      interaction: {
+        type: 'media-carousel',
+        mediaKind: 'message'
+      },
       geometry: new THREE.BoxGeometry(6.5, 3.3, 0.45),
       material: new THREE.MeshStandardMaterial({ color: '#5e768d', roughness: 0.55 }),
       position: [8, 1.7, 3]
@@ -162,7 +174,8 @@ function createMemorialObjects() {
     meshMetaById.set(entry.id, {
       id: entry.id,
       title: entry.title,
-      description: entry.description
+      description: entry.description,
+      interaction: entry.interaction ?? null
     })
     scene.add(mesh)
   })

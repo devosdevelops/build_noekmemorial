@@ -299,6 +299,10 @@ const floorAction = ref({
 const modelAction = ref({
   type: null,
   downloadUrl: null,
+  title: '',
+  attribution: '',
+  licence: '',
+  libraryCategory: 'model',
   sequence: 0
 })
 const lightingAction = ref({
@@ -735,7 +739,7 @@ function handleAssetConfigurationClose() {
   }
 }
 
-function handleSelectModel({ downloadUrl, title, attribution, licence }) {
+function handleSelectModel({ downloadUrl, title, attribution, licence, libraryCategory }) {
   isModelsLibraryVisible.value = false
   modelAction.value = {
     type: 'add-model',
@@ -743,6 +747,9 @@ function handleSelectModel({ downloadUrl, title, attribution, licence }) {
     title,
     attribution,
     licence,
+    libraryCategory: typeof libraryCategory === 'string' && libraryCategory.length
+      ? libraryCategory
+      : 'model',
     sequence: modelAction.value.sequence + 1
   }
 }

@@ -1,6 +1,8 @@
 import {
   SCENE_KIND,
   SCENE_KIND_VALUES,
+  SCENE_INTERACTION_TYPE,
+  SCENE_MEDIA_KIND_VALUES,
   SCENE_SCHEMA_VERSION,
   SHAPE_ASSET_VALUES,
   getDefaultAppearance
@@ -113,6 +115,61 @@ function normalizeAppearance(kind, appearanceInput, warnings, objectId) {
   }
 }
 
+function normalizeMetadata(metadataInput) {
+  if (!metadataInput || typeof metadataInput !== 'object') {
+    return null
+  }
+
+  const title = typeof metadataInput.title === 'string' ? metadataInput.title.trim() : ''
+  const attribution = typeof metadataInput.attribution === 'string' ? metadataInput.attribution.trim() : ''
+  const licence = typeof metadataInput.licence === 'string' ? metadataInput.licence.trim() : ''
+
+  if (!title.length && !attribution.length && !licence.length) {
+    return null
+  }
+
+  return {
+    title,
+    attribution,
+    licence
+  }
+}
+
+function normalizeInteraction(interactionInput, warnings, objectId, kind) {
+  if (!interactionInput || typeof interactionInput !== 'object') {
+    return null
+  }
+
+  const interactionType = typeof interactionInput.type === 'string' ? interactionInput.type.trim() : ''
+
+  if (!interactionType.length) {
+    warnings.push(`Object "${objectId}" has interaction without a valid type; ignored.`)
+    return null
+  }
+
+  if (interactionType !== SCENE_INTERACTION_TYPE.MEDIA_CAROUSEL) {
+    return {
+      type: interactionType
+    }
+  }
+
+  const mediaKind = typeof interactionInput.mediaKind === 'string' ? interactionInput.mediaKind.trim() : ''
+
+  if (!SCENE_MEDIA_KIND_VALUES.includes(mediaKind)) {
+    warnings.push(`Object "${objectId}" has unsupported media kind "${mediaKind}"; media interaction ignored.`)
+    return null
+  }
+
+  if (kind !== SCENE_KIND.MODEL) {
+    warnings.push(`Object "${objectId}" uses media interaction on kind "${kind}"; expected "model".`)
+  }
+
+  return {
+    type: SCENE_INTERACTION_TYPE.MEDIA_CAROUSEL,
+    mediaKind
+  }
+}
+
 function normalizeObject(input, index, errors, warnings, seenIds) {
   const objectId = typeof input?.id === 'string' && input.id.trim().length ? input.id.trim() : `obj-${index}`
 
@@ -140,7 +197,9 @@ function normalizeObject(input, index, errors, warnings, seenIds) {
       rotation: asVector3(transform.rotation, [0, 0, 0]),
       scale: asVector3(transform.scale, [1, 1, 1])
     },
-    appearance: normalizeAppearance(kind, input?.appearance, warnings, objectId)
+    appearance: normalizeAppearance(kind, input?.appearance, warnings, objectId),
+    metadata: normalizeMetadata(input?.metadata),
+    interaction: normalizeInteraction(input?.interaction, warnings, objectId, kind)
   }
 
   if (kind === SCENE_KIND.SHAPE && normalizedObject.assetRef && !SHAPE_ASSET_VALUES.includes(normalizedObject.assetRef)) {

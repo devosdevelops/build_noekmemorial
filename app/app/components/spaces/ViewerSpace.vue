@@ -398,7 +398,8 @@ function handleSceneElementSelection(element) {
   setSelectedElement({
     id: element.id,
     title: element.title || 'Scene element',
-    description: element.description || ''
+    description: element.description || '',
+    interaction: element.interaction ?? null
   })
   setPointerWorldPosition(worldPosition)
   openPanel('element')

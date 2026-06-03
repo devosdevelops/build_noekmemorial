@@ -38,7 +38,13 @@ import { createSceneBootstrap } from './viewport/sceneBootstrap.js'
 import { createTransformRuntime } from './viewport/transformRuntime.js'
 import { createHistoryRuntime } from './viewport/historyRuntime.js'
 import { createCameraNavigationRuntime } from './viewport/cameraNavigationRuntime.js'
-import { SCENE_KIND, SHAPE_COLOR_BY_TYPE, getDefaultAppearance } from '../../scene/sceneContract.js'
+import {
+  SCENE_INTERACTION_TYPE,
+  SCENE_KIND,
+  SCENE_MEDIA_KIND,
+  SHAPE_COLOR_BY_TYPE,
+  getDefaultAppearance
+} from '../../scene/sceneContract.js'
 import { buildSceneDocumentFromRuntime } from '../../scene/sceneSerialization.js'
 import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
@@ -126,6 +132,10 @@ const props = defineProps({
     default: () => ({
       type: null,
       downloadUrl: null,
+      title: '',
+      attribution: '',
+      licence: '',
+      libraryCategory: 'model',
       sequence: 0
     })
   },
@@ -1193,7 +1203,9 @@ function emitSelectionChanged() {
     objectId: objectState.id,
     kind: objectState.kind,
     assetRef: objectState.assetRef,
-    appearance: objectState.appearance
+    appearance: objectState.appearance,
+    metadata: objectState.metadata ?? null,
+    interaction: objectState.interaction ?? null
   }
 
   if (objectState.kind === SCENE_KIND.MODEL) {
@@ -1449,7 +1461,32 @@ function loadModelWrapper(downloadUrl, modelId) {
   })
 }
 
-function addModelToScene(downloadUrl) {
+function toMediaInteractionFromLibraryCategory(libraryCategory) {
+  if (libraryCategory === 'message') {
+    return {
+      type: SCENE_INTERACTION_TYPE.MEDIA_CAROUSEL,
+      mediaKind: SCENE_MEDIA_KIND.MESSAGE
+    }
+  }
+
+  if (libraryCategory === 'image-video') {
+    return {
+      type: SCENE_INTERACTION_TYPE.MEDIA_CAROUSEL,
+      mediaKind: SCENE_MEDIA_KIND.IMAGE_VIDEO
+    }
+  }
+
+  if (libraryCategory === 'audio') {
+    return {
+      type: SCENE_INTERACTION_TYPE.MEDIA_CAROUSEL,
+      mediaKind: SCENE_MEDIA_KIND.AUDIO
+    }
+  }
+
+  return null
+}
+
+function addModelToScene(downloadUrl, metadata = {}) {
   if (!scene || !downloadUrl) return
 
   const modelId = `model-${Date.now()}`
@@ -1475,7 +1512,13 @@ function addModelToScene(downloadUrl) {
         position: [wrapper.position.x, wrapper.position.y, wrapper.position.z],
         rotation: [0, 0, 0],
         scale: [wrapper.scale.x, wrapper.scale.y, wrapper.scale.z],
-        appearance: getDefaultAppearance(SCENE_KIND.MODEL)
+        appearance: getDefaultAppearance(SCENE_KIND.MODEL),
+        metadata: {
+          title: typeof metadata.title === 'string' ? metadata.title : '',
+          attribution: typeof metadata.attribution === 'string' ? metadata.attribution : '',
+          licence: typeof metadata.licence === 'string' ? metadata.licence : ''
+        },
+        interaction: toMediaInteractionFromLibraryCategory(metadata.libraryCategory)
       })
 
       const modelState = sceneObjects.find((item) => item.id === modelId)
@@ -1783,7 +1826,12 @@ watch(
       return
     }
 
-    addModelToScene(props.modelAction.downloadUrl)
+    addModelToScene(props.modelAction.downloadUrl, {
+      title: props.modelAction.title,
+      attribution: props.modelAction.attribution,
+      licence: props.modelAction.licence,
+      libraryCategory: props.modelAction.libraryCategory
+    })
   }
 )
 
