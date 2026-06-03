@@ -376,31 +376,62 @@ function closeAllLibraries() {
 }
 
 function handleSideToolClick(toolId) {
+  const isBlocksOpen = isBlocksLibraryVisible.value
+  const isModelsOpen = isModelsLibraryVisible.value
+  const isFloorsOpen = isFloorLibraryVisible.value
+  const isLightOpen = isLightLibraryVisible.value
+  const isAudioOpen = isSoundsLibraryVisible.value
+
   if (toolId === 'blocks') {
+    if (isBlocksOpen) {
+      closeAllLibraries()
+      return
+    }
+
     closeAllLibraries()
     isBlocksLibraryVisible.value = true
     return
   }
 
   if (toolId === 'models') {
+    if (isModelsOpen) {
+      closeAllLibraries()
+      return
+    }
+
     closeAllLibraries()
     isModelsLibraryVisible.value = true
     return
   }
 
   if (toolId === 'floors') {
+    if (isFloorsOpen) {
+      closeAllLibraries()
+      return
+    }
+
     closeAllLibraries()
     isFloorLibraryVisible.value = true
     return
   }
 
   if (toolId === 'light') {
+    if (isLightOpen) {
+      closeAllLibraries()
+      return
+    }
+
     closeAllLibraries()
     isLightLibraryVisible.value = true
     return
   }
 
   if (toolId === 'audio') {
+    if (isAudioOpen) {
+      closeAllLibraries()
+      return
+    }
+
     closeAllLibraries()
     isSoundsLibraryVisible.value = true
     if (sceneAudioItems.value.length > 0) {
