@@ -11,7 +11,6 @@ import { hydrateRuntimeSceneState } from '../../scene/sceneHydration.js'
 import { SCENE_KIND } from '../../scene/sceneContract.js'
 import { DEFAULT_LIGHTING_PRESET_ID, getLightingPresetById } from '../../config/lightingPresets.js'
 import { FLOOR_TEXTURE_BY_ID } from '../../config/floorTextures.js'
-import { setCameraStartPosition } from './viewport/sceneMath.js'
 
 const props = defineProps({
   activeMode: {
@@ -1295,7 +1294,7 @@ function setupRendererAndScene() {
   scene.fog = new THREE.Fog('#e9ede5', 70, 180)
 
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 240)
-  setCameraStartPosition(camera, 28, 30, 20, THREE)
+  camera.position.set(28, 30, 20)
   camera.lookAt(0, 0.8, 0)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
