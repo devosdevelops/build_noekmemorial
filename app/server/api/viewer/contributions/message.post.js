@@ -70,6 +70,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const slug = normalizeText(body?.slug, 140).toLowerCase()
   const message = normalizeText(body?.message, 1600)
+  const voiceUrl = normalizeText(body?.voiceUrl, 2000)
   const guestName = normalizeText(body?.guestName, 120)
   const elementId = normalizeText(body?.elementId, 160)
   const accessPin = normalizeText(body?.accessPin, 16)
@@ -81,10 +82,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (!message.length) {
+  if (!message.length && !voiceUrl.length) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Berichttekst is verplicht.'
+      statusMessage: 'Berichttekst of voice URL is verplicht.'
     })
   }
 
@@ -107,13 +108,17 @@ export default defineEventHandler(async (event) => {
 
   const contributionContent = {
     kind: 'message',
-    message,
+    message: message || null,
+    voice_url: voiceUrl || null,
     guest_name: authorId ? null : guestName,
     element_id: elementId || null,
     world_position: Array.isArray(body?.worldPosition) ? body.worldPosition : null
   }
 
-  const titleBase = authorId ? 'Bericht van bezoeker' : `Bericht van ${guestName}`
+  const isVoiceOnly = !message.length && voiceUrl.length
+  const titleBase = isVoiceOnly
+    ? (authorId ? 'Spraakbericht van bezoeker' : `Spraakbericht van ${guestName}`)
+    : (authorId ? 'Bericht van bezoeker' : `Bericht van ${guestName}`)
 
   const { data, error } = await supabase
     .from('app_posts')
@@ -124,7 +129,7 @@ export default defineEventHandler(async (event) => {
       content_type: 'post',
       slug: buildContributionSlug('msg'),
       title: titleBase,
-      excerpt: message.slice(0, 180),
+      excerpt: message.length ? message.slice(0, 180) : 'Spraakbericht',
       content: contributionContent,
       status,
       published_at: status === 'published' ? now : null
