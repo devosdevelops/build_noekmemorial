@@ -48,6 +48,13 @@ async function loadWorkspaceBySlug(supabase, slug) {
 }
 
 function assertPinIfNeeded(workspace, accessPin) {
+  if (workspace.visibility === 'offline') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Deze herdenkingsruimte is nog offline en accepteert nog geen bijdragen.'
+    })
+  }
+
   const expectedPin = normalizeText(workspace.access_pin, 16)
   const suppliedPin = normalizeText(accessPin, 16)
 
