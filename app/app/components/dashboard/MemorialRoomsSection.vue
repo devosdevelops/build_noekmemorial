@@ -7,7 +7,15 @@
     </Card>
 
     <!-- Empty State or Rooms List Card -->
-    <Card v-if="rooms.length === 0" class="content-card">
+    <Card v-if="isLoading" class="content-card">
+      <p class="empty-message">Herdenkingsruimtes laden...</p>
+    </Card>
+
+    <Card v-else-if="loadError" class="content-card">
+      <p class="empty-message">{{ loadError }}</p>
+    </Card>
+
+    <Card v-else-if="rooms.length === 0" class="content-card">
       <p class="empty-message">Je hebt nog geen ruimte aangemaakt. Klik de onderstaande knop om aan de slag te gaan.</p>
     </Card>
 
@@ -47,24 +55,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted } from 'vue'
 import Card from '../ui/Card.vue'
+import { useAuth } from '../../composables/useAuth'
+import { useDashboardWorkspaces } from '../../composables/useDashboardWorkspaces'
 
-const rooms = ref([
-  // Demo rooms - will be replaced with real data
-  {
-    id: 'room-1',
-    title: 'In liefdevolle herinnering aan Maria de Vries',
-    lastUpdated: new Date('2025-10-12'),
-    pendingCount: 3
-  },
-  {
-    id: 'room-2',
-    title: 'In liefdevolle herinnering aan Johannes Bakker',
-    lastUpdated: new Date('2025-09-05'),
-    pendingCount: 0
-  }
-])
+const { init } = useAuth()
+const { workspaces: rooms, isLoading, loadError, loadWorkspaces } = useDashboardWorkspaces()
+
+onMounted(async () => {
+  await init()
+  await loadWorkspaces()
+})
 
 function formatDate(date) {
   return new Intl.DateTimeFormat('nl-NL', {
