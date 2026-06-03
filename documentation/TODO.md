@@ -59,8 +59,8 @@
 [x] main ui
 [x] manage workspace ui
 [x] new room ui
-[] create account ui
-[] login ui
+[x] create account ui
+[x] login ui
 [] create account
 [] activate workspace
 [] start room
