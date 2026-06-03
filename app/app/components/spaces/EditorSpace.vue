@@ -93,6 +93,7 @@
     <PublishModal
       v-if="isPublishModalOpen"
       v-model:selected-visibility="publishVisibilitySelection"
+      v-model:selected-access-pin="publishAccessPin"
       :is-submitting="isPublishingWorkspace"
       :error-message="publishModalError"
       @close="closePublishModal"
@@ -175,6 +176,41 @@
               <input v-model="workspaceSettingsApprovalMode" type="radio" value="automatic" :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings" />
               <span>Automatische goedkeuring</span>
             </label>
+          </div>
+        </div>
+
+        <div v-if="workspaceSettingsVisibility === 'private'" class="workspace-settings-field">
+          <label class="workspace-settings-section-title" for="workspace-settings-pin">Pincode (6 cijfers)</label>
+          <div class="workspace-settings-pin-row">
+            <input
+              id="workspace-settings-pin"
+              v-model="workspaceSettingsAccessPin"
+              type="text"
+              class="workspace-settings-input"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Bijv. 123456"
+              :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings"
+              @input="workspaceSettingsAccessPin = normalizeAccessPin(workspaceSettingsAccessPin)"
+            />
+            <button
+              type="button"
+              class="workspace-settings-pin-generate"
+              :disabled="!isWorkspaceOwner || isSavingWorkspaceSettings"
+              @click="generateWorkspaceSettingsPin"
+            >
+              Genereer PIN
+            </button>
+            <button
+              type="button"
+              class="workspace-settings-pin-copy"
+              :disabled="!/^\d{6}$/.test(workspaceSettingsAccessPin)"
+              aria-label="Kopieer pincode"
+              title="Kopieer pincode"
+              @click="copyWorkspaceSettingsPin"
+            >
+              <img src="/icons/copy.svg" alt="" aria-hidden="true" />
+            </button>
           </div>
         </div>
 
@@ -298,6 +334,7 @@ const workspaceSettingsFirstName = ref('')
 const workspaceSettingsLastName = ref('')
 const workspaceSettingsVisibility = ref('offline')
 const workspaceSettingsApprovalMode = ref('manual')
+const workspaceSettingsAccessPin = ref('')
 const workspaceSettingsError = ref('')
 const isSavingWorkspaceSettings = ref(false)
 const isWorkspaceOwner = ref(false)
@@ -306,6 +343,7 @@ const isEditorWarningVisible = ref(false)
 const editorWarningMessage = ref('')
 const isPublishModalOpen = ref(false)
 const publishVisibilitySelection = ref('')
+const publishAccessPin = ref('')
 const publishModalError = ref('')
 const isPublishingWorkspace = ref(false)
 const isInitialBootLoadFinished = ref(false)
@@ -372,6 +410,42 @@ function triggerEditorWarning(message) {
     isEditorWarningVisible.value = false
     editorWarningTimer = null
   }, 3200)
+}
+
+function normalizeAccessPin(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
+function generateAccessPin() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+function generateWorkspaceSettingsPin() {
+  workspaceSettingsAccessPin.value = generateAccessPin()
+}
+
+async function copyWorkspaceSettingsPin() {
+  const normalizedPin = normalizeAccessPin(workspaceSettingsAccessPin.value)
+  if (!/^\d{6}$/.test(normalizedPin)) {
+    triggerEditorWarning('PIN moet exact 6 cijfers bevatten.')
+    return
+  }
+
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    triggerEditorWarning('Kopieren wordt niet ondersteund in deze browser.')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(normalizedPin)
+    triggerEditorWarning('Pincode gekopieerd naar klipbord.')
+  } catch {
+    triggerEditorWarning('Kopieren van pincode is mislukt.')
+  }
 }
 
 const blockLabelByType = {
@@ -1111,6 +1185,7 @@ async function fetchWorkspaceContext(accessToken) {
     : 'offline'
   workspaceSettingsVisibility.value = currentWorkspaceVisibility.value
   workspaceSettingsApprovalMode.value = workspace?.approval_mode === 'automatic' ? 'automatic' : 'manual'
+  workspaceSettingsAccessPin.value = normalizeAccessPin(workspace?.access_pin || '')
   isWorkspaceOwner.value = Boolean(owner?.id && owner.id === session.value?.user?.id)
 
   return workspace
@@ -1142,25 +1217,31 @@ async function startWorkspacePublishFlow() {
 
       publishModalError.value = ''
       publishVisibilitySelection.value = ''
+      publishAccessPin.value = generateAccessPin()
       isPublishModalOpen.value = true
       return
     }
 
-    await publishWorkspaceFromEditor(accessToken, workspace?.visibility)
+    await publishWorkspaceFromEditor(accessToken, workspace?.visibility, workspace?.access_pin)
   } catch (error) {
     triggerEditorWarning(error?.data?.statusMessage || error?.statusMessage || error?.message || 'Publiceren is mislukt.')
   }
 }
 
-async function publishWorkspaceFromEditor(accessToken, visibilitySelection) {
+async function publishWorkspaceFromEditor(accessToken, visibilitySelection, requestedAccessPin = '') {
   const nextVisibility = visibilitySelection === 'private' ? 'private' : 'public'
+  const nextAccessPin = nextVisibility === 'private'
+    ? normalizeAccessPin(requestedAccessPin || publishAccessPin.value)
+    : ''
+
   const response = await $fetch(`/api/workspaces/${workspaceId.value}/publish`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${accessToken}`
     },
     body: {
-      visibility: nextVisibility
+      visibility: nextVisibility,
+      accessPin: nextVisibility === 'private' ? nextAccessPin : null
     }
   })
 
@@ -1169,6 +1250,9 @@ async function publishWorkspaceFromEditor(accessToken, visibilitySelection) {
     currentWorkspaceVisibility.value = responseVisibility
     workspaceSettingsVisibility.value = responseVisibility
   }
+
+  workspaceSettingsAccessPin.value = normalizeAccessPin(response?.workspace?.access_pin || '')
+  publishAccessPin.value = workspaceSettingsAccessPin.value
 
   if (response?.alreadyPublished) {
     triggerEditorWarning('Deze ruimte is al gepubliceerd.')
@@ -1200,6 +1284,15 @@ async function confirmWorkspacePublish() {
     return
   }
 
+  if (publishVisibilitySelection.value === 'private') {
+    publishAccessPin.value = normalizeAccessPin(publishAccessPin.value)
+
+    if (!/^\d{6}$/.test(publishAccessPin.value)) {
+      publishModalError.value = 'Kies een geldige pincode van 6 cijfers of genereer er een.'
+      return
+    }
+  }
+
   await initAuth()
   const accessToken = session.value?.access_token
 
@@ -1211,9 +1304,10 @@ async function confirmWorkspacePublish() {
   isPublishingWorkspace.value = true
 
   try {
-    await publishWorkspaceFromEditor(accessToken, publishVisibilitySelection.value)
+    await publishWorkspaceFromEditor(accessToken, publishVisibilitySelection.value, publishAccessPin.value)
     isPublishModalOpen.value = false
     publishVisibilitySelection.value = ''
+    publishAccessPin.value = ''
     publishModalError.value = ''
   } catch (error) {
     publishModalError.value = error?.data?.statusMessage || error?.statusMessage || error?.message || 'Publiceren is mislukt.'
@@ -1283,7 +1377,10 @@ async function saveWorkspaceSettings() {
         deceasedFirstName: workspaceSettingsFirstName.value.trim(),
         deceasedLastName: workspaceSettingsLastName.value.trim(),
         visibility: workspaceSettingsVisibility.value,
-        approvalMode: workspaceSettingsApprovalMode.value
+        approvalMode: workspaceSettingsApprovalMode.value,
+        accessPin: workspaceSettingsVisibility.value === 'private'
+          ? normalizeAccessPin(workspaceSettingsAccessPin.value)
+          : null
       }
     })
 
@@ -1560,6 +1657,49 @@ async function handleSceneReady() {
 
 .workspace-settings-radio-item input:disabled {
   opacity: 0.58;
+}
+
+.workspace-settings-pin-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.55rem;
+}
+
+.workspace-settings-pin-generate {
+  border: 1px solid #ccd5c1;
+  border-radius: 10px;
+  background: #edf2e6;
+  color: #425137;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.56rem 0.66rem;
+  cursor: pointer;
+}
+
+.workspace-settings-pin-generate:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.workspace-settings-pin-copy {
+  width: 2.35rem;
+  border: 1px solid #ccd5c1;
+  border-radius: 10px;
+  background: #edf2e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.workspace-settings-pin-copy img {
+  width: 1rem;
+  height: 1rem;
+}
+
+.workspace-settings-pin-copy:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
 }
 
 .workspace-settings-offline-note {
