@@ -73,10 +73,15 @@
             <Card class="details-card moderation-card">
               <div class="card-title-row">
                 <h2 class="card-title">Inhoudsmoderatie</h2>
-                <span class="pending-chip">0 wachtend</span>
+                <span class="pending-chip">{{ moderationPendingLabel }}</span>
               </div>
 
-              <p class="empty-message empty-message-compact">Er staan nog geen bijdragen klaar voor moderatie.</p>
+              <p v-if="moderationPendingCount === 0" class="empty-message empty-message-compact">
+                Er staan nog geen bijdragen klaar voor moderatie.
+              </p>
+              <p v-else class="empty-message empty-message-compact">
+                Er {{ moderationPendingCount === 1 ? 'staat' : 'staan' }} {{ moderationPendingCount }} bijdrage{{ moderationPendingCount === 1 ? '' : 'n' }} klaar voor controle.
+              </p>
 
               <div class="approval-settings">
                 <h3>Goedkeuringsinstellingen</h3>
@@ -167,7 +172,23 @@
 
             <Card class="details-card">
               <h2 class="card-title">Recente Activiteit</h2>
-              <p class="empty-message empty-message-compact">Er is nog geen recente activiteit beschikbaar.</p>
+              <p v-if="recentActivity.length === 0" class="empty-message empty-message-compact">
+                Er is nog geen recente activiteit beschikbaar.
+              </p>
+              <div v-else class="moderation-list">
+                <div v-for="entry in recentActivity" :key="entry.id" class="moderation-item">
+                  <div class="item-left">
+                    <span class="item-icon" :class="activityIconClass(entry.type)">
+                      {{ activityIconLabel(entry.type) }}
+                    </span>
+                    <div>
+                      <p class="item-name">{{ entry.title }}</p>
+                      <p class="item-meta">{{ activityMetaLabel(entry) }}</p>
+                    </div>
+                  </div>
+                  <p class="item-time">{{ formatDateTime(entry.happenedAt) }}</p>
+                </div>
+              </div>
             </Card>
           </aside>
         </div>
@@ -374,6 +395,8 @@ const roomErrorMessage = computed(() => {
 
 const workspace = computed(() => roomResponse.value?.workspace ?? null)
 const owner = computed(() => roomResponse.value?.owner ?? null)
+const moderation = computed(() => roomResponse.value?.moderation ?? { pendingCount: 0 })
+const recentActivity = computed(() => roomResponse.value?.recentActivity ?? [])
 
 function formatDisplayName(firstName, lastName, fallback = 'Onbekend') {
   return [firstName, lastName].filter(Boolean).join(' ').trim() || fallback
@@ -416,6 +439,11 @@ const room = computed(() => {
 
 const roomUrl = computed(() => (room.value?.slug ? `https://${room.value.slug}` : '—'))
 const collaborators = computed(() => roomResponse.value?.collaborators ?? [])
+const moderationPendingCount = computed(() => Number(moderation.value?.pendingCount) || 0)
+const moderationPendingLabel = computed(() => {
+  const count = moderationPendingCount.value
+  return `${count} wachtend`
+})
 
 const ownerPerson = computed(() => {
   if (!owner.value) return null
@@ -541,6 +569,32 @@ function isValidEmail(value) {
 function collaboratorRoleLabel(role) {
   if (role === 'collaborator') return 'Samenwerker'
   return role || 'Samenwerker'
+}
+
+function activityIconLabel(type) {
+  if (type === 'image') return 'IMG'
+  if (type === 'video') return 'VID'
+  if (type === 'audio') return 'AUD'
+  return 'TXT'
+}
+
+function activityIconClass(type) {
+  if (type === 'image') return 'item-icon-photo'
+  if (type === 'video') return 'item-icon-video'
+  if (type === 'audio') return 'item-icon-audio'
+  return 'item-icon-message'
+}
+
+function activityStatusLabel(status) {
+  if (status === 'published') return 'Gepubliceerd'
+  if (status === 'archived') return 'Gearchiveerd'
+  return 'Concept'
+}
+
+function activityMetaLabel(entry) {
+  const author = entry?.authorName || 'Onbekend'
+  const status = activityStatusLabel(entry?.status)
+  return `${author} • ${status}`
 }
 
 async function sendCollaboratorInvite() {

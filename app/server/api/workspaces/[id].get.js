@@ -23,6 +23,19 @@ function mapCollaborator(collaboratorRow, userRow) {
   }
 }
 
+function mapRecentActivity(postRow, authorRow) {
+  const authorName = formatName(authorRow?.first_name, authorRow?.last_name, authorRow?.email || 'Onbekend')
+
+  return {
+    id: postRow.id,
+    type: postRow.content_type || 'post',
+    status: postRow.status || 'draft',
+    title: postRow.title || 'Ongetitelde bijdrage',
+    authorName,
+    happenedAt: postRow.updated_at || postRow.created_at || null
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const workspaceId = getRouterParam(event, 'id')
 
@@ -85,10 +98,68 @@ export default defineEventHandler(async (event) => {
     )
   )
 
+  const [pendingPostsResult, recentPostsResult] = await Promise.all([
+    supabase
+      .from('app_posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'draft'),
+    supabase
+      .from('app_posts')
+      .select('id, title, content_type, status, author_id, created_at, updated_at')
+      .eq('workspace_id', workspaceId)
+      .order('updated_at', { ascending: false })
+      .limit(6)
+  ])
+
+  if (pendingPostsResult.error) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Kon moderatiegegevens niet ophalen.',
+      data: {
+        supabaseError: pendingPostsResult.error.message
+      }
+    })
+  }
+
+  if (recentPostsResult.error) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Kon recente activiteit niet ophalen.',
+      data: {
+        supabaseError: recentPostsResult.error.message
+      }
+    })
+  }
+
+  const recentPosts = Array.isArray(recentPostsResult.data) ? recentPostsResult.data : []
+  const authorIds = [...new Set(recentPosts.map((row) => row.author_id).filter(Boolean))]
+
+  let activityAuthors = []
+  if (authorIds.length > 0) {
+    const { data: authorRows } = await supabase
+      .from('app_users')
+      .select('id, email, first_name, last_name')
+      .in('id', authorIds)
+
+    activityAuthors = Array.isArray(authorRows) ? authorRows : []
+  }
+
+  const recentActivity = recentPosts.map((post) =>
+    mapRecentActivity(
+      post,
+      activityAuthors.find((author) => author.id === post.author_id)
+    )
+  )
+
   return {
     ok: true,
     workspace,
     owner,
-    collaborators: collaboratorsWithProfiles
+    collaborators: collaboratorsWithProfiles,
+    moderation: {
+      pendingCount: pendingPostsResult.count || 0
+    },
+    recentActivity
   }
 })
