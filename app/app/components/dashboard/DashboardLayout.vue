@@ -5,6 +5,11 @@
         <div class="logo-section">
           <img src="/logo-white.png" alt="Columba" class="logo" />
         </div>
+
+        <NuxtLink v-if="showBackButton" :to="backTo" class="back-link">
+          <span class="back-caret" aria-hidden="true">◀</span>
+          <span>{{ backLabel }}</span>
+        </NuxtLink>
       </div>
     </header>
 
@@ -30,6 +35,18 @@ defineProps({
   showSidebar: {
     type: Boolean,
     default: true
+  },
+  showBackButton: {
+    type: Boolean,
+    default: false
+  },
+  backTo: {
+    type: String,
+    default: '/dashboard'
+  },
+  backLabel: {
+    type: String,
+    default: 'Ga terug'
   }
 })
 </script>
@@ -54,6 +71,9 @@ defineProps({
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .logo-section {
@@ -64,6 +84,34 @@ defineProps({
 .logo {
   height: 64px;
   width: auto;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #ffffff;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.back-caret {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.back-link:hover {
+  filter: brightness(0.96);
 }
 
 .dashboard-main {
@@ -105,6 +153,17 @@ defineProps({
 
   .logo {
     height: 48px;
+  }
+
+  .back-link {
+    font-size: 0.95rem;
+  }
+
+  .back-caret {
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 5px;
+    font-size: 0.68rem;
   }
 }
 </style>

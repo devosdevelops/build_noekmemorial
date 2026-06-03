@@ -1,5 +1,5 @@
 <template>
-  <DashboardLayout :showSidebar="false">
+  <DashboardLayout :showSidebar="false" :showBackButton="true" backTo="/dashboard" backLabel="Ga terug">
     <div class="create-room-page">
       <section class="left-column">
         <Card class="intro-card">
