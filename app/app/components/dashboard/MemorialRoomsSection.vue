@@ -24,14 +24,14 @@
         </div>
 
         <div class="room-actions">
-          <button class="btn-secondary">
+          <NuxtLink class="btn-secondary" :to="`/dashboard/ruimte/${room.id}`">
             <img src="/icons/eye.svg" alt="" class="action-icon" aria-hidden="true" />
             Bekijk Details
-          </button>
-          <button class="btn-primary">
+          </NuxtLink>
+          <NuxtLink class="btn-primary" to="/editor">
             <img src="/icons/edit.svg" alt="" class="action-icon" aria-hidden="true" />
             Open in Editor
-          </button>
+          </NuxtLink>
         </div>
       </Card>
     </div>

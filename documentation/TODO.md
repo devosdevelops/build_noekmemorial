@@ -57,8 +57,10 @@
 ## Dashboard
 
 [x] main ui
-[] manage workspace ui
+[x] manage workspace ui
 [x] new room ui
+[] create account ui
+[] login ui
 [] create account
 [] activate workspace
 [] start room
